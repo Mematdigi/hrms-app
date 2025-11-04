@@ -1,0 +1,133 @@
+.performance-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.performance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.performance-header h1 {
+  font-size: 32px;
+  color: #333;
+}
+
+.create-btn {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.2s;
+}
+
+.create-btn:hover {
+  transform: translateY(-2px);
+}
+
+.performance-form {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  margin-bottom: 30px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #333;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.performance-form button {
+  grid-column: 1 / -1;
+  padding: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.reviews-table {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.reviews-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.reviews-table th {
+  background: #f5f5f5;
+  padding: 15px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1px solid #ddd;
+}
+
+.reviews-table td {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.reviews-table tr:hover {
+  background: #f9f9f9;
+}
+
+@media (max-width: 768px) {
+  .performance-container {
+    padding: 20px 15px;
+  }
+
+  .performance-header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+
+  .performance-form {
+    grid-template-columns: 1fr;
+  }
+}
