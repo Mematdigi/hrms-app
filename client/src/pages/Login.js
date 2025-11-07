@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import '../styles/Auth.css';
 
@@ -14,14 +14,33 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;           // prevent double submit
     setLoading(true);
+    setError('');
+
     try {
-      const response = await authAPI.login({ email, password });
-      localStorage.setItem('token', response.data.token);
-      dispatch({ type: 'LOGIN_SUCCESS', payload: response.data });
+      const res = await authAPI.login({ email, password });
+      // Expecting { token, user } — adjust if your shape differs
+      const { token, user } = res.data.data;
+      console.log('Login successful:', token,user);
+      console.log('User information:', res.data.data);
+      // persist token
+      localStorage.setItem('token', token);
+
+      // (optional) keep user for quick access
+      localStorage.setItem('hrmsUser', JSON.stringify(user));
+
+      // redux
+      dispatch({ type: 'LOGIN_SUCCESS', payload: { token, user } });
+
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      const msg =
+        err.response?.data?.message ||
+        err.message ||
+        'Login failed';
+      setError(msg);
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -31,31 +50,46 @@ function Login() {
     <div className="auth-container">
       <div className="auth-card">
         <h1>HRMS Login</h1>
+
         {error && <div className="error-message">{error}</div>}
-        <form onSubmit={handleSubmit}>
+
+        {/* Let browsers help: */}
+        <form onSubmit={handleSubmit} autoComplete="on">
           <div className="form-group">
-            <label>Email</label>
+            <label htmlFor="email">Email</label>
             <input
+              id="email"
+              name="username"                  // important for heuristics
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              inputMode="email"
             />
           </div>
+
           <div className="form-group">
-            <label>Password</label>
+            <label htmlFor="password">Password</label>
             <input
+              id="password"
+              name="password"
               type="password"
+              autoComplete="current-password"  // fixes your warning
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
           </div>
+
           <button type="submit" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? 'Logging in…' : 'Login'}
           </button>
         </form>
-        <p>Don't have an account? <a href="/register">Register here</a></p>
+
+        <p>
+          Don&apos;t have an account? <Link to="/register">Register here</Link>
+        </p>
       </div>
     </div>
   );

@@ -19,7 +19,7 @@ const Dashboard = () => {
       setLoading(true);
       const response = await api.get('/employees');
       const employees = response.data;
-      
+      console.log('Fetched employees:', employees);
       setStats({
         totalEmployees: employees.length,
         activeEmployees: employees.filter(e => e.status === 'active').length,
