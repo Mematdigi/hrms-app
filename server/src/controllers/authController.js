@@ -35,7 +35,6 @@ class AuthController {
       email,
       password: hashedPassword,
       role: role || 'employee',
-      
     });
 
     const token = tokenService.generateToken(user);
@@ -51,7 +50,6 @@ class AuthController {
       }
     }));
   });
-
 
   // 🔹 Login existing user
   login = catchAsync(async (req, res) => {

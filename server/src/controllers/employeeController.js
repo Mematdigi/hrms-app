@@ -23,19 +23,21 @@ exports.getEmployeeById = async (req, res) => {
 
 exports.createEmployee = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, department, designation, dateOfJoining } = req.body;
+    const { firstName, lastName, email, password, department, designation, dateOfJoining} = req.body;
     
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'Email already exists' });
     }
 
+    
+
     const user = new User({
       firstName,
       lastName,
       email,
       password,
-      role: 'employee',
+      role,
       department,
       designation,
       dateOfJoining,
