@@ -11,7 +11,9 @@ import Payroll from './pages/Payroll';
 import Performance from './pages/Performance';
 import RoleManagement from './pages/RoleManagement';
 import Navbar from './components/Navbar';
-import './styles/App.css';
+// import './styles/App.css';
+import './assets/scss/main.scss'
+import Notfound from './pages/Notfound';
 
 function App() {
   const { token } = useSelector((state) => state.auth);
@@ -30,6 +32,7 @@ function App() {
         <Route path="/performance" element={token ? <Performance /> : <Navigate to="/login" />} />
         <Route path="/roles" element={token ? <RoleManagement /> : <Navigate to="/login" />} />
         <Route path="/" element={<Navigate to={token ? "/dashboard" : "/login"} />} />
+        <Route path="*" element={<Navigate to={"./"} />} />
       </Routes>
     </Router>
   );

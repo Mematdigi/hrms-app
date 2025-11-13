@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { payrollAPI, employeeAPI } from '../services/api';
-import '../styles/Payroll.css';
+// import '../styles/Payroll.css';
 
 function Payroll() {
   const [employees, setEmployees] = useState([]);
