@@ -27,14 +27,15 @@ class AuthController {
       return res.status(400).json(apiResponse(400, "Email already exists"));
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
       firstName,
       lastName,
       email,
-      password: hashedPassword,
+      password,
       role: role || 'employee',
+      employeeId: `EMP${(await User.findOne().sort({ employeeId: -1 }))?.employeeId?.slice(3) * 1 + 1 || 1}`.padStart(4, '0')
     });
 
     const token = tokenService.generateToken(user);
@@ -54,22 +55,18 @@ class AuthController {
   // 🔹 Login existing user
   login = catchAsync(async (req, res) => {
     const { email, password } = req.body;
-
     if (!email || !password) {
-      return res.status(400).json(ApiError(400, "Missing credentials"));
+           throw new ApiError(400, "Missing credentials");
     }
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json(ApiError(401, "Invalid credentials"));
+     throw new ApiError(401, "Invalid credentials");
     }
-
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json(ApiError(401, "Invalid credentials"));
+     throw new ApiError(401, "Invalid credentials");
     }
-
     const token = tokenService.generateToken(user);
-
     return res.status(200).json(apiResponse("Login successful", {
       token,
       user: {

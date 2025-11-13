@@ -12,7 +12,7 @@ const payrollReducer = (state = initialState, action) => {
       return { ...state, payrolls: action.payload, loading: false };
     case 'FETCH_PAYROLL_FAILURE':
       return { ...state, error: action.payload, loading: false };
-    default:
+    default:  
       return state;
   }
 };

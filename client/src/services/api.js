@@ -29,6 +29,7 @@ export const employeeAPI = {
   create: (data) => api.post('/employees', data),
   update: (id, data) => api.put(`/employees/${id}`, data),
   delete: (id) => api.delete(`/employees/${id}`),
+  getPayrolls: () => api.get('/employees/all/payrolls'),
 };
 
 export const attendanceAPI = {

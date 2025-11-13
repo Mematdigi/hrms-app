@@ -2,11 +2,11 @@ const PerformanceReview = require('../models/PerformanceReview');
 
 exports.createReview = async (req, res) => {
   try {
-    const { employeeId, reviewerId, reviewPeriod, rating, strengths, areasForImprovement, goals, comments } = req.body;
+    const { employee_id, reviewer_id, reviewPeriod, rating, strengths, areasForImprovement, goals, comments } = req.body;
     
     const review = new PerformanceReview({
-      employee: employeeId,
-      reviewer: reviewerId,
+      employee_id: employee_id,
+      reviewer_id: reviewer_id,
       reviewPeriod,
       rating,
       strengths,
@@ -25,15 +25,15 @@ exports.createReview = async (req, res) => {
 
 exports.getReviews = async (req, res) => {
   try {
-    const { employeeId, status } = req.query;
+    const { employee_id, status } = req.query;
     const query = {};
 
-    if (employeeId) query.employee = employeeId;
+    if (employee_id) query.employee_id = employee_id;
     if (status) query.status = status;
 
     const reviews = await PerformanceReview.find(query)
-      .populate('employee', 'firstName lastName')
-      .populate('reviewer', 'firstName lastName');
+      .populate('employee_id', 'firstName lastName')
+      .populate('reviewer_id', 'firstName lastName');
     
     res.json(reviews);
   } catch (error) {

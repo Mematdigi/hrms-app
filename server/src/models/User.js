@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema({
   state: { type: String },
   zipCode: { type: String },
   profileImage: { type: String },
-  reportingManager: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  reportingManager_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
