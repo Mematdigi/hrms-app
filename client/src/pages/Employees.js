@@ -14,6 +14,7 @@ function Employees() {
     password: '',
     department: '',
     designation: '',
+    dateOfJoining: '',
   });
   const { user } = useSelector((state) => state.auth);
 
@@ -23,7 +24,9 @@ function Employees() {
 
   const fetchEmployees = async () => {
     try {
+      
       const response = await employeeAPI.getAll();
+      console.log('Fetched employees: ', response.data);
       setEmployees(response.data);
     } catch (error) {
       console.error('Error fetching employees:', error);
@@ -39,7 +42,7 @@ function Employees() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await employeeAPI.create(formData);
+     const response = await employeeAPI.create(formData);
       setFormData({
         firstName: '',
         lastName: '',
@@ -47,16 +50,18 @@ function Employees() {
         password: '',
         department: '',
         designation: '',
+        dateOfJoining: '',
       });
       setShowForm(false);
+      console.log('Employee created:', response.data);
       fetchEmployees();
     } catch (error) {
+      // alert(response?.data?.message || 'Error creating employee');
       console.error('Error creating employee:', error);
     }
   };
 
   if (loading) return <div className="loading">Loading...</div>;
-
   return (
     <div className="employees-container">
       <div className="employees-header">
@@ -116,6 +121,13 @@ function Employees() {
             value={formData.designation}
             onChange={handleChange}
           />
+          <input
+            type="date"
+            name="dateOfJoining"
+            placeholder="Date of Joining"
+            value={formData.dateOfJoining}
+            onChange={handleChange}
+          />
           <button type="submit">Create Employee</button>
         </form>
       )}
@@ -146,6 +158,6 @@ function Employees() {
       </div>
     </div>
   );
-}
+  }
 
 export default Employees;

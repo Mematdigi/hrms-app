@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const payrollSchema = new mongoose.Schema({
-  employee: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  employee: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Reference to User model and  works as employee id 
   month: { type: Number, required: true },
   year: { type: Number, required: true },
   baseSalary: { type: Number, required: true },

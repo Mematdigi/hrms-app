@@ -44,11 +44,11 @@ function Performance() {
     try {
       await performanceAPI.create({
         ...formData,
-        reviewerId: user?.id,
+        reviewer_id: user?.id,
         rating: parseInt(formData.rating),
       });
       setFormData({
-        employeeId: '',
+        employee_id: '',
         reviewPeriod: '',
         rating: 3,
         strengths: '',

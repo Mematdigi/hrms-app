@@ -3,6 +3,8 @@ import { useDispatch } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import '../styles/Auth.css';
+import { showError, showSuccess } from "../utils/toast"; // adjust path
+
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -24,6 +26,7 @@ function Login() {
       const { token, user } = res.data.data;
       console.log('Login successful:', token,user);
       console.log('User information:', res.data.data);
+      console.log('Full response:', res);
       // persist token
       localStorage.setItem('token', token);
 
@@ -40,7 +43,8 @@ function Login() {
         err.message ||
         'Login failed';
       setError(msg);
-      console.error('Login error:', err);
+      showError(msg);
+      console.error('Login error:', err.response);
     } finally {
       setLoading(false);
     }
