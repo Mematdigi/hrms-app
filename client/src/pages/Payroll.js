@@ -2,27 +2,45 @@ import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { payrollAPI, employeeAPI } from '../services/api';
 import '../styles/Payroll.css';
-
+ import {showError} from '../utils/toast';
 function Payroll() {
+  // ==================== STATE MANAGEMENT ====================
+  
   const [employees, setEmployees] = useState([]);
+  
+  // Loading state to show spinner while fetching data
   const [loading, setLoading] = useState(true);
+  
+  // Controls whether the payroll form is visible or hidden
   const [showForm, setShowForm] = useState(false);
-  const [selectedEmployees, setSelectedEmployees] = useState([]);
+  
+  // MODIFIED: Now stores only ONE employee ID (not an array)
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  
+  // Form data for payroll generation
   const [formData, setFormData] = useState({
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
-    baseSalary: '',
-    allowances: '',
-    deductions: '',
-    tax: '',
+    month: new Date().getMonth() + 1, // Current month (1-12)
+    year: new Date().getFullYear(),    // Current year
+    baseSalary: '',                    // Base salary amount
+    WorkedDays: '',                     // Additional WorkedDays
+    deductions: '',                     // Deductions (PF, insurance, etc.)
+    workingDays: '',                           // workingDays amount
   });
+  
+  // Get logged-in user details from Redux store (for role-based access)
   const { user } = useSelector((state) => state.auth);
 
-  // Fetching employee data
+  //==================== DATA FETCHING ====================
+  
+  // Fetch employee data when component mounts
   useEffect(() => {
     fetchEmployees();
-  }, []);
+  }, []); // Empty dependency array means this runs only once on mount
 
+  /**
+   * Fetches all employees from the API
+   * Sets loading to false after data is fetched
+   */
   const fetchEmployees = async () => {
     try {
       const response = await employeeAPI.getPayrolls();
@@ -31,94 +49,150 @@ function Payroll() {
     } catch (error) {
       console.error('Error fetching employees:', error);
     } finally {
+      // Always set loading to false, whether success or error
       setLoading(false);
     }
   };
 
-  // Handle checkbox selection for employees
+  // ==================== EVENT HANDLERS ====================
+  
+  /**
+   * MODIFIED: Handles radio button selection of ONE employee at a time
+   * @param {string} employeeId - The ID of the employee to select
+   */
   const handleCheckboxChange = (employeeId) => {
-    setSelectedEmployees(prev => {
-      if (prev.includes(employeeId)) {
-        // Remove if already selected
-        return prev.filter(id => id !== employeeId);
-      } else {
-        // Add if not selected
-        return [...prev, employeeId];
-      }
-    });
+    // If clicking the same employee, deselect
+    if (selectedEmployee === employeeId) {
+      setSelectedEmployee(null);
+      setShowForm(false); // Hide form when deselected
+    } else {
+      // Select the new employee (replaces previous selection)
+      setSelectedEmployee(employeeId);
+    }
   };
 
+  /**
+   * Handles form input changes
+   * @param {Event} e - The change event from input fields
+   */
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData({ 
+      ...formData, 
+      [e.target.name]: e.target.value 
+    });
   };
   
+  /**
+   * MODIFIED: Handles form submission for payroll generation (single employee)
+   * @param {Event} e - The form submit event
+   */
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevent default form submission behavior
     
-    if (selectedEmployees.length === 0) {
-      alert('Please select at least one employee');
+    // Validation: Check if an employee is selected
+    if (!selectedEmployee) {
+      alert('Please select an employee');
       return;
     }
 
     try {
+      // Send payroll generation request to API for single employee
+      console.log("selected employee",selectedEmployee)
       await payrollAPI.generate({
-        employee: selectedEmployees,
-        ...formData,
+        employee: selectedEmployee,  // Send as array with single employee
+        ...formData,            // Spread all form data
+        // Parse string values to numbers for calculations
         baseSalary: parseFloat(formData.baseSalary),
-        allowances: parseFloat(formData.allowances) || 0,
-        deductions: parseFloat(formData.deductions) || 0,
-        tax: parseFloat(formData.tax) || 0,
-        month: parseInt(formData.month),
-        year: parseInt(formData.year)
+          WorkedDays: parseFloat(formData.WorkedDays) || 0,  // Default to 0 if empty
+          deductions: parseFloat(formData.deductions) || 0,  // Default to 0 if empty
+          TotalWorkingDays: parseFloat(formData.workingDays) || 0,                // Default to 0 if empty
+         month: parseInt(formData.month),
+          year: parseInt(formData.year)
       });
       
-      // Reset form
+      // Reset form to initial state after successful submission
       setFormData({
         month: new Date().getMonth() + 1,
         year: new Date().getFullYear(),
         baseSalary: '',
-        allowances: '',
+        WorkedDays: '',
         deductions: '',
-        tax: '',
+        workingDays: '',
       });
-      setSelectedEmployees([]);
+      
+      // Clear selected employee
+      setSelectedEmployee(null);
+      
+      // Hide the form
       setShowForm(false);
       
-      // Refresh employee data
+      // Refresh employee data to show updated payroll information
       fetchEmployees();
       
+      // Show success message
       alert('Payroll generated successfully!');
-    } catch (error) {
-      console.error('Error generating payroll:', error);
-      alert('Error generating payroll. Please try again.');
+    }catch (error) {
+    console.error('Error generating payroll:', error);
+    showError('Error generating payroll. Please try again.',error.response?.data?.message);
     }
   };
 
-  // Check if an employee is selected
+  // ==================== HELPER FUNCTIONS ====================
+  
+  /**
+   * Check if a specific employee is selected
+   * @param {string} employeeId - The employee ID to check
+   * @returns {boolean} - True if employee is selected
+   */
   const isEmployeeSelected = (employeeId) => {
-    return selectedEmployees.includes(employeeId);
+    return selectedEmployee === employeeId;
   };
 
-  // Separate selected and unselected employees
-  const selectedEmployeeList = employees.filter(emp => selectedEmployees.includes(emp._id));
-  const unselectedEmployeeList = employees.filter(emp => !selectedEmployees.includes(emp._id));
+  /**
+   * Get the selected employee object
+   */
+  const selectedEmployeeData = employees.find(emp => emp._id === selectedEmployee);
 
+  /**
+   * Separate employees into two arrays:
+   * 1. Selected employee (to show at top)
+   * 2. Unselected employees (to show at bottom)
+   */
+  const selectedEmployeeList = selectedEmployee 
+    ? employees.filter(emp => emp._id === selectedEmployee)
+    : [];
+  const unselectedEmployeeList = employees.filter(emp => emp._id !== selectedEmployee);
+
+  // ==================== RENDERING ====================
+  
+  // Show loading spinner while fetching data
   if (loading) return <div className="loading">Loading...</div>;
 
   return (
     <div className="payroll-container">
+      {/* ========== HEADER SECTION ========== */}
       <div className="payroll-header">
         <h1>Payroll Management</h1>
-        {(user?.role === 'admin' || user?.role === 'hr') && selectedEmployees.length > 0 && (
-          <button onClick={() => setShowForm(!showForm)} className="generate-btn">
-            {showForm ? 'Cancel' : `Generate Payroll (${selectedEmployees.length})`}
+        
+        {/* Show "Generate Payroll" button only if:
+            1. User is admin or HR
+            2. An employee is selected */}
+        {(user?.role === 'admin' || user?.role === 'hr') && selectedEmployee && (
+          <button 
+            onClick={() => setShowForm(!showForm)} 
+            className="generate-btn"
+          >
+            {/* Toggle button text based on form visibility */}
+            {showForm ? 'Cancel' : 'Generate Payroll'}
           </button>
         )}
       </div>
 
+      {/* ========== PAYROLL TABLE ========== */}
       <div className="payroll-table">
         <h2>Employee Payroll</h2>
         <table>
+          {/* Table Headers */}
           <thead>
             <tr>
               <th>Select</th>
@@ -126,15 +200,18 @@ function Payroll() {
               <th>Employee Name</th>
               <th>Email</th>
               <th>Department</th>
-              <th>Designation</th>
+              {/* <th>Designation</th> */}
               <th>Date of Joining</th>
               <th>Salary</th>
-              <th>Allowances</th>
+              <th>Worked Days</th>
               <th>Deductions</th>
               <th>Net Salary</th>
+              <th>Working Days</th>
             </tr>
           </thead>
+          
           <tbody>
+            {/* Show message if no employees found */}
             {employees.length === 0 ? (
               <tr>
                 <td colSpan="11" style={{ textAlign: 'center', padding: '30px' }}>
@@ -143,10 +220,14 @@ function Payroll() {
               </tr>
             ) : (
               <>
-                {/* Selected Employees */}
+                {/* ========== SELECTED EMPLOYEE (Show at top) ========== */}
                 {selectedEmployeeList.map((emp) => (
-                  <tr key={`selected-${emp._id}`} className="selected-row">
+                  <tr 
+                    key={emp._id}  // Unique key using employee ID
+                    className="selected-row"  // CSS class for highlighting
+                  >
                     <td>
+                      {/* MODIFIED: Using radio button behavior with checkbox appearance */}
                       <input
                         type="checkbox"
                         checked={isEmployeeSelected(emp._id)}
@@ -159,42 +240,59 @@ function Payroll() {
                     <td>{emp.department}</td>
                     <td>{emp.designation}</td>
                     <td>{new Date(emp.dateOfJoining).toLocaleDateString()}</td>
+                    {/* Payroll data with fallback to '-' if not available */}
                     <td>₹{emp.payroll?.baseSalary || '-'}</td>
-                    <td>₹{emp.payroll?.allowances || '-'}</td>
+                    <td>₹{emp.payroll?.WorkedDays || '-'}</td>
                     <td>₹{emp.payroll?.deductions || '-'}</td>
                     <td>₹{emp.payroll?.netSalary || '-'}</td>
                   </tr>
                 ))}
 
-                {/* Form Row - Appears after selected employees */}
-                {showForm && selectedEmployees.length > 0 && (
+                {/* ========== PAYROLL FORM (Appears below selected employee) ========== */}
+                {showForm && selectedEmployee && (
                   <tr key="payroll-form-row" className="form-row-container">
+                    {/* Span all columns to make form full-width */}
                     <td colSpan="11">
                       <form onSubmit={handleSubmit} className="inline-payroll-form">
-                        <h3>Generate Payroll for {selectedEmployees.length} Employee(s)</h3>
+                        {/* Form Title */}
+                        <h3>Generate Payroll for Employee</h3>
                         
-                        {/* Selected Employees Verification Box */}
+                        {/* ========== EMPLOYEE VERIFICATION BOX ========== */}
                         <div className="selected-employees-box">
-                          <h4>Selected Employees:</h4>
+                          <h4>Selected Employee:</h4>
+                          
+                          {/* Display selected employee as a chip */}
                           <div className="employee-chips">
-                            {selectedEmployeeList.map((emp) => (
-                              <div key={emp._id} className="employee-chip">
-                                <span className="emp-id">{emp.employeeId}</span>
-                                <span className="emp-name">{emp.firstName} {emp.lastName}</span>
+                            {selectedEmployeeData && (
+                              <div className="employee-chip">
+                                {/* Employee ID Badge */}
+                                <span className="emp-id">{selectedEmployeeData.employeeId}</span>
+                                
+                                {/* Employee Name */}
+                                <span className="emp-name">
+                                  {selectedEmployeeData.firstName} {selectedEmployeeData.lastName}
+                                </span>
+                                
+                                {/* Remove button to deselect employee */}
                                 <button
                                   type="button"
                                   className="remove-chip"
-                                  onClick={() => handleCheckboxChange(emp._id)}
+                                  onClick={() => {
+                                    setSelectedEmployee(null);
+                                    setShowForm(false);
+                                  }}
                                   title="Remove from selection"
                                 >
                                   ×
                                 </button>
                               </div>
-                            ))}
+                            )}
                           </div>
                         </div>
 
+                        {/* ========== FORM FIELDS ========== */}
                         <div className="form-grid">
+                          {/* Month Selection Dropdown */}
                           <div className="form-group">
                             <label>Month *</label>
                             <select
@@ -218,6 +316,7 @@ function Payroll() {
                             </select>
                           </div>
 
+                          {/* Year Input */}
                           <div className="form-group">
                             <label>Year *</label>
                             <input
@@ -231,6 +330,7 @@ function Payroll() {
                             />
                           </div>
 
+                          {/* Base Salary Input */}
                           <div className="form-group">
                             <label>Base Salary *</label>
                             <input
@@ -241,23 +341,25 @@ function Payroll() {
                               onChange={handleChange}
                               required
                               min="0"
-                              step="0.01"
+                              step="0.01"  // Allow decimal values
                             />
                           </div>
 
+                          {/* WorkedDays Input (Optional) */}
                           <div className="form-group">
-                            <label>Allowances</label>
+                            <label>WorkedDays</label>
                             <input
                               type="number"
-                              name="allowances"
-                              placeholder="Enter allowances"
-                              value={formData.allowances}
+                              name="WorkedDays"
+                              placeholder="Enter WorkedDays"
+                              value={formData.WorkedDays}
                               onChange={handleChange}
                               min="0"
                               step="0.01"
                             />
                           </div>
 
+                          {/* Deductions Input (Optional) */}
                           <div className="form-group">
                             <label>Deductions</label>
                             <input
@@ -271,13 +373,14 @@ function Payroll() {
                             />
                           </div>
 
+                          {/* Working Days Input (Optional) */}
                           <div className="form-group">
-                            <label>Tax</label>
+                            <label>Working Days</label>
                             <input
                               type="number"
-                              name="tax"
-                              placeholder="Enter tax amount"
-                              value={formData.tax}
+                              name="workingDays"
+                              placeholder="Enter working days amount"
+                              value={formData.workingDays}
                               onChange={handleChange}
                               min="0"
                               step="0.01"
@@ -285,10 +388,14 @@ function Payroll() {
                           </div>
                         </div>
 
+                        {/* ========== FORM ACTION BUTTONS ========== */}
                         <div className="form-actions">
+                          {/* Submit Button */}
                           <button type="submit" className="save-payroll-btn">
                             Save Payroll
                           </button>
+                          
+                          {/* Cancel Button */}
                           <button 
                             type="button" 
                             className="cancel-btn"
@@ -302,10 +409,11 @@ function Payroll() {
                   </tr>
                 )}
 
-                {/* Unselected Employees */}
+                {/* ========== UNSELECTED EMPLOYEES (Show at bottom) ========== */}
                 {unselectedEmployeeList.map((emp) => (
-                  <tr key={`unselected-${emp._id}`}>
+                  <tr key={emp._id}>
                     <td>
+                      {/* Checkbox for unselected employees */}
                       <input
                         type="checkbox"
                         checked={isEmployeeSelected(emp._id)}
@@ -316,12 +424,13 @@ function Payroll() {
                     <td>{emp.firstName} {emp.lastName}</td>
                     <td>{emp.email}</td>
                     <td>{emp.department}</td>
-                    <td>{emp.designation}</td>
+                    {/* <td>{emp.designation}</td> */}
                     <td>{new Date(emp.dateOfJoining).toLocaleDateString()}</td>
                     <td>₹{emp.payroll?.baseSalary || '-'}</td>
-                    <td>₹{emp.payroll?.allowances || '-'}</td>
+                    <td>₹{emp.payroll?.WorkedDays || '-'}</td>
                     <td>₹{emp.payroll?.deductions || '-'}</td>
                     <td>₹{emp.payroll?.netSalary || '-'}</td>
+                    <td>₹{emp.payroll?.workingDays || '-'}</td>
                   </tr>
                 ))}
               </>
