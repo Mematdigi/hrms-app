@@ -19,6 +19,8 @@
     "bootstrap": "^5.3.8",
     "crypto-browserify": "^3.12.1",
     "dotenv": "^17.2.3",
+    "jspdf": "^3.0.3",
+    "jspdf-autotable": "^5.0.2",
     "jwt-decode": "^4.0.0",
     "os-browserify": "^0.3.0",
     "react": "^18.2.0",

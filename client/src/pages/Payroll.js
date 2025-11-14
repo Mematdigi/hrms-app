@@ -1,80 +1,436 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { payrollAPI, employeeAPI } from '../services/api';
-// import '../styles/Payroll.css';
+// import '../styles/Payroll.scss';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 function Payroll() {
   // ==================== STATE MANAGEMENT ====================
   
   const [employees, setEmployees] = useState([]);
-  
-  // Loading state to show spinner while fetching data
   const [loading, setLoading] = useState(true);
-  
-  // Controls whether the payroll form is visible or hidden
   const [showForm, setShowForm] = useState(false);
-  
-  // MODIFIED: Now stores only ONE employee ID (not an array)
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [employeesPerPage] = useState(10);
+  const [generatingPDF, setGeneratingPDF] = useState(null);
   
-  // Form data for payroll generation
   const [formData, setFormData] = useState({
-    month: new Date().getMonth() + 1, // Current month (1-12)
-    year: new Date().getFullYear(),    // Current year
-    baseSalary: '',                    // Base salary amount
-    WorkedDays: '',                     // Additional WorkedDays
-    deductions: '',                     // Deductions (PF, insurance, etc.)
-    workingDays: '',                           // workingDays amount
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+    baseSalary: '',
+    WorkedDays: '',
+    deductions: '',
+    workingDays: '',
   });
   
-  // Get logged-in user details from Redux store (for role-based access)
   const { user } = useSelector((state) => state.auth);
 
-  //==================== DATA FETCHING ====================
+  // ==================== DATA FETCHING ====================
   
-  // Fetch employee data when component mounts
   useEffect(() => {
     fetchEmployees();
-  }, []); // Empty dependency array means this runs only once on mount
+  }, []);
 
-  /**
-   * Fetches all employees from the API
-   * Sets loading to false after data is fetched
-   */
   const fetchEmployees = async () => {
     try {
       const response = await employeeAPI.getPayrolls();
       console.log('Fetched employees: payroll', response.data);
-      setEmployees(response.data.data);
+      setEmployees(response.data.data || []);
     } catch (error) {
       console.error('Error fetching employees:', error);
+      toast.error('Failed to fetch employees');
     } finally {
-      // Always set loading to false, whether success or error
       setLoading(false);
     }
   };
 
-  // ==================== EVENT HANDLERS ====================
+  // ==================== PAGINATION LOGIC ====================
+  
+  const indexOfLastEmployee = currentPage * employeesPerPage;
+  const indexOfFirstEmployee = indexOfLastEmployee - employeesPerPage;
+  const currentEmployees = employees.slice(indexOfFirstEmployee, indexOfLastEmployee);
+  const totalPages = Math.ceil(employees.length / employeesPerPage);
+
+  const paginate = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    setSelectedEmployee(null);
+    setShowForm(false);
+  };
+
+  const nextPage = () => {
+    if (currentPage < totalPages) paginate(currentPage + 1);
+  };
+
+  const prevPage = () => {
+    if (currentPage > 1) paginate(currentPage - 1);
+  };
+
+  // ==================== HELPER FUNCTION: NUMBER TO WORDS ====================
   
   /**
-   * MODIFIED: Handles radio button selection of ONE employee at a time
-   * @param {string} employeeId - The ID of the employee to select
+   * Convert number to words (Indian format)
    */
+  const numberToWords = (num) => {
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    
+    if (num === 0) return 'Zero';
+    
+    const convertLessThanThousand = (n) => {
+      if (n === 0) return '';
+      if (n < 10) return ones[n];
+      if (n < 20) return teens[n - 10];
+      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
+      return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + convertLessThanThousand(n % 100) : '');
+    };
+    
+    if (num < 1000) return convertLessThanThousand(num);
+    if (num < 100000) {
+      return convertLessThanThousand(Math.floor(num / 1000)) + ' Thousand' + 
+             (num % 1000 !== 0 ? ' ' + convertLessThanThousand(num % 1000) : '');
+    }
+    if (num < 10000000) {
+      return convertLessThanThousand(Math.floor(num / 100000)) + ' Lakh' + 
+             (num % 100000 !== 0 ? ' ' + numberToWords(num % 100000) : '');
+    }
+    return convertLessThanThousand(Math.floor(num / 10000000)) + ' Crore' + 
+           (num % 10000000 !== 0 ? ' ' + numberToWords(num % 10000000) : '');
+  };
+
+  // ==================== PDF GENERATION ====================
+  
+  /**
+   * Generate Professional Payslip PDF (Exact Design Match)
+   */
+/**
+ * Generate Professional Payslip PDF (Exact Design Match)
+ */
+const handleGeneratePDF = async (employee) => {
+  if (!employee.payroll || !employee.payroll.netSalary) {
+    toast.error('No payroll data available for this employee');
+    return;
+  }
+
+  try {
+    setGeneratingPDF(employee._id);
+    
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+
+    // ========== CONVERT ALL VALUES TO NUMBERS ==========
+    const baseSalary = parseFloat(employee.payroll.baseSalary) || 0;
+    const workedDays = parseInt(employee.payroll.WorkedDays) || 0;
+    const deductions = parseFloat(employee.payroll.deductions) || 0;
+    const totalWorkingDays = parseInt(employee.payroll.TotalWorkingDays) || 0;
+
+    // ========== BACKGROUND ==========
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+    // ========== HEADER: PAYSLIP ==========
+    let yPos = 20;
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Payslip', pageWidth / 2, yPos, { align: 'center' });
+
+    // ========== COMPANY INFO ==========
+    yPos = 30;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Memat Digi pvt Ltd', pageWidth / 2, yPos, { align: 'center' });
+    
+    yPos += 5;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Lawrence road, Shakurpur', pageWidth / 2, yPos, { align: 'center' });
+    
+    yPos += 5
+    doc.text('Delhi', pageWidth / 2, yPos, { align: 'center' });
+
+    // ========== EMPLOYEE DETAILS SECTION ==========
+    yPos = 50;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+
+    // Left Column
+    const leftX = 20;
+    const rightX = 110;
+    const labelWidth = 40;
+
+    // Date of Joining
+    doc.text('Date of Joining', leftX, yPos);
+    doc.text(': ' + new Date(employee.dateOfJoining).toLocaleDateString(), leftX + labelWidth, yPos);
+
+    // Employee Name
+    doc.text('Employee name', rightX, yPos);
+    doc.text(': ' + employee.firstName + ' ' + employee.lastName, rightX + labelWidth, yPos);
+
+    yPos += 5;
+
+    // Pay Period
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+    const payMonth = monthNames[(employee.payroll.month || 1) - 1] || 'January';
+    const payYear = employee.payroll.year || new Date().getFullYear();
+    
+    doc.text('Pay Period', leftX, yPos);
+    doc.text(': ' + payMonth + ' ' + payYear, leftX + labelWidth, yPos);
+
+    // Designation
+    doc.text('Designation', rightX, yPos);
+    doc.text(': ' + (employee.designation || 'N/A'), rightX + labelWidth, yPos);
+
+    yPos += 5;
+
+    // Worked Days
+    doc.text('Worked Days', leftX, yPos);
+    doc.text(': ' + workedDays, leftX + labelWidth, yPos);
+
+    // Department
+    doc.text('Department', rightX, yPos);
+    doc.text(': ' + (employee.department || 'N/A'), rightX + labelWidth, yPos);
+
+    // ========== EARNINGS TABLE ==========
+    yPos += 15;
+
+    const incentivePay = baseSalary * 0.10; // 10% incentive
+    const houseRent = baseSalary * 0.04;     // 4% house rent
+    const mealAllowance = baseSalary * 0.02; // 2% meal allowance
+    const totalEarnings = baseSalary + incentivePay + houseRent + mealAllowance;
+
+    const earningsData = [
+      ['Earnings', 'Amount'],
+      ['Basic', Math.round(baseSalary).toString()],
+      ['Incentive Pay', Math.round(incentivePay).toString()],
+      ['House Rent Allowance', Math.round(houseRent).toString()],
+      ['Meal Allowance', Math.round(mealAllowance).toString()],
+    ];
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [earningsData[0]],
+      body: earningsData.slice(1),
+      theme: 'grid',
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1,
+      },
+      headStyles: {
+        fillColor: [220, 220, 220],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        halign: 'left',
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+      },
+      columnStyles: {
+        0: { cellWidth: 120 },
+        1: { cellWidth: 60, halign: 'right' },
+      },
+      margin: { left: 15, right: 15 },
+    });
+
+    // Total Earnings Row
+    const earningsY = doc.lastAutoTable.finalY;
+    autoTable(doc, {
+      startY: earningsY,
+      body: [['Total Earnings', Math.round(totalEarnings).toString()]],
+      theme: 'grid',
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1,
+        fontStyle: 'bold',
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+      },
+      columnStyles: {
+        0: { cellWidth: 120 },
+        1: { cellWidth: 60, halign: 'right' },
+      },
+      margin: { left: 15, right: 15 },
+    });
+
+    // ========== DEDUCTIONS TABLE ==========
+    yPos = doc.lastAutoTable.finalY + 10;
+
+    const providentFund = baseSalary * 0.12;   // 12%
+    const professionalTax = baseSalary * 0.05; // 5%
+    const loan = deductions;
+    const totalDeductions = providentFund + professionalTax + loan;
+
+    const deductionsData = [
+      ['Deductions', 'Amount'],
+      ['Provident Fund', Math.round(providentFund).toString()],
+      ['Professional Tax', Math.round(professionalTax).toString()],
+      ['Loan', Math.round(loan).toString()],
+    ];
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [deductionsData[0]],
+      body: deductionsData.slice(1),
+      theme: 'grid',
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1,
+      },
+      headStyles: {
+        fillColor: [220, 220, 220],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        halign: 'left',
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+      },
+      columnStyles: {
+        0: { cellWidth: 120 },
+        1: { cellWidth: 60, halign: 'right' },
+      },
+      margin: { left: 15, right: 15 },
+    });
+
+    // Total Deductions Row
+    const deductionsY = doc.lastAutoTable.finalY;
+    autoTable(doc, {
+      startY: deductionsY,
+      body: [['Total Deductions', Math.round(totalDeductions).toString()]],
+      theme: 'grid',
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1,
+        fontStyle: 'bold',
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+      },
+      columnStyles: {
+        0: { cellWidth: 120 },
+        1: { cellWidth: 60, halign: 'right' },
+      },
+      margin: { left: 15, right: 15 },
+    });
+
+    // Net Pay Row
+    const netPayY = doc.lastAutoTable.finalY;
+    const netPay = totalEarnings - totalDeductions;
+    
+    autoTable(doc, {
+      startY: netPayY,
+      body: [['Net Pay', Math.round(netPay).toString()]],
+      theme: 'grid',
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1,
+        fontStyle: 'bold',
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+      },
+      columnStyles: {
+        0: { cellWidth: 120 },
+        1: { cellWidth: 60, halign: 'right' },
+      },
+      margin: { left: 15, right: 15 },
+    });
+
+    // ========== NET PAY IN WORDS ==========
+    yPos = doc.lastAutoTable.finalY + 10;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(Math.round(netPay).toString(), pageWidth / 2, yPos, { align: 'center' });
+    
+    yPos += 5;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    const netPayWords = numberToWords(Math.round(netPay));
+    doc.text(netPayWords, pageWidth / 2, yPos, { align: 'center' });
+
+    // ========== SIGNATURE SECTION ==========
+    yPos = pageHeight - 50;
+
+    // Employer Signature
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Employer Signature', 40, yPos);
+    doc.line(30, yPos + 15, 80, yPos + 15);
+
+    // Employee Signature
+    doc.text('Employee Signature', pageWidth - 60, yPos);
+    doc.line(pageWidth - 80, yPos + 15, pageWidth - 30, yPos + 15);
+
+    // ========== FOOTER ==========
+    yPos = pageHeight - 20;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100, 100, 100);
+    doc.text('This is system generated payslip', pageWidth / 2, yPos, { align: 'center' });
+
+    // ========== OPEN PDF IN NEW TAB ==========
+    const pdfBlob = doc.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    
+    const newWindow = window.open(pdfUrl, '_blank');
+    
+    if (newWindow) {
+      newWindow.document.title = `Payslip - ${employee.firstName} ${employee.lastName}`;
+      toast.success('PDF opened in new tab!');
+    } else {
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = `Payslip_${employee.employeeId}_${employee.firstName}_${employee.lastName}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.warning('Popup blocked! PDF downloaded instead.');
+    }
+    
+    setTimeout(() => {
+      URL.revokeObjectURL(pdfUrl);
+    }, 100);
+    
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    toast.error('Failed to generate PDF: ' + error.message);
+  } finally {
+    setGeneratingPDF(null);
+  }
+};
+  // ==================== EVENT HANDLERS ====================
+  
   const handleCheckboxChange = (employeeId) => {
-    // If clicking the same employee, deselect
     if (selectedEmployee === employeeId) {
       setSelectedEmployee(null);
-      setShowForm(false); // Hide form when deselected
+      setShowForm(false);
     } else {
-      // Select the new employee (replaces previous selection)
       setSelectedEmployee(employeeId);
+      setShowForm(false);
     }
   };
 
-  /**
-   * Handles form input changes
-   * @param {Event} e - The change event from input fields
-   */
   const handleChange = (e) => {
     setFormData({ 
       ...formData, 
@@ -82,35 +438,26 @@ function Payroll() {
     });
   };
   
-  /**
-   * MODIFIED: Handles form submission for payroll generation (single employee)
-   * @param {Event} e - The form submit event
-   */
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevent default form submission behavior
+    e.preventDefault();
     
-    // Validation: Check if an employee is selected
     if (!selectedEmployee) {
-      alert('Please select an employee');
+      toast.error('Please select an employee');
       return;
     }
 
     try {
-      // Send payroll generation request to API for single employee
-      console.log("selected employee",selectedEmployee)
       await payrollAPI.generate({
-        employee: selectedEmployee,  // Send as array with single employee
-        ...formData,            // Spread all form data
-        // Parse string values to numbers for calculations
+        employee: selectedEmployee,
+        ...formData,
         baseSalary: parseFloat(formData.baseSalary),
-          WorkedDays: parseFloat(formData.WorkedDays) || 0,  // Default to 0 if empty
-          deductions: parseFloat(formData.deductions) || 0,  // Default to 0 if empty
-          TotalWorkingDays: parseFloat(formData.workingDays) || 0,                // Default to 0 if empty
-         month: parseInt(formData.month),
-          year: parseInt(formData.year)
+        WorkedDays: parseFloat(formData.WorkedDays) || 0,
+        deductions: parseFloat(formData.deductions) || 0,
+        TotalWorkingDays: parseFloat(formData.workingDays) || 0,
+        month: parseInt(formData.month),
+        year: parseInt(formData.year)
       });
       
-      // Reset form to initial state after successful submission
       setFormData({
         month: new Date().getMonth() + 1,
         year: new Date().getFullYear(),
@@ -120,52 +467,29 @@ function Payroll() {
         workingDays: '',
       });
       
-      // Clear selected employee
       setSelectedEmployee(null);
-      
-      // Hide the form
       setShowForm(false);
+      await fetchEmployees();
+      toast.success('Payroll generated successfully!');
       
-      // Refresh employee data to show updated payroll information
-      fetchEmployees();
-      
-      // Show success message
-      alert('Payroll generated successfully!');
-    }catch (error) {
-    console.error('Error generating payroll:', error);
-    showError('Error generating payroll. Please try again.',error.response?.data?.message);
+    } catch (error) {
+      console.error('Error generating payroll:', error);
+      const errorMessage = error.response?.data?.message 
+        || error.response?.data?.error 
+        || error.message 
+        || 'Failed to generate payroll';
+      toast.error(errorMessage);
     }
   };
 
   // ==================== HELPER FUNCTIONS ====================
   
-  /**
-   * Check if a specific employee is selected
-   * @param {string} employeeId - The employee ID to check
-   * @returns {boolean} - True if employee is selected
-   */
   const isEmployeeSelected = (employeeId) => {
     return selectedEmployee === employeeId;
   };
 
-  /**
-   * Get the selected employee object
-   */
-  const selectedEmployeeData = employees.find(emp => emp._id === selectedEmployee);
-
-  /**
-   * Separate employees into two arrays:
-   * 1. Selected employee (to show at top)
-   * 2. Unselected employees (to show at bottom)
-   */
-  const selectedEmployeeList = selectedEmployee 
-    ? employees.filter(emp => emp._id === selectedEmployee)
-    : [];
-  const unselectedEmployeeList = employees.filter(emp => emp._id !== selectedEmployee);
-
   // ==================== RENDERING ====================
   
-  // Show loading spinner while fetching data
   if (loading) return <div className="loading">Loading...</div>;
 
   return (
@@ -174,15 +498,15 @@ function Payroll() {
       <div className="payroll-header">
         <h1>Payroll Management</h1>
         
-        {/* Show "Generate Payroll" button only if:
-            1. User is admin or HR
-            2. An employee is selected */}
+        <div className="pagination-info">
+          Showing {indexOfFirstEmployee + 1} to {Math.min(indexOfLastEmployee, employees.length)} of {employees.length} employees
+        </div>
+        
         {(user?.role === 'admin' || user?.role === 'hr') && selectedEmployee && (
           <button 
             onClick={() => setShowForm(!showForm)} 
             className="generate-btn"
           >
-            {/* Toggle button text based on form visibility */}
             {showForm ? 'Cancel' : 'Generate Payroll'}
           </button>
         )}
@@ -192,7 +516,6 @@ function Payroll() {
       <div className="payroll-table">
         <h2>Employee Payroll</h2>
         <table>
-          {/* Table Headers */}
           <thead>
             <tr>
               <th>Select</th>
@@ -200,34 +523,29 @@ function Payroll() {
               <th>Employee Name</th>
               <th>Email</th>
               <th>Department</th>
-              {/* <th>Designation</th> */}
+              <th>Designation</th>
               <th>Date of Joining</th>
               <th>Salary</th>
               <th>Worked Days</th>
               <th>Deductions</th>
               <th>Net Salary</th>
               <th>Working Days</th>
+              <th>Actions</th>
             </tr>
           </thead>
           
           <tbody>
-            {/* Show message if no employees found */}
-            {employees.length === 0 ? (
+            {currentEmployees.length === 0 ? (
               <tr>
-                <td colSpan="11" style={{ textAlign: 'center', padding: '30px' }}>
+                <td colSpan="13" style={{ textAlign: 'center', padding: '30px' }}>
                   No employees found
                 </td>
               </tr>
             ) : (
-              <>
-                {/* ========== SELECTED EMPLOYEE (Show at top) ========== */}
-                {selectedEmployeeList.map((emp) => (
-                  <tr 
-                    key={emp._id}  // Unique key using employee ID
-                    className="selected-row"  // CSS class for highlighting
-                  >
+              currentEmployees.map((emp) => (
+                <React.Fragment key={emp._id}>
+                  <tr className={isEmployeeSelected(emp._id) ? 'selected-row' : ''}>
                     <td>
-                      {/* MODIFIED: Using radio button behavior with checkbox appearance */}
                       <input
                         type="checkbox"
                         checked={isEmployeeSelected(emp._id)}
@@ -240,40 +558,57 @@ function Payroll() {
                     <td>{emp.department}</td>
                     <td>{emp.designation}</td>
                     <td>{new Date(emp.dateOfJoining).toLocaleDateString()}</td>
-                    {/* Payroll data with fallback to '-' if not available */}
-                    <td>₹{emp.payroll?.baseSalary || '-'}</td>
-                    <td>₹{emp.payroll?.WorkedDays || '-'}</td>
-                    <td>₹{emp.payroll?.deductions || '-'}</td>
-                    <td>₹{emp.payroll?.netSalary || '-'}</td>
+                    <td>₹{emp.payroll?.baseSalary?.toLocaleString('en-IN') || '-'}</td>
+                    <td>{emp.payroll?.WorkedDays || '-'}</td>
+                    <td>₹{emp.payroll?.deductions?.toLocaleString('en-IN') || '-'}</td>
+                    <td>₹{emp.payroll?.netSalary?.toLocaleString('en-IN') || '-'}</td>
+                    <td>{emp.payroll?.TotalWorkingDays || '-'}</td>
+                    <td>
+                      <button
+                        className={`pdf-btn ${!emp.payroll?.netSalary ? 'disabled' : ''}`}
+                        onClick={() => handleGeneratePDF(emp)}
+                        disabled={!emp.payroll?.netSalary || generatingPDF === emp._id}
+                        title={emp.payroll?.netSalary ? 'View Payslip PDF' : 'No payroll data available'}
+                      >
+                        {generatingPDF === emp._id ? (
+                          <span className="spinner"></span>
+                        ) : (
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            width="16" 
+                            height="16" 
+                            viewBox="0 0 24 24" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            strokeWidth="2" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                          >
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                          </svg>
+                        )}
+                        PDF
+                      </button>
+                    </td>
                   </tr>
-                ))}
 
-                {/* ========== PAYROLL FORM (Appears below selected employee) ========== */}
-                {showForm && selectedEmployee && (
-                  <tr key="payroll-form-row" className="form-row-container">
-                    {/* Span all columns to make form full-width */}
-                    <td colSpan="11">
-                      <form onSubmit={handleSubmit} className="inline-payroll-form">
-                        {/* Form Title */}
-                        <h3>Generate Payroll for Employee</h3>
-                        
-                        {/* ========== EMPLOYEE VERIFICATION BOX ========== */}
-                        <div className="selected-employees-box">
-                          <h4>Selected Employee:</h4>
+                  {/* Form Row */}
+                  {showForm && selectedEmployee === emp._id && (
+                    <tr className="form-row-container">
+                      <td colSpan="13">
+                        <form onSubmit={handleSubmit} className="inline-payroll-form">
+                          <h3>Generate Payroll for Employee</h3>
                           
-                          {/* Display selected employee as a chip */}
-                          <div className="employee-chips">
-                            {selectedEmployeeData && (
+                          <div className="selected-employees-box">
+                            <h4>Selected Employee:</h4>
+                            <div className="employee-chips">
                               <div className="employee-chip">
-                                {/* Employee ID Badge */}
-                                <span className="emp-id">{selectedEmployeeData.employeeId}</span>
-                                
-                                {/* Employee Name */}
-                                <span className="emp-name">
-                                  {selectedEmployeeData.firstName} {selectedEmployeeData.lastName}
-                                </span>
-                                
-                                {/* Remove button to deselect employee */}
+                                <span className="emp-id">{emp.employeeId}</span>
+                                <span className="emp-name">{emp.firstName} {emp.lastName}</span>
                                 <button
                                   type="button"
                                   className="remove-chip"
@@ -286,158 +621,104 @@ function Payroll() {
                                   ×
                                 </button>
                               </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* ========== FORM FIELDS ========== */}
-                        <div className="form-grid">
-                          {/* Month Selection Dropdown */}
-                          <div className="form-group">
-                            <label>Month *</label>
-                            <select
-                              name="month"
-                              value={formData.month}
-                              onChange={handleChange}
-                              required
-                            >
-                              <option value="1">January</option>
-                              <option value="2">February</option>
-                              <option value="3">March</option>
-                              <option value="4">April</option>
-                              <option value="5">May</option>
-                              <option value="6">June</option>
-                              <option value="7">July</option>
-                              <option value="8">August</option>
-                              <option value="9">September</option>
-                              <option value="10">October</option>
-                              <option value="11">November</option>
-                              <option value="12">December</option>
-                            </select>
+                            </div>
                           </div>
 
-                          {/* Year Input */}
-                          <div className="form-group">
-                            <label>Year *</label>
-                            <input
-                              type="number"
-                              name="year"
-                              min="2020"
-                              max="2030"
-                              value={formData.year}
-                              onChange={handleChange}
-                              required
-                            />
+                          <div className="form-grid">
+                            <div className="form-group">
+                              <label>Month *</label>
+                              <select name="month" value={formData.month} onChange={handleChange} required>
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                              </select>
+                            </div>
+
+                            <div className="form-group">
+                              <label>Year *</label>
+                              <input type="number" name="year" min="2020" max="2030" 
+                                     value={formData.year} onChange={handleChange} required />
+                            </div>
+
+                            <div className="form-group">
+                              <label>Base Salary *</label>
+                              <input type="number" name="baseSalary" placeholder="Enter base salary"
+                                     value={formData.baseSalary} onChange={handleChange} 
+                                     required min="0" step="0.01" />
+                            </div>
+
+                            <div className="form-group">
+                              <label>Worked Days</label>
+                              <input type="number" name="WorkedDays" placeholder="Enter worked days"
+                                     value={formData.WorkedDays} onChange={handleChange} 
+                                     min="0" step="1" />
+                            </div>
+
+                            <div className="form-group">
+                              <label>Deductions</label>
+                              <input type="number" name="deductions" placeholder="Enter deductions"
+                                     value={formData.deductions} onChange={handleChange} 
+                                     min="0" step="0.01" />
+                            </div>
+
+                            <div className="form-group">
+                              <label>Total Working Days</label>
+                              <input type="number" name="workingDays" placeholder="Enter total working days"
+                                     value={formData.workingDays} onChange={handleChange} 
+                                     min="0" step="1" />
+                            </div>
                           </div>
 
-                          {/* Base Salary Input */}
-                          <div className="form-group">
-                            <label>Base Salary *</label>
-                            <input
-                              type="number"
-                              name="baseSalary"
-                              placeholder="Enter base salary"
-                              value={formData.baseSalary}
-                              onChange={handleChange}
-                              required
-                              min="0"
-                              step="0.01"  // Allow decimal values
-                            />
+                          <div className="form-actions">
+                            <button type="submit" className="save-payroll-btn">Save Payroll</button>
+                            <button type="button" className="cancel-btn" onClick={() => setShowForm(false)}>
+                              Cancel
+                            </button>
                           </div>
-
-                          {/* WorkedDays Input (Optional) */}
-                          <div className="form-group">
-                            <label>WorkedDays</label>
-                            <input
-                              type="number"
-                              name="WorkedDays"
-                              placeholder="Enter WorkedDays"
-                              value={formData.WorkedDays}
-                              onChange={handleChange}
-                              min="0"
-                              step="0.01"
-                            />
-                          </div>
-
-                          {/* Deductions Input (Optional) */}
-                          <div className="form-group">
-                            <label>Deductions</label>
-                            <input
-                              type="number"
-                              name="deductions"
-                              placeholder="Enter deductions"
-                              value={formData.deductions}
-                              onChange={handleChange}
-                              min="0"
-                              step="0.01"
-                            />
-                          </div>
-
-                          {/* Working Days Input (Optional) */}
-                          <div className="form-group">
-                            <label>Working Days</label>
-                            <input
-                              type="number"
-                              name="workingDays"
-                              placeholder="Enter working days amount"
-                              value={formData.workingDays}
-                              onChange={handleChange}
-                              min="0"
-                              step="0.01"
-                            />
-                          </div>
-                        </div>
-
-                        {/* ========== FORM ACTION BUTTONS ========== */}
-                        <div className="form-actions">
-                          {/* Submit Button */}
-                          <button type="submit" className="save-payroll-btn">
-                            Save Payroll
-                          </button>
-                          
-                          {/* Cancel Button */}
-                          <button 
-                            type="button" 
-                            className="cancel-btn"
-                            onClick={() => setShowForm(false)}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </form>
-                    </td>
-                  </tr>
-                )}
-
-                {/* ========== UNSELECTED EMPLOYEES (Show at bottom) ========== */}
-                {unselectedEmployeeList.map((emp) => (
-                  <tr key={emp._id}>
-                    <td>
-                      {/* Checkbox for unselected employees */}
-                      <input
-                        type="checkbox"
-                        checked={isEmployeeSelected(emp._id)}
-                        onChange={() => handleCheckboxChange(emp._id)}
-                      />
-                    </td>
-                    <td>{emp.employeeId}</td>
-                    <td>{emp.firstName} {emp.lastName}</td>
-                    <td>{emp.email}</td>
-                    <td>{emp.department}</td>
-                    {/* <td>{emp.designation}</td> */}
-                    <td>{new Date(emp.dateOfJoining).toLocaleDateString()}</td>
-                    <td>₹{emp.payroll?.baseSalary || '-'}</td>
-                    <td>₹{emp.payroll?.WorkedDays || '-'}</td>
-                    <td>₹{emp.payroll?.deductions || '-'}</td>
-                    <td>₹{emp.payroll?.netSalary || '-'}</td>
-                    <td>₹{emp.payroll?.workingDays || '-'}</td>
-                  </tr>
-                ))}
-              </>
+                        </form>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))
             )}
           </tbody>
         </table>
       </div>
+
+      {/* ========== PAGINATION CONTROLS ========== */}
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button onClick={prevPage} disabled={currentPage === 1} className="pagination-btn">
+            Previous
+          </button>
+          
+          <div className="pagination-numbers">
+            {[...Array(totalPages)].map((_, index) => (
+              <button
+                key={index + 1}
+                onClick={() => paginate(index + 1)}
+                className={`pagination-number ${currentPage === index + 1 ? 'active' : ''}`}
+              >
+                {index + 1}
+              </button>
+            ))}
+          </div>
+          
+          <button onClick={nextPage} disabled={currentPage === totalPages} className="pagination-btn">
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

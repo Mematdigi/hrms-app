@@ -6,6 +6,7 @@ const payrollSchema = new mongoose.Schema({
   year: { type: Number, required: true },
   baseSalary: { type: Number, required: true },
   WorkedDays: { type: Number, default: 0 },
+  Deductions: { type: Number, default: 0 },
   TotalWorkingDays: { type: Number, default: 0 },
   netSalary: { type: Number, required: true },
   workingDays: { type: Number },
@@ -15,6 +16,6 @@ const payrollSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
-payrollSchema.index({ employee: 1, month: 1, year: 1 }, { unique: true });
+payrollSchema.index({ employee: 1 }, { unique: true });
 
 module.exports = mongoose.model('Payroll', payrollSchema);
