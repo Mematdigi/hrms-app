@@ -5,16 +5,12 @@ const payrollSchema = new mongoose.Schema({
   month: { type: Number, required: true },
   year: { type: Number, required: true },
   baseSalary: { type: Number, required: true },
-  allowances: { type: Number, default: 0 },
-  deductions: { type: Number, default: 0 },
-  tax: { type: Number, default: 0 },
+  WorkedDays: { type: Number, default: 0 },
+  TotalWorkingDays: { type: Number, default: 0 },
   netSalary: { type: Number, required: true },
   workingDays: { type: Number },
-  presentDays: { type: Number },
-  absentDays: { type: Number },
   status: { type: String, enum: ['draft', 'processed', 'paid'], default: 'draft' },
   paidDate: { type: Date },
-  notes: { type: String },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

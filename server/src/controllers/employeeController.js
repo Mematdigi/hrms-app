@@ -17,7 +17,7 @@ getEmployeeById = catchAsync(
 async (req, res) => {
   try {
     const employee = await User.findById(req.params.id).select('-password');
-    if (!employee) {
+    if (!employee) {  
       return res.status(404).json({ message: 'Employee not found' });
     }
     res.json(employee);
@@ -87,7 +87,6 @@ getEmployeePayrolls = catchAsync(async (req, res) => {
         {
     $match: { role: "employee" } 
   },
-
       {
         $lookup: {
           from: 'payrolls', // 'payrolls' is the collection name for payroll
@@ -116,9 +115,9 @@ getEmployeePayrolls = catchAsync(async (req, res) => {
             month: '$payrolls.month',
             year: '$payrolls.year',
             baseSalary: '$payrolls.baseSalary',
-            allowances: '$payrolls.allowances',
+            workingDays: '$payrolls.workingDays',
             deductions: '$payrolls.deductions',
-            tax: '$payrolls.tax',
+            TotalWorkingDays: '$payrolls.TotalWorkingDays',
             netSalary: '$payrolls.netSalary',
             status: '$payrolls.status',
           },
@@ -137,6 +136,8 @@ getEmployeePayrolls = catchAsync(async (req, res) => {
   throw new ApiError(500, "Server Error");
     }
 })
+
+
 }
 
 module.exports = new EmployeeController();

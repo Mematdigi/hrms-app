@@ -3,25 +3,25 @@ const Attendance = require('../models/Attendance');
 
 exports.generatePayroll = async (req, res) => {
   try {
-    const { employeeId, month, year, baseSalary, allowances, deductions, tax } = req.body;
+    const { employee, month, year, baseSalary, deductions, workingDays, WorkedDays } = req.body;
     
-    const existingPayroll = await Payroll.findOne({ employee: employeeId, month, year });
+    const existingPayroll = await Payroll.findOne({ employee: employee, month, year });
     if (existingPayroll) {
       return res.status(400).json({ message: 'Payroll already exists for this month' });
     }
 
-    const netSalary = baseSalary + allowances - deductions - tax;
+    const netSalary = baseSalary - deductions
 
     const payroll = new Payroll({
-      employee: employeeId,
+      employee,
       month,
       year,
       baseSalary,
-      allowances,
       deductions,
-      tax,
+      workingDays,
       netSalary,
-      status: 'draft'
+      status: 'draft',
+      WorkedDays
     });
 
     await payroll.save();
