@@ -31,7 +31,7 @@ function App() {
         <Route path="/payroll" element={token ? <Payroll /> : <Navigate to="/login" />} />
         <Route path="/performance" element={token ? <Performance /> : <Navigate to="/login" />} />
         <Route path="/roles" element={token ? <RoleManagement /> : <Navigate to="/login" />} />
-        <Route path="/" element={<Navigate to={token ? "/dashboard" : "/login"} />} />
+        <Route path="/" element={<Navigate to={"/login"} />} />
         <Route path="*" element={<Notfound/>}/>
       </Routes>
     </Router>
