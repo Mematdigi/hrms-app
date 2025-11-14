@@ -2,19 +2,20 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 40px 20px;
-}
 
-.attendance-container h1 {
-  font-size: 32px;
-  margin-bottom: 30px;
-  color: #333;
+  h1 {
+    font-size: 32px;
+    margin-bottom: 30px;
+    color: #333;
+  }
 }
 
 .attendance-actions {
   margin-bottom: 30px;
 }
 
-.check-in-btn, .check-out-btn {
+.check-in-btn,
+.check-out-btn {
   padding: 12px 24px;
   border: none;
   border-radius: 6px;
@@ -22,6 +23,10 @@
   font-weight: 600;
   font-size: 16px;
   transition: transform 0.2s;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .check-in-btn {
@@ -34,46 +39,42 @@
   color: white;
 }
 
-.check-in-btn:hover, .check-out-btn:hover {
-  transform: translateY(-2px);
-}
-
 .attendance-table {
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   overflow: hidden;
-}
 
-.attendance-table table {
-  width: 100%;
-  border-collapse: collapse;
-}
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
 
-.attendance-table th {
-  background: #f5f5f5;
-  padding: 15px;
-  text-align: left;
-  font-weight: 600;
-  color: #333;
-  border-bottom: 1px solid #ddd;
-}
+  th {
+    background: #f5f5f5;
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 1px solid #ddd;
+  }
 
-.attendance-table td {
-  padding: 15px;
-  border-bottom: 1px solid #eee;
-}
+  td {
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+  }
 
-.attendance-table tr:hover {
-  background: #f9f9f9;
+  tr:hover {
+    background: #f9f9f9;
+  }
 }
 
 @media (max-width: 768px) {
   .attendance-container {
     padding: 20px 15px;
-  }
 
-  .attendance-container h1 {
-    font-size: 24px;
+    h1 {
+      font-size: 24px;
+    }
   }
 }

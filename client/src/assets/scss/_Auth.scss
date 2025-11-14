@@ -13,38 +13,54 @@
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
   width: 100%;
   max-width: 400px;
-}
 
-.auth-card h1 {
-  font-size: 28px;
-  margin-bottom: 30px;
-  text-align: center;
-  color: #333;
+  h1 {
+    font-size: 28px;
+    margin-bottom: 30px;
+    text-align: center;
+    color: #333;
+  }
+
+  p {
+    text-align: center;
+    margin-top: 20px;
+    color: #666;
+  }
+
+  a {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 }
 
 .form-group {
   margin-bottom: 20px;
-}
 
-.form-group label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
-  color: #333;
-}
+  label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+  }
 
-.form-group input {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.3s;
-}
+  input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.3s;
 
-.form-group input:focus {
-  outline: none;
-  border-color: #667eea;
+    &:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+  }
 }
 
 button[type="submit"] {
@@ -58,15 +74,15 @@ button[type="submit"] {
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s;
-}
 
-button[type="submit"]:hover:not(:disabled) {
-  transform: translateY(-2px);
-}
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
 
-button[type="submit"]:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 }
 
 .error-message {
@@ -76,20 +92,4 @@ button[type="submit"]:disabled {
   border-radius: 6px;
   margin-bottom: 20px;
   font-size: 14px;
-}
-
-.auth-card p {
-  text-align: center;
-  margin-top: 20px;
-  color: #666;
-}
-
-.auth-card a {
-  color: #667eea;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.auth-card a:hover {
-  text-decoration: underline;
 }

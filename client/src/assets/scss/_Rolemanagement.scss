@@ -6,17 +6,17 @@
 
 .role-header {
   margin-bottom: 30px;
-}
 
-.role-header h1 {
-  font-size: 32px;
-  color: #333;
-  margin-bottom: 10px;
-}
+  h1 {
+    font-size: 32px;
+    color: #333;
+    margin-bottom: 10px;
+  }
 
-.role-header p {
-  font-size: 16px;
-  color: #666;
+  p {
+    font-size: 16px;
+    color: #666;
+  }
 }
 
 .error-message {
@@ -55,24 +55,24 @@
 .role-table {
   width: 100%;
   border-collapse: collapse;
-}
 
-.role-table th {
-  background: #f5f5f5;
-  padding: 15px;
-  text-align: left;
-  font-weight: 600;
-  color: #333;
-  border-bottom: 1px solid #ddd;
-}
+  th {
+    background: #f5f5f5;
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 1px solid #ddd;
+  }
 
-.role-table td {
-  padding: 15px;
-  border-bottom: 1px solid #eee;
-}
+  td {
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+  }
 
-.role-table tr:hover {
-  background: #f9f9f9;
+  tr:hover {
+    background: #f9f9f9;
+  }
 }
 
 .role-badge {
@@ -111,12 +111,12 @@
   font-size: 14px;
   cursor: pointer;
   background: white;
-}
 
-.role-select:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  &:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
 }
 
 .update-btn {
@@ -129,15 +129,15 @@
   font-weight: 600;
   font-size: 14px;
   transition: transform 0.2s;
-}
 
-.update-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-}
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
 
-.update-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 .role-info {
@@ -145,31 +145,31 @@
   padding: 25px;
   border-radius: 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-}
 
-.role-info h3 {
-  margin-top: 0;
-  color: #333;
-  margin-bottom: 15px;
-}
+  h3 {
+    margin-top: 0;
+    color: #333;
+    margin-bottom: 15px;
+  }
 
-.role-info ul {
-  list-style: none;
-  padding: 0;
-}
+  ul {
+    list-style: none;
+    padding: 0;
+  }
 
-.role-info li {
-  padding: 10px 0;
-  color: #666;
-  border-bottom: 1px solid #eee;
-}
+  li {
+    padding: 10px 0;
+    color: #666;
+    border-bottom: 1px solid #eee;
 
-.role-info li:last-child {
-  border-bottom: none;
-}
+    &:last-child {
+      border-bottom: none;
+    }
+  }
 
-.role-info strong {
-  color: #333;
+  strong {
+    color: #333;
+  }
 }
 
 @media (max-width: 768px) {
@@ -179,11 +179,11 @@
 
   .role-table {
     font-size: 14px;
-  }
 
-  .role-table th,
-  .role-table td {
-    padding: 10px;
+    th,
+    td {
+      padding: 10px;
+    }
   }
 
   .role-select,

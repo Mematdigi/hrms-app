@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { performanceAPI } from '../services/api';
-import '../styles/Performance.css';
+// import '../styles/Performance.css';
 
 function Performance() {
   const [reviews, setReviews] = useState([]);

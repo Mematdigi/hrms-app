@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/api';
-import '../styles/Auth.css';
+// import '../styles/Auth.css';
 
 function Register() {
   const [formData, setFormData] = useState({

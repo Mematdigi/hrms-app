@@ -11,12 +11,12 @@
   margin-bottom: 30px;
   padding-bottom: 20px;
   border-bottom: 2px solid #e9ecef;
-}
 
-.leave-header h1 {
-  margin: 0;
-  font-size: 32px;
-  color: #333;
+  h1 {
+    margin: 0;
+    font-size: 32px;
+    color: #333;
+  }
 }
 
 .apply-btn {
@@ -29,15 +29,15 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-}
 
-.apply-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  }
 
-.apply-btn:active {
-  transform: scale(0.98);
+  &:active {
+    transform: scale(0.98);
+  }
 }
 
 /* Alerts */
@@ -54,6 +54,7 @@
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -92,15 +93,15 @@
   transition: all 0.3s ease;
   position: relative;
   bottom: -2px;
-}
 
-.tab-btn:hover {
-  color: #333;
-}
+  &:hover {
+    color: #333;
+  }
 
-.tab-btn.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
+  &.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+  }
 }
 
 /* Leave Form */
@@ -111,12 +112,12 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   margin-bottom: 30px;
   border-left: 4px solid #667eea;
-}
 
-.leave-form h2 {
-  margin: 0 0 25px 0;
-  font-size: 20px;
-  color: #333;
+  h2 {
+    margin: 0 0 25px 0;
+    font-size: 20px;
+    color: #333;
+  }
 }
 
 .form-row {
@@ -129,37 +130,35 @@
 .form-group {
   display: flex;
   flex-direction: column;
-}
 
-.form-group label {
-  margin-bottom: 8px;
-  font-weight: 600;
-  color: #333;
-  font-size: 14px;
-}
+  label {
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+  }
 
-.form-group input,
-.form-group select,
-.form-group textarea {
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-  font-family: inherit;
-  transition: all 0.3s ease;
-}
+  input,
+  select,
+  textarea {
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.3s ease;
 
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
+    &:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+  }
 
-.form-group textarea {
-  resize: vertical;
-  min-height: 100px;
+  textarea {
+    resize: vertical;
+    min-height: 100px;
+  }
 }
 
 .form-actions {
@@ -177,11 +176,11 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-}
 
-.submit-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  }
 }
 
 .cancel-btn {
@@ -193,10 +192,10 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-}
 
-.cancel-btn:hover {
-  background: #e9ecef;
+  &:hover {
+    background: #e9ecef;
+  }
 }
 
 .form-info {
@@ -216,12 +215,12 @@
   padding: 30px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   margin-bottom: 30px;
-}
 
-.leaves-section h2 {
-  margin: 0 0 25px 0;
-  font-size: 20px;
-  color: #333;
+  h2 {
+    margin: 0 0 25px 0;
+    font-size: 20px;
+    color: #333;
+  }
 }
 
 .no-data {
@@ -245,15 +244,15 @@
   overflow: hidden;
   transition: all 0.3s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
 
-.leave-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
-}
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
 
-.leave-card.pending-card {
-  border-left: 4px solid #ff9800;
+  &.pending-card {
+    border-left: 4px solid #ff9800;
+  }
 }
 
 .card-header {
@@ -263,12 +262,12 @@
   padding: 15px 20px;
   background: #f8f9fa;
   border-bottom: 1px solid #e9ecef;
-}
 
-.card-header h3 {
-  margin: 0;
-  font-size: 16px;
-  color: #333;
+  h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #333;
+  }
 }
 
 .badge {
@@ -295,16 +294,16 @@
 
 .card-body {
   padding: 20px;
-}
 
-.card-body p {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  color: #555;
-}
+  p {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: #555;
+  }
 
-.card-body strong {
-  color: #333;
+  strong {
+    color: #333;
+  }
 }
 
 .card-actions {
@@ -331,22 +330,22 @@
   background: #d4edda;
   color: #155724;
   border: 1px solid #c3e6cb;
-}
 
-.approve-btn:hover {
-  background: #c3e6cb;
-  transform: translateY(-2px);
+  &:hover {
+    background: #c3e6cb;
+    transform: translateY(-2px);
+  }
 }
 
 .reject-btn {
   background: #f8d7da;
   color: #721c24;
   border: 1px solid #f5c6cb;
-}
 
-.reject-btn:hover {
-  background: #f5c6cb;
-  transform: translateY(-2px);
+  &:hover {
+    background: #f5c6cb;
+    transform: translateY(-2px);
+  }
 }
 
 /* Leaves Table */
@@ -358,40 +357,44 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
-}
 
-.leaves-table thead {
-  background: #f8f9fa;
-  border-bottom: 2px solid #e9ecef;
-}
+  thead {
+    background: #f8f9fa;
+    border-bottom: 2px solid #e9ecef;
+  }
 
-.leaves-table th {
-  padding: 15px;
-  text-align: left;
-  font-weight: 600;
-  color: #333;
-}
+  th {
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+  }
 
-.leaves-table td {
-  padding: 15px;
-  border-bottom: 1px solid #e9ecef;
-  color: #555;
-}
+  td {
+    padding: 15px;
+    border-bottom: 1px solid #e9ecef;
+    color: #555;
+  }
 
-.leaves-table tbody tr:hover {
-  background: #f8f9fa;
-}
+  tbody {
+    tr {
+      &:hover {
+        background: #f8f9fa;
+      }
 
-.leaves-table tbody tr.row-pending {
-  border-left: 3px solid #ff9800;
-}
+      &.row-pending {
+        border-left: 3px solid #ff9800;
+      }
 
-.leaves-table tbody tr.row-approved {
-  border-left: 3px solid #4caf50;
-}
+      &.row-approved {
+        border-left: 3px solid #4caf50;
+      }
 
-.leaves-table tbody tr.row-rejected {
-  border-left: 3px solid #f44336;
+      &.row-rejected {
+        border-left: 3px solid #f44336;
+      }
+    }
+  }
 }
 
 /* Status Badge */
@@ -429,19 +432,19 @@
   border-radius: 4px;
   transition: all 0.3s ease;
   margin-right: 5px;
-}
 
-.action-btn:hover {
-  background: #f0f0f0;
-  transform: scale(1.2);
-}
+  &:hover {
+    background: #f0f0f0;
+    transform: scale(1.2);
+  }
 
-.action-btn.approve:hover {
-  background: #d4edda;
-}
+  &.approve:hover {
+    background: #d4edda;
+  }
 
-.action-btn.reject:hover {
-  background: #f8d7da;
+  &.reject:hover {
+    background: #f8d7da;
+  }
 }
 
 /* Loading */
@@ -462,10 +465,10 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 15px;
-  }
 
-  .leave-header h1 {
-    font-size: 24px;
+    h1 {
+      font-size: 24px;
+    }
   }
 
   .apply-btn {
@@ -487,11 +490,11 @@
 
   .leaves-table {
     font-size: 12px;
-  }
 
-  .leaves-table th,
-  .leaves-table td {
-    padding: 10px;
+    th,
+    td {
+      padding: 10px;
+    }
   }
 
   .card-actions {
@@ -509,8 +512,10 @@
     padding: 15px 10px;
   }
 
-  .leave-header h1 {
-    font-size: 20px;
+  .leave-header {
+    h1 {
+      font-size: 20px;
+    }
   }
 
   .leave-form,
@@ -518,19 +523,21 @@
     padding: 15px;
   }
 
-  .form-group input,
-  .form-group select,
-  .form-group textarea {
-    font-size: 16px;
+  .form-group {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
   }
 
   .leaves-table {
     font-size: 11px;
-  }
 
-  .leaves-table th,
-  .leaves-table td {
-    padding: 8px;
+    th,
+    td {
+      padding: 8px;
+    }
   }
 
   .leave-tabs {

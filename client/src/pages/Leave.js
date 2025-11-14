@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { leaveAPI } from '../services/api';
-import '../styles/Leave.css';
+// import '../styles/Leave.css';
 
 function Leave() {
   const [leaves, setLeaves] = useState([]);

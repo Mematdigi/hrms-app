@@ -9,25 +9,22 @@
   padding: 30px;
   border-radius: 12px;
   color: white;
-}
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 
-.dashboard-header h1 {
-  font-size: 36px;
-  margin: 0 0 10px 0;
-  font-weight: 700;
-}
+  h1 {
+    font-size: 36px;
+    margin: 0 0 10px 0;
+    font-weight: 700;
+  }
 
-.dashboard-header p {
-  font-size: 16px;
-  margin: 0;
-  opacity: 0.9;
+  p {
+    font-size: 16px;
+    margin: 0;
+    opacity: 0.9;
+  }
 }
 
 /* Admin Header */
-.dashboard-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
 .admin-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
@@ -65,11 +62,11 @@
   gap: 20px;
   transition: transform 0.3s, box-shadow 0.3s;
   border-left: 4px solid;
-}
 
-.dashboard-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+  }
 }
 
 .card-icon {
@@ -80,14 +77,14 @@
 
 .card-content {
   flex: 1;
-}
 
-.card-content h3 {
-  margin: 0 0 8px 0;
-  font-size: 14px;
-  color: #666;
-  font-weight: 600;
-  text-transform: uppercase;
+  h3 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #666;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
 }
 
 .card-value {
@@ -100,37 +97,53 @@
 /* Admin Card */
 .admin-card {
   border-left-color: #667eea;
-}
 
-.admin-card:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  &:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(102, 126, 234, 0.05) 0%,
+      rgba(118, 75, 162, 0.05) 100%
+    );
+  }
 }
 
 /* HR Card */
 .hr-card {
   border-left-color: #764ba2;
-}
 
-.hr-card:hover {
-  background: linear-gradient(135deg, rgba(118, 75, 162, 0.05) 0%, rgba(155, 89, 182, 0.05) 100%);
+  &:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(118, 75, 162, 0.05) 0%,
+      rgba(155, 89, 182, 0.05) 100%
+    );
+  }
 }
 
 /* Manager Card */
 .manager-card {
   border-left-color: #f093fb;
-}
 
-.manager-card:hover {
-  background: linear-gradient(135deg, rgba(240, 147, 251, 0.05) 0%, rgba(245, 87, 108, 0.05) 100%);
+  &:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(240, 147, 251, 0.05) 0%,
+      rgba(245, 87, 108, 0.05) 100%
+    );
+  }
 }
 
 /* Employee Card */
 .employee-card {
   border-left-color: #4facfe;
-}
 
-.employee-card:hover {
-  background: linear-gradient(135deg, rgba(79, 172, 254, 0.05) 0%, rgba(0, 242, 254, 0.05) 100%);
+  &:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(79, 172, 254, 0.05) 0%,
+      rgba(0, 242, 254, 0.05) 100%
+    );
+  }
 }
 
 /* Features Section */
@@ -143,16 +156,13 @@
   padding: 30px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   margin-bottom: 20px;
-}
 
-.admin-features h2,
-.hr-features h2,
-.manager-features h2,
-.employee-features h2 {
-  margin-top: 0;
-  margin-bottom: 25px;
-  font-size: 24px;
-  color: #333;
+  h2 {
+    margin-top: 0;
+    margin-bottom: 25px;
+    font-size: 24px;
+    color: #333;
+  }
 }
 
 .features-grid {
@@ -170,11 +180,11 @@
   border-radius: 8px;
   border-left: 3px solid;
   transition: all 0.3s;
-}
 
-.feature-item:hover {
-  background: #f0f0f0;
-  transform: translateX(5px);
+  &:hover {
+    background: #f0f0f0;
+    transform: translateX(5px);
+  }
 }
 
 .admin-features .feature-item {
@@ -203,7 +213,7 @@
   color: #333;
 }
 
-/* Access Info */
+/* Access Info (first block) */
 .access-info {
   background: #fff3cd;
   border: 1px solid #ffc107;
@@ -212,10 +222,10 @@
   color: #856404;
   font-weight: 500;
   margin-top: 20px;
-}
 
-.access-info p {
-  margin: 0;
+  p {
+    margin: 0;
+  }
 }
 
 /* Responsive Design */
@@ -274,45 +284,45 @@
 .clickable-card {
   cursor: pointer;
   position: relative;
-}
 
-.clickable-card::after {
-  content: '→';
-  position: absolute;
-  right: 15px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0;
-  transition: opacity 0.3s, right 0.3s;
-  font-size: 20px;
-  color: #667eea;
-}
+  &::after {
+    content: '→';
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: opacity 0.3s, right 0.3s;
+    font-size: 20px;
+    color: #667eea;
+  }
 
-.clickable-card:hover::after {
-  opacity: 1;
-  right: 10px;
-}
+  &:hover::after {
+    opacity: 1;
+    right: 10px;
+  }
 
-.clickable-card:active {
-  transform: scale(0.98);
+  &:active {
+    transform: scale(0.98);
+  }
 }
 
 /* Clickable Features */
 .clickable-feature {
   cursor: pointer;
   transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
 }
 
-.clickable-feature:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.clickable-feature:active {
-  transform: scale(0.95);
-}
-
-/* Access Info Styling */
+/* Access Info Styling (overrides / final styles) */
 .access-info {
   background: white;
   border-radius: 12px;
@@ -320,43 +330,59 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   border-left: 4px solid;
   margin-top: 30px;
-}
 
-.access-info h3 {
-  margin: 0 0 15px 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-}
+  h3 {
+    margin: 0 0 15px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+  }
 
-.access-info p {
-  margin: 0;
-  color: #666;
-  line-height: 1.6;
-  font-size: 14px;
+  p {
+    margin: 0;
+    color: #666;
+    line-height: 1.6;
+    font-size: 14px;
+  }
 }
 
 .admin-info {
   border-left-color: #667eea;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.02) 0%, rgba(118, 75, 162, 0.02) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.02) 0%,
+    rgba(118, 75, 162, 0.02) 100%
+  );
 }
 
 .hr-info {
   border-left-color: #764ba2;
-  background: linear-gradient(135deg, rgba(118, 75, 162, 0.02) 0%, rgba(155, 89, 182, 0.02) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(118, 75, 162, 0.02) 0%,
+    rgba(155, 89, 182, 0.02) 100%
+  );
 }
 
 .manager-info {
   border-left-color: #f093fb;
-  background: linear-gradient(135deg, rgba(240, 147, 251, 0.02) 0%, rgba(245, 87, 108, 0.02) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(240, 147, 251, 0.02) 0%,
+    rgba(245, 87, 108, 0.02) 100%
+  );
 }
 
 .employee-info {
   border-left-color: #4facfe;
-  background: linear-gradient(135deg, rgba(79, 172, 254, 0.02) 0%, rgba(0, 242, 254, 0.02) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(79, 172, 254, 0.02) 0%,
+    rgba(0, 242, 254, 0.02) 100%
+  );
 }
 
-/* Feature Items Styling */
+/* Feature Items Styling (second, more specific block – keeps override order) */
 .feature-item {
   background: #f8f9fa;
   padding: 15px 20px;
@@ -366,12 +392,12 @@
   gap: 12px;
   border: 1px solid #e9ecef;
   transition: all 0.3s ease;
-}
 
-.feature-item:hover {
-  background: white;
-  border-color: #667eea;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+  &:hover {
+    background: white;
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+  }
 }
 
 .feature-icon {
@@ -380,7 +406,7 @@
   text-align: center;
 }
 
-/* Responsive Design */
+/* Responsive Design (second block – preserved order) */
 @media (max-width: 768px) {
   .dashboard-container {
     padding: 20px 15px;
@@ -465,13 +491,13 @@
 
   .access-info {
     padding: 15px;
-  }
 
-  .access-info h3 {
-    font-size: 16px;
-  }
+    h3 {
+      font-size: 16px;
+    }
 
-  .access-info p {
-    font-size: 13px;
+    p {
+      font-size: 13px;
+    }
   }
 }
