@@ -117,7 +117,7 @@ getEmployeePayrolls = catchAsync(async (req, res) => {
             baseSalary: '$payrolls.baseSalary',
             workingDays: '$payrolls.workingDays',
             deductions: '$payrolls.deductions',
-            TotalWorkingDays: '$payrolls.TotalWorkingDays',
+            workedDays: '$payrolls.workedDays',
             netSalary: '$payrolls.netSalary',
             status: '$payrolls.status',
           },

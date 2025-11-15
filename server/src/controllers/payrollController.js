@@ -3,33 +3,39 @@ const Attendance = require('../models/Attendance');
 
 exports.generatePayroll = async (req, res) => {
   try {
-    const { employee, month, year, baseSalary, deductions, workingDays, WorkedDays } = req.body;
-    
-    const existingPayroll = await Payroll.findOne({ employee: employee, month, year });
-    if (existingPayroll) {
-      return res.status(400).json({ message: 'Payroll already exists for this month' });
-    }
+    const { employee, month, year, baseSalary, deductions, workingDays, workedDays } = req.body;
 
-    const netSalary = baseSalary - deductions
+    // Combine month + year to form period (optional)
+    const period = `${month}-${year}`;  // You can optionally use this as a unique identifier if needed
 
-    const payroll = new Payroll({
-      employee,
-      month,
-      year,
-      baseSalary,
-      deductions,
-      workingDays,
-      netSalary,
-      status: 'draft',
-      WorkedDays
+    // Use findOneAndUpdate to find and update the existing payroll or create a new one
+    const updatedPayroll = await Payroll.findOneAndUpdate(
+      { employee: employee, month, year }, // search for the existing payroll by employee, month, and year
+      {
+        $set: {  // Use $set to update the fields
+          baseSalary,
+          deductions,
+          workingDays,
+          workedDays,
+          netSalary: baseSalary - deductions,
+          status: 'draft',  // Optionally, change the status
+        },
+      },
+      { new: true, upsert: true }  // new: true returns the updated document, upsert: true creates a new document if it doesn't exist
+    );
+
+    // Return a response based on whether it was updated or created
+    res.status(200).json({
+      message: updatedPayroll.isNew ? 'Payroll created successfully' : 'Payroll updated successfully',
+      payroll: updatedPayroll,
     });
-
-    await payroll.save();
-    res.status(201).json({ message: 'Payroll generated', payroll });
+    
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
+
 
 exports.getPayroll = async (req, res) => {
   try {
