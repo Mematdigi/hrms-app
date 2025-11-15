@@ -1,17 +1,12 @@
 // =======================================
 // THEME VARIABLES
 // =======================================
-$primary: #667eea;
-$primary-alt: #764ba2;
-$hr-primary: #3ebff1;
-$hr-secondary: #9b59b6;
-$manager-primary: #f093fb;
-$manager-secondary: #f5576c;
-$employee-primary: #4facfe;
-$employee-secondary: #00f2fe;
-$bg-page: #0b1020;
-$text-main: #20373B;
-$text-muted: #9ca3af;
+$div_border: #f3d58d;
+$dash_font:#f1f0af;
+$div-bg-light: #c3955b;
+$div_bg-dark:#ba6a36;
+$small-text: #443c26;
+$dash-font-dark:#221e18;
 
 // =======================================
 // KEYFRAMES
@@ -62,7 +57,7 @@ $text-muted: #9ca3af;
 // =======================================
 .dashboard-page {
   min-height: calc(100vh - 70px);
-  margin-top: 100px;
+  margin-top: 70px;
   padding: 24px 16px;
   display: flex;
   align-items: stretch;
@@ -76,13 +71,9 @@ $text-muted: #9ca3af;
 }
 
 .dashboard-bg-overlay {
-  // margin-top: 50px;
   position: absolute;
   inset: 0;
   pointer-events: none;
-  // background:
-  //   radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.18), transparent 55%),
-  //   radial-gradient(circle at 90% 80%, rgba(244, 114, 182, 0.18), transparent 55%);
   mix-blend-mode: screen;
   opacity: 0.9;
 }
@@ -96,11 +87,8 @@ $text-muted: #9ca3af;
   padding: 1px; // gradient border
   background: linear-gradient(
     135deg,
-    #d4e4e6
+    #e6d5b3
   );
-  box-shadow:
-    0 30px 80px rgba(15, 23, 42, 0.7),
-    0 0 0 1px rgba(15, 23, 42, 0.6);
   animation: dashboardFadeUp 0.6s ease-out both, softFloat 12s ease-in-out infinite;
   z-index: 1;
   overflow: hidden;
@@ -117,9 +105,9 @@ $text-muted: #9ca3af;
   .dashboard-container {
     position: relative;
     z-index: 1;
-    color: $text-main;
+    color: $dash_font;
     border-radius: 24px;
-    padding: 32px 24px 40px;
+    padding: 15px;
     max-width: 100%;
     margin: 0;
 
@@ -139,20 +127,19 @@ $text-muted: #9ca3af;
 // =======================================
 .dashboard-header {
   position: relative;
-  margin-bottom: 32px;
+  margin-bottom: 10px;
   padding: 10px 24px;
   border-radius: 24px;
-  color: #f9fafb;
-  background: #4fb3c3;
+  color: $dash_font;
+  background: #c3955b;
   background-size: 200% 200%;
-  box-shadow: 0 18px 40px rgb(81 211 202 / 90%);
   overflow: hidden;
   display: grid;
   grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.2fr);
   align-items: center;
   animation: headerFloat 14s ease-in-out infinite;
   backdrop-filter: blur(18px);
-  border: 1px solid rgba(148, 163, 253, 0.18);
+  border: 1px solid $div_border;
 
   &::before,
   &::after {
@@ -169,7 +156,7 @@ $text-muted: #9ca3af;
     height: 260px;
     right: -80px;
     top: -60px;
-    background: radial-gradient(circle, rgba(129, 140, 248, 0.6), transparent 60%);
+    background: radial-gradient(circle, $div_border, transparent 60%);
   }
 
   &::after {
@@ -177,7 +164,7 @@ $text-muted: #9ca3af;
     height: 180px;
     left: -40px;
     bottom: -80px;
-    background: radial-gradient(circle, rgba(56, 189, 248, 0.6), transparent 60%);
+    background: radial-gradient(circle, $div-bg-light, transparent 60%);
   }
 
   .header-main {
@@ -191,8 +178,7 @@ $text-muted: #9ca3af;
     justify-self: flex-end;
     padding: 12px 16px;
     border-radius: 18px;
-    background: rgba(15, 23, 42, 0.75);
-    border: 1px solid rgba(148, 163, 253, 0.4);
+    border: 1px solid $div_border;
     display: inline-flex;
     flex-direction: column;
     gap: 4px;
@@ -204,19 +190,19 @@ $text-muted: #9ca3af;
         text-transform: uppercase;
         letter-spacing: 0.12em;
         opacity: 0.8;
-        color: #e5e7eb;
+        color: $dash_font;
       }
 
       &.value {
         font-size: 20px;
         font-weight: 700;
-        color: #f9fafb;
+        color: $dash-font;
       }
 
       &.sub {
         font-size: 12px;
         opacity: 0.9;
-        color: #cbd5f5;
+        color: $dash-font;
       }
     }
   }
@@ -226,14 +212,14 @@ $text-muted: #9ca3af;
     margin: 0 0 8px;
     font-weight: 700;
     letter-spacing: 0.03em;
-    color: #f9fafb;
+    color: $dash-font;
   }
 
   p {
     font-size: 15px;
     margin: 0;
     opacity: 0.9;
-    color: #e5e7eb;
+    color: $dash-font;
   }
 
   @media (max-width: 900px) {
@@ -266,21 +252,6 @@ $text-muted: #9ca3af;
     }
   }
 }
-
-/* Role-based header color accents (light tint on same dark base) */
-.admin-header {
-  box-shadow: 0 24px 60px rgba(37, 99, 235, 0.7);
-}
-.hr-header {
-  box-shadow: 0 24px 60px rgba(147, 51, 234, 0.7);
-}
-.manager-header {
-  box-shadow: 0 24px 60px rgba(244, 63, 94, 0.7);
-}
-.employee-header {
-  box-shadow: 0 24px 60px rgba(59, 130, 246, 0.7);
-}
-
 // =======================================
 // DASHBOARD GRID + CARDS (DARK)
 // =======================================
@@ -288,7 +259,7 @@ $text-muted: #9ca3af;
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 24px;
-  margin-bottom: 24px;
+  margin-bottom: 10px;
 
   @media (max-width: 992px) {
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -308,37 +279,23 @@ $text-muted: #9ca3af;
 }
 
 .dashboard-card {
-  background: #4fb3c3;
+  background: #c3955b;
   color: #e5e7eb;
   border-radius: 20px;
   padding: 10px 20px;
-  box-shadow: 0 18px 40px rgb(81 211 202 / 90%);
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
   gap: 14px;
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(148, 163, 253, 0.4);
+  border: 1px solid $div_border;
   border-left-width: 6px;
   transform-origin: center;
+  max-height: 82px;
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
 
   grid-column: span 3;
-
-  &:first-child {
-    grid-column: span 6;
-    padding: 24px 22px;
-    border-radius: 24px;
-  }
-
-  &:nth-child(4) {
-    grid-column: span 3;
-
-    @media (min-width: 993px) {
-      min-height: 140px;
-    }
-  }
 
   &::before {
     content: '';
@@ -348,7 +305,7 @@ $text-muted: #9ca3af;
     width: 120px;
     height: 120px;
     border-radius: 60px;
-    background: radial-gradient(circle, rgba(129, 140, 248, 0.5), transparent 70%);
+    background: radial-gradient(circle, $div_border, transparent 70%);
     opacity: 0;
     transform: translateY(10px);
     transition: opacity 0.3s ease, transform 0.3s ease;
@@ -356,7 +313,6 @@ $text-muted: #9ca3af;
 
   &:hover {
     transform: translateY(-6px) scale(1.01);
-    box-shadow: 0 26px 60px rgba(15, 23, 42, 1);
 
     &::before {
       opacity: 1;
@@ -382,15 +338,15 @@ $text-muted: #9ca3af;
 
 .card-icon {
   font-size: 32px;
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
+  padding: 22px;
   border-radius: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #2c7a86;
-  border: 1px solid rgba(148, 163, 253, 0.5);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.9);
+  background: #ba6a36;
+  border: 1px solid $div_border;
 
   @media (max-width: 768px) {
     width: 44px;
@@ -409,15 +365,14 @@ $text-muted: #9ca3af;
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.16em;
-    color: #9ca3af;
+    color: $small-text;
   }
 }
 
 .card-value {
   margin: 0;
   font-size: 26px;
-  font-weight: 700;
-  color: #f9fafb;
+  color: $dash_font;
 
   @media (max-width: 768px) {
     font-size: 22px;
@@ -426,31 +381,31 @@ $text-muted: #9ca3af;
 
 // role color accents
 .admin-card {
-  border-left-color: $primary;
+  border-left-color: $div_border;
 
   .card-icon {
-    border-color: rgba($primary, 0.7);
+    border-color: rgba($div_border, 0.7);
   }
 }
 .hr-card {
-  border-left-color: $hr-primary;
+  border-left-color: $div_border;
 
   .card-icon {
-    border-color: rgba($hr-primary, 0.7);
+    border-color: rgba($div_border, 0.7);
   }
 }
 .manager-card {
-  border-left-color: $manager-primary;
+  border-left-color: $div_border;
 
   .card-icon {
-    border-color: rgba($manager-primary, 0.7);
+    border-color: rgba($div_border, 0.7);
   }
 }
 .employee-card {
-  border-left-color: $employee-primary;
+  border-left-color: $div_border;
 
   .card-icon {
-    border-color: rgba($employee-primary, 0.7);
+    border-color: rgba($div_border, 0.7);
   }
 }
 
@@ -461,15 +416,13 @@ $text-muted: #9ca3af;
 .hr-features,
 .manager-features,
 .employee-features {
-  background: #4fb3c3;
+  background: #c3955b;
   color: #e5e7eb;
   border-radius: 22px;
   padding: 10px 20px;
-  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.95);
-  margin: 4px 0 26px;
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(148, 163, 253, 0.35);
+  border: 1px solid $div_border;
 
   h2 {
     margin: 0 0 18px;
@@ -484,7 +437,7 @@ $text-muted: #9ca3af;
       width: 6px;
       height: 22px;
       border-radius: 999px;
-      background: linear-gradient(180deg, $primary, $primary-alt);
+      background: linear-gradient(180deg, $div_border);
     }
   }
 
@@ -516,19 +469,18 @@ $text-muted: #9ca3af;
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 10px 18px;
+  padding: 10px;
   border-radius: 999px;
-  background: #2c7a86;
-  border: 1px solid rgba(148, 163, 253, 0.35);
+  background: #ba6a36;
+  border: 1px solid $div_border;
   transition: all 0.25s ease;
   position: relative;
   overflow: hidden;
   color: #e5e7eb;
 
   &:hover {
-    background: $hr-primary;
+    background: $div-bg-light;
     transform: translateY(-3px);
-    box-shadow: 0 18px 40px rgba(15, 23, 42, 1);
   }
 
   @media (max-width: 480px) {
@@ -539,16 +491,16 @@ $text-muted: #9ca3af;
 
 // role accents on features
 .admin-features .feature-item {
-  border-left: 4px solid $primary;
+  border-left: 4px solid $div_border;
 }
 .hr-features .feature-item {
-  border-left: 4px solid $hr-primary;
+  border-left: 4px solid $div_border;
 }
 .manager-features .feature-item {
-  border-left: 4px solid $manager-primary;
+  border-left: 4px solid $div_border;
 }
 .employee-features .feature-item {
-  border-left: 4px solid $employee-primary;
+  border-left: 4px solid $div_border;
 }
 
 .feature-icon {
@@ -559,13 +511,13 @@ $text-muted: #9ca3af;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: $hr-primary;
-  border: 1px solid rgba(148, 163, 253, 0.5);
+  background: #c3955b;
+  border: 1px solid $div_border;
 }
 
 .feature-item span:last-child {
   font-weight: 500;
-  color: #e5e7eb;
+  color: $dash_font;
   font-size: 14px;
 }
 
@@ -575,14 +527,13 @@ $text-muted: #9ca3af;
 .access-info {
   margin-top: 8px;
   border-radius: 20px;
-  padding: 20px 20px 18px;
+  padding: 13px 20px 13px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
   gap: 10px 14px;
-  background: #4fb3c3;
-  border: 1px solid #facc15;
-  box-shadow: 0 20px 48px rgba(250, 204, 21, 0.35);
+  background: #c3955b;
+  border: 1px solid $div_border;
 
   .badge {
     width: 40px;
@@ -593,21 +544,21 @@ $text-muted: #9ca3af;
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    color: #1f2937;
+    color: $dash_font;
   }
 
   h3 {
     margin: 0;
     font-size: 16px;
     font-weight: 600;
-    color: #fef3c7;
+    color: $small-text;
   }
 
   p {
     grid-column: 1 / -1;
     margin: 2px 0 0;
     font-size: 13px;
-    color: #fef9c3;
+    color: $dash-font-dark;
     line-height: 1.7;
   }
 
@@ -631,16 +582,16 @@ $text-muted: #9ca3af;
 }
 
 .admin-info {
-  border-left: 6px solid $primary;
+  border-left: 6px solid $div_border;
 }
 .hr-info {
-  border-left: 6px solid $hr-primary;
+  border-left: 6px solid $div_border;
 }
 .manager-info {
-  border-left: 6px solid $manager-primary;
+  border-left: 6px solid $div_border;
 }
 .employee-info {
-  border-left: 6px solid $employee-primary;
+  border-left: 6px solid $div_border;
 }
 
 // =======================================
@@ -656,7 +607,7 @@ $text-muted: #9ca3af;
     bottom: 14px;
     font-size: 18px;
     opacity: 0;
-    color: $hr-primary;
+    color: $div_border;
     transition: opacity 0.25s ease, transform 0.25s ease;
     transform: translateX(6px);
   }
@@ -689,33 +640,24 @@ $text-muted: #9ca3af;
   justify-content: center;
 
   .dashboard-loader {
-    background: rgba(15, 23, 42, 0.96);
+    background: $div_bg-dark;
     border-radius: 22px;
     padding: 24px 30px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 12px;
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.8);
-    border: 1px solid rgba(148, 163, 253, 0.5);
+    border: $div_border;
 
     .spinner {
       width: 36px;
       height: 36px;
       border-radius: 50%;
-      border: 3px solid rgba(148, 163, 253, 0.4);
-      border-top-color: #a5b4fc;
+      border: 3px solid $div-bg-light;
+      border-top-color: $div_border;
       animation: spin 0.8s linear infinite;
-    }
-
-    p {
-      margin: 0;
-      font-size: 14px;
-      color: #e5e7eb;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      opacity: 0.85;
     }
   }
 }
+
 

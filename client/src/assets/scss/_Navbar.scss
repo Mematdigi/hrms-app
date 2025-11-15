@@ -1,14 +1,20 @@
+$div_border: #f3d58d;
+$div-bg-light: #c3955b;
+$div_bg-dark:#ba6a36;
+$small-text: #443c26;
+$nav-font: #f1f0af;
 .navbar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 110;
-  background: radial-gradient(circle at top left, rgba(148, 163, 253, 0.18), transparent 55%), linear-gradient(135deg, rgba(2, 6, 23, 0.88), rgba(15, 23, 42, 0.95));
+  background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
   backdrop-filter: blur(18px);
   padding: 0;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.9), 0 0 0 1px rgba(15, 23, 42, 0.7);
-  border-bottom: 1px solid rgba(148, 163, 253, 0.35);
+  box-shadow: 0 18px 40px $div_border, 0 0 0 1px $div_border;
+  border-bottom: 1px solid $div_border;
   transition: box-shadow 0.3s ease, background 0.3s ease;
   animation: navbarDrop 0.45s ease-out;
 }
@@ -30,14 +36,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
-  height: 70px;
+  height: 55px;
 }
 
 .navbar-logo {
   font-size: 24px;
-  font-weight: 800;
-  color: #f9fafb;  // light logo text
+  font-weight: 700; // reduced from 800
+  // margin-right: 20rem;
+  color: $nav-font;
   text-decoration: none;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -48,6 +54,7 @@
     opacity: 0.96;
   }
 }
+
 
 .nav-menu {
   display: flex;
@@ -66,10 +73,10 @@
 }
 
 .nav-link {
-  color: #f9fafb;  // lighter link text
+  color: $nav-font;
   text-decoration: none;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600; // reduced from 700
   padding-bottom: 3px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -82,7 +89,7 @@
     bottom: 0;
     height: 2px;
     width: 100%;
-    background: rgba(239, 246, 255, 0.95); // very light underline
+    background: rgba(247, 226, 158, 0.95);
     transform: scaleX(0);
     transform-origin: left;
     transition: transform 0.25s ease;
@@ -99,23 +106,23 @@
   }
 
   &.admin-link {
-    background: rgba(15, 23, 42, 0.7);
+    background: $div_bg-light;
     padding: 7px 14px;
     border-radius: 999px;
-    border: 1px solid rgba(191, 219, 254, 0.9);
+    border: 1px solid $div_border;
     backdrop-filter: blur(10px);
     overflow: hidden;
-    font-weight: 800;
-    color: #f9fafb;
+    font-weight: 700; // reduced from 800
+    color: $nav-font;
 
     &::after {
       display: none;
     }
 
     &:hover {
-      background: rgba(30, 64, 175, 0.95);
+      background: $div_bg-dark;
       transform: translateY(-1px);
-      box-shadow: 0 12px 30px rgba(30, 64, 175, 0.9);
+      box-shadow: 0 12px 30px $div_border;
     }
   }
 }
@@ -132,7 +139,7 @@
   .bar {
     width: 100%;
     height: 4px;
-    background-color: #f9fafb;
+    background-color: $div_border;
     border-radius: 10px;
   }
 }
@@ -142,77 +149,76 @@
   align-items: center;
   gap: 15px;
   padding-left: 15px;
-  border-left: 1px solid rgba(191, 219, 254, 0.7);
+  border-left: 1px solid $div_border;
 
   span {
-    color: #e5e7eb;
+    color: $nav-font;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 500; // reduced from 600
   }
 }
 
 .user-role {
-  background: rgba(15, 23, 42, 0.9);
+  background: $div-bg-light;
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600; // reduced from 700
   text-transform: uppercase;
-  border: 1px solid rgba(191, 219, 254, 0.85);
+  border: 1px solid $div_border;
   letter-spacing: 0.12em;
-  color: #f9fafb;
+  color: $nav-font;
   transition: box-shadow 0.25s ease, transform 0.2s ease, background 0.25s ease;
 
   &:hover {
-    box-shadow: 0 0 16px rgba(129, 140, 248, 0.9);
+    box-shadow: 0 0 16px $div_bg-dark;
     transform: translateY(-1px);
   }
 
   &.role-admin {
-    background: rgba($primary, 0.45);
-    border-color: rgba($primary, 0.9);
+    border-color: rgba($div-bg-light, 0.9);
   }
   &.role-hr {
-    background: rgba($hr-primary, 0.45);
-    border-color: rgba($hr-primary, 0.9);
+    background: rgba($div-bg-light, 0.45);
+    border-color: rgba($div-bg-light, 0.9);
   }
   &.role-manager {
-    background: rgba($manager-primary, 0.45);
-    border-color: rgba($manager-primary, 0.9);
+    background: rgba($div-bg-light, 0.45);
+    border-color: rgba($div-bg-light, 0.9);
   }
   &.role-employee {
-    background: rgba($employee-primary, 0.45);
-    border-color: rgba($employee-primary, 0.9);
+    background: rgba($div-bg-light, 0.45);
+    border-color: rgba($div-bg-light, 0.9);
   }
 }
 
 .logout-btn {
-  background: rgba(15, 23, 42, 0.85);
-  color: #f9fafb;
-  border: 1px solid rgba(191, 219, 254, 0.9);
+  background: $div-bg-light;
+  color: $nav-font;
+  border: 1px solid $div_border;
   padding: 6px 12px;
   border-radius: 999px;
   cursor: pointer;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600; // reduced from 700
   letter-spacing: 0.08em;
   text-transform: uppercase;
   transition: background 0.25s ease, color 0.25s ease, transform 0.18s ease, box-shadow 0.25s ease;
 
   &:hover {
-    background: #f9fafb;
-    color: #1d4ed8;
+    background: $div_bg-dark;
+    color: $nav-font;
     transform: translateY(-1px);
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.9);
+    box-shadow: 0 10px 24px $div_border;
   }
 
   &:active {
     transform: translateY(0);
-    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.9);
+    box-shadow: 0 4px 10px $nav-font;
   }
 }
 
-/* ===== Responsive tweaks same as before ===== */
+/* ===== Responsive tweaks ===== */
 
 @media (max-width: 768px) {
   .nav-menu {
@@ -221,7 +227,7 @@
     right: 0;
     width: 100%;
     height: 100vh;
-    background: rgba(15, 23, 42, 0.9);
+    background: $div-bg-light;
     flex-direction: column;
     justify-content: flex-start;
     gap: 20px;
@@ -230,12 +236,17 @@
     transition: transform 0.3s ease-in-out;
   }
 
+  .navbar-container {
+    gap: 24rem;
+  }
+
   .menu-icon {
     display: flex;
   }
 
   .nav-link {
     font-size: 16px;
+    font-weight: 600; // reduced
   }
 
   .user-info {
@@ -249,6 +260,7 @@
   .logout-btn {
     padding: 6px 10px;
     font-size: 11px;
+    font-weight: 600; // reduced
   }
 }
 
@@ -259,9 +271,11 @@
 
   .nav-link {
     font-size: 11px;
+    font-weight: 600; // reduced
   }
 
   .user-info span {
     font-size: 11px;
+    font-weight: 500; // reduced
   }
 }
