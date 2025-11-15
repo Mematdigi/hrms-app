@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
-// import '../styles/Navbar.css';
 
 function Navbar() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
+
+  const [menuOpen, setMenuOpen] = useState(false);  // State to toggle menu visibility on small screens
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -66,19 +67,26 @@ function Navbar() {
 
   const menuItems = getMenuItems();
 
+  const toggleMenu = () => setMenuOpen(!menuOpen);  // Toggle menu on small screen
+
   return (
-    <nav className="navbar">
+    <nav className="navbar fixed-top m-2 rounded">
       <div className="navbar-container">
         <Link to="/dashboard" className="navbar-logo">
           HRMS
         </Link>
-        <ul className="nav-menu">
+
+        {/* Hamburger Menu Icon for Small Screens */}
+        <div className="menu-icon" onClick={toggleMenu}>
+          <span className="bar"></span>
+          <span className="bar"></span>
+          <span className="bar"></span>
+        </div>
+
+        <ul className={`nav-menu ${menuOpen ? 'active' : ''}`}>
           {menuItems.map((item) => (
-            <li key={item.path} className="nav-item">
-              <Link 
-                to={item.path} 
-                className={`nav-link ${item.admin ? 'admin-link' : ''}`}
-              >
+            <li key={item.path} className="nav-item text-white">
+              <Link to={item.path} className={`nav-link ${item.admin ? 'admin-link' : ''}`}>
                 {item.label}
               </Link>
             </li>

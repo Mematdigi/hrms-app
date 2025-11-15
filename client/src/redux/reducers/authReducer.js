@@ -1,8 +1,11 @@
 // redux/reducers/authReducer.js
+const storedUser = localStorage.getItem('user')
+  ? JSON.parse(localStorage.getItem('user'))
+  : null;
 
 // Initial state - checks if token exists in localStorage
 const initialState = {
-  user: null, // User data will be null on page load
+  user: storedUser, // User data will be null on page load
   token: localStorage.getItem('token') || null, // Check localStorage for existing token
   loading: false,
   error: null,
@@ -18,6 +21,7 @@ const authReducer = (state = initialState, action) => {
     case 'LOGIN_SUCCESS':
       // Save token to localStorage
       localStorage.setItem('token', action.payload.token);
+      localStorage.setItem('user', JSON.stringify(action.payload.user));  
       return { 
         ...state, 
         user: action.payload.user, // Store user data
@@ -39,6 +43,7 @@ const authReducer = (state = initialState, action) => {
     // When user logs out
     case 'LOGOUT':
       localStorage.removeItem('token'); // Remove token from localStorage
+      localStorage.removeItem('user');  
       return { 
         ...state, 
         user: null, 
@@ -49,6 +54,7 @@ const authReducer = (state = initialState, action) => {
     // When registration is successful
     case 'REGISTER_SUCCESS':
       localStorage.setItem('token', action.payload.token);
+      localStorage.setItem('user', JSON.stringify(action.payload.user)); 
       return { 
         ...state, 
         user: action.payload.user, 
@@ -71,6 +77,7 @@ const authReducer = (state = initialState, action) => {
     case 'AUTH_ERROR':
       console.log('❌ Auth error:', action.payload); // Debug log
       localStorage.removeItem('token'); // Remove invalid token
+      localStorage.removeItem('user');  
       return {
         ...state,
         user: null,
