@@ -22,7 +22,7 @@ function Payroll() {
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
     baseSalary: '',
-    WorkedDays: '',
+    workedDays: '',
     deductions: '',
     workingDays: '',
   });
@@ -125,9 +125,9 @@ const handleGeneratePDF = async (employee) => {
 
     // ========== CONVERT ALL VALUES TO NUMBERS ==========
     const baseSalary = parseFloat(employee.payroll.baseSalary) || 0;
-    const workedDays = parseInt(employee.payroll.WorkedDays) || 0;
+    const workedDays = parseInt(employee.payroll.workedDays) || 0;
     const deductions = parseFloat(employee.payroll.deductions) || 0;
-    const totalWorkingDays = parseInt(employee.payroll.TotalWorkingDays) || 0;
+    const workingDays = parseInt(employee.payroll.workingDays) || 0;
 
     // ========== BACKGROUND ==========
     doc.setFillColor(255, 255, 255);
@@ -264,16 +264,16 @@ const handleGeneratePDF = async (employee) => {
       margin: { left: 15, right: 15 },
     });
 
-    // ========== DEDUCTIONS TABLE ==========
+    // ========== deductions TABLE ==========
     yPos = doc.lastAutoTable.finalY + 10;
 
     const providentFund = baseSalary * 0.12;   // 12%
     const professionalTax = baseSalary * 0.05; // 5%
     const loan = deductions;
-    const totalDeductions = providentFund + professionalTax + loan;
+    const totaldeductions = providentFund + professionalTax + loan;
 
     const deductionsData = [
-      ['Deductions', 'Amount'],
+      ['deductions', 'Amount'],
       ['Provident Fund', Math.round(providentFund).toString()],
       ['Professional Tax', Math.round(professionalTax).toString()],
       ['Loan', Math.round(loan).toString()],
@@ -307,11 +307,11 @@ const handleGeneratePDF = async (employee) => {
       margin: { left: 15, right: 15 },
     });
 
-    // Total Deductions Row
+    // Total deductions Row
     const deductionsY = doc.lastAutoTable.finalY;
     autoTable(doc, {
       startY: deductionsY,
-      body: [['Total Deductions', Math.round(totalDeductions).toString()]],
+      body: [['Total deductions', Math.round(totaldeductions).toString()]],
       theme: 'grid',
       styles: {
         fontSize: 9,
@@ -333,11 +333,11 @@ const handleGeneratePDF = async (employee) => {
 
     // Net Pay Row
     const netPayY = doc.lastAutoTable.finalY;
-    const netPay = totalEarnings - totalDeductions;
+    const netPay = totalEarnings - totaldeductions;
     
     autoTable(doc, {
       startY: netPayY,
-      body: [['Net Pay', Math.round(netPay).toString()]],
+      body: [['Net Pay',`Rs. ${Math.round(netPay).toString()}`]],
       theme: 'grid',
       styles: {
         fontSize: 9,
@@ -367,7 +367,7 @@ const handleGeneratePDF = async (employee) => {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     const netPayWords = numberToWords(Math.round(netPay));
-    doc.text(netPayWords, pageWidth / 2, yPos, { align: 'center' });
+    doc.text(`Rs. ${netPayWords} only`, pageWidth / 2, yPos, { align: 'center' });
 
     // ========== SIGNATURE SECTION ==========
     yPos = pageHeight - 50;
@@ -451,9 +451,9 @@ const handleGeneratePDF = async (employee) => {
         employee: selectedEmployee,
         ...formData,
         baseSalary: parseFloat(formData.baseSalary),
-        WorkedDays: parseFloat(formData.WorkedDays) || 0,
+        workedDays: parseFloat(formData.workedDays) || 0,
         deductions: parseFloat(formData.deductions) || 0,
-        TotalWorkingDays: parseFloat(formData.workingDays) || 0,
+        workingDays: parseFloat(formData.workingDays) || 0,
         month: parseInt(formData.month),
         year: parseInt(formData.year)
       });
@@ -462,7 +462,7 @@ const handleGeneratePDF = async (employee) => {
         month: new Date().getMonth() + 1,
         year: new Date().getFullYear(),
         baseSalary: '',
-        WorkedDays: '',
+        workedDays: '',
         deductions: '',
         workingDays: '',
       });
@@ -527,7 +527,7 @@ const handleGeneratePDF = async (employee) => {
               <th>Date of Joining</th>
               <th>Salary</th>
               <th>Worked Days</th>
-              <th>Deductions</th>
+              <th>deductions</th>
               <th>Net Salary</th>
               <th>Working Days</th>
               <th>Actions</th>
@@ -559,10 +559,10 @@ const handleGeneratePDF = async (employee) => {
                     <td>{emp.designation}</td>
                     <td>{new Date(emp.dateOfJoining).toLocaleDateString()}</td>
                     <td>₹{emp.payroll?.baseSalary?.toLocaleString('en-IN') || '-'}</td>
-                    <td>{emp.payroll?.WorkedDays || '-'}</td>
+                    <td>{emp.payroll?.workedDays || '-'}</td>
                     <td>₹{emp.payroll?.deductions?.toLocaleString('en-IN') || '-'}</td>
                     <td>₹{emp.payroll?.netSalary?.toLocaleString('en-IN') || '-'}</td>
-                    <td>{emp.payroll?.TotalWorkingDays || '-'}</td>
+                    <td>{emp.payroll?.workingDays || '-'}</td>
                     <td>
                       <button
                         className={`pdf-btn ${!emp.payroll?.netSalary ? 'disabled' : ''}`}
@@ -658,13 +658,13 @@ const handleGeneratePDF = async (employee) => {
 
                             <div className="form-group">
                               <label>Worked Days</label>
-                              <input type="number" name="WorkedDays" placeholder="Enter worked days"
-                                     value={formData.WorkedDays} onChange={handleChange} 
+                              <input type="number" name="workedDays" placeholder="Enter worked days"
+                                     value={formData.workedDays} onChange={handleChange} 
                                      min="0" step="1" />
                             </div>
 
                             <div className="form-group">
-                              <label>Deductions</label>
+                              <label>deductions</label>
                               <input type="number" name="deductions" placeholder="Enter deductions"
                                      value={formData.deductions} onChange={handleChange} 
                                      min="0" step="0.01" />

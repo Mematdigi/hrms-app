@@ -3,7 +3,7 @@ const Attendance = require('../models/Attendance');
 
 exports.generatePayroll = async (req, res) => {
   try {
-    const { employee, month, year, baseSalary, deductions, workingDays, WorkedDays } = req.body;
+    const { employee, month, year, baseSalary, deductions, workingDays, workedDays } = req.body;
 
     // Combine month + year to form period (optional)
     const period = `${month}-${year}`;  // You can optionally use this as a unique identifier if needed
@@ -14,9 +14,9 @@ exports.generatePayroll = async (req, res) => {
       {
         $set: {  // Use $set to update the fields
           baseSalary,
-          Deductions: deductions,
+          deductions,
           workingDays,
-          WorkedDays,
+          workedDays,
           netSalary: baseSalary - deductions,
           status: 'draft',  // Optionally, change the status
         },
