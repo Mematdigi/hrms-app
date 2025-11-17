@@ -1,8 +1,8 @@
-$div_border: #f3d58d;
-$div-bg-light: #8f9ff8;
-$div_bg-dark:#af77f3;
+$div_border: #e3daee;
+$div-bg-light: #97a5f7;
+$div_bg-dark:#ba85fa;
 $small-text: #443c26;
-$nav-font: #f1f0af;
+$nav-font: #fffeaa;
 .navbar {
   position: fixed;
   top: 0;
@@ -89,7 +89,7 @@ $nav-font: #f1f0af;
     bottom: 0;
     height: 2px;
     width: 100%;
-    background: rgba(247, 226, 158, 0.95);
+    background: #aad3ee;
     transform: scaleX(0);
     transform-origin: left;
     transition: transform 0.25s ease;
