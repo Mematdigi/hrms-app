@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 function Payroll() {
   // ==================== STATE MANAGEMENT ====================
@@ -493,7 +494,7 @@ const handleGeneratePDF = async (employee) => {
   if (loading) return <div className="loading">Loading...</div>;
 
   return (
-    <div className="payroll-container">
+    <div className="payroll-container mt-5">
       {/* ========== HEADER SECTION ========== */}
       <div className="payroll-header">
         <h1>Payroll Management</h1>
@@ -515,7 +516,7 @@ const handleGeneratePDF = async (employee) => {
       {/* ========== PAYROLL TABLE ========== */}
       <div className="payroll-table">
         <h2>Employee Payroll</h2>
-        <table>
+        <table className="p-1">
           <thead>
             <tr>
               <th>Select</th>
