@@ -602,6 +602,7 @@ const handleGeneratePDF = async (employee) => {
                     <tr className="form-row-container">
                       <td colSpan="13">
                         <form onSubmit={handleSubmit} className="inline-payroll-form">
+                          {/* <pre>{JSON.stringify(emp)}</pre> */}
                           <h3>Generate Payroll for Employee</h3>
                           
                           <div className="selected-employees-box">
@@ -653,14 +654,14 @@ const handleGeneratePDF = async (employee) => {
                             <div className="form-group">
                               <label>Base Salary *</label>
                               <input type="number" name="baseSalary" placeholder="Enter base salary"
-                                     value={formData.baseSalary} onChange={handleChange} 
+                                     value={emp.payroll.netSalary} onChange={handleChange} 
                                      required min="0" step="0.01" />
                             </div>
 
                             <div className="form-group">
                               <label>Worked Days</label>
                               <input type="number" name="workedDays" placeholder="Enter worked days"
-                                     value={formData.workedDays} onChange={handleChange} 
+                                     value={emp.payroll.workingDays} onChange={handleChange} 
                                      min="0" step="1" />
                             </div>
 

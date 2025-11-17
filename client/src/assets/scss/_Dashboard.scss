@@ -1,15 +1,15 @@
 // =======================================
 // THEME VARIABLES
 // =======================================
-$div_border: #f3d58d;
+$div_border: #87c6f0;
 $dash_font:#f1f0af;
-$div-bg-light: #c3955b;
-$div_bg-dark:#ba6a36;
+$div-bg-light: #8f9ff8;
+$div_bg-dark:#af77f3;
 $small-text: #443c26;
 $dash-font-dark:#221e18;
 
 // =======================================
-// KEYFRAMES
+// KEYFRAMES  
 // =======================================
 @keyframes headerFloat {
   0% {
@@ -87,7 +87,7 @@ $dash-font-dark:#221e18;
   padding: 1px; // gradient border
   background: linear-gradient(
     135deg,
-    #e6d5b3
+    #e0edf5
   );
   animation: dashboardFadeUp 0.6s ease-out both, softFloat 12s ease-in-out infinite;
   z-index: 1;
@@ -131,7 +131,8 @@ $dash-font-dark:#221e18;
   padding: 10px 24px;
   border-radius: 24px;
   color: $dash_font;
-  background: #c3955b;
+  background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
   background-size: 200% 200%;
   overflow: hidden;
   display: grid;
@@ -279,7 +280,8 @@ $dash-font-dark:#221e18;
 }
 
 .dashboard-card {
-  background: #c3955b;
+  background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
   color: #e5e7eb;
   border-radius: 20px;
   padding: 10px 20px;
@@ -345,7 +347,8 @@ $dash-font-dark:#221e18;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #ba6a36;
+  background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
   border: 1px solid $div_border;
 
   @media (max-width: 768px) {
@@ -416,7 +419,8 @@ $dash-font-dark:#221e18;
 .hr-features,
 .manager-features,
 .employee-features {
-  background: #c3955b;
+  background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
   color: #e5e7eb;
   border-radius: 22px;
   padding: 10px 20px;
@@ -471,7 +475,8 @@ $dash-font-dark:#221e18;
   gap: 20px;
   padding: 10px;
   border-radius: 999px;
-  background: #ba6a36;
+  background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
   border: 1px solid $div_border;
   transition: all 0.25s ease;
   position: relative;
@@ -511,7 +516,8 @@ $dash-font-dark:#221e18;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #c3955b;
+  background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
   border: 1px solid $div_border;
 }
 
@@ -532,7 +538,8 @@ $dash-font-dark:#221e18;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
   gap: 10px 14px;
-  background: #c3955b;
+  background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
   border: 1px solid $div_border;
 
   .badge {
@@ -640,7 +647,8 @@ $dash-font-dark:#221e18;
   justify-content: center;
 
   .dashboard-loader {
-    background: $div_bg-dark;
+    background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
     border-radius: 22px;
     padding: 24px 30px;
     display: flex;

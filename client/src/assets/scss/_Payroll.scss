@@ -3,6 +3,7 @@
 .payroll-container {
   max-width: 1400px;      /* Maximum width to prevent content from stretching too wide */
   margin: 0 auto;         /* Center the container horizontally */
+  margin-top: 80px;
   padding: 40px 20px;     /* Spacing around the content */
 }
 
@@ -57,8 +58,8 @@
   background: white;                       /* White background */
   border-radius: 12px;                     /* Rounded corners */
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Subtle shadow for depth */
-  overflow: hidden;                        /* Clip content to rounded corners */
-  margin-bottom: 30px;                     /* Space below table */
+  // overflow: hidden;                    
+  margin-bottom: 30px;                 /* Space below table */
 }
 
 /* Table heading */
