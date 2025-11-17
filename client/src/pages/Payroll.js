@@ -525,9 +525,9 @@ const handleGeneratePDF = async (employee) => {
               <th>Department</th>
               <th>Designation</th>
               <th>Date of Joining</th>
-              <th>Salary</th>
+              <th>Base Salary</th>
               <th>Worked Days</th>
-              <th>deductions</th>
+              <th>Deductions</th>
               <th>Net Salary</th>
               <th>Working Days</th>
               <th>Actions</th>
@@ -653,19 +653,19 @@ const handleGeneratePDF = async (employee) => {
                             <div className="form-group">
                               <label>Base Salary *</label>
                               <input type="number" name="baseSalary" placeholder="Enter base salary"
-                                     value={""} onChange={handleChange} 
+                                     value={formData.baseSalary} onChange={handleChange} 
                                      required min="0" step="0.01" />
                             </div>
 
                             <div className="form-group">
                               <label>Worked Days</label>
                               <input type="number" name="workedDays" placeholder="Enter worked days"
-                                     value={""} onChange={handleChange} 
+                                     value={formData.workedDays} onChange={handleChange} 
                                      min="0" step="1" />
                             </div>
 
                             <div className="form-group">
-                              <label>deductions</label>
+                              <label>Deductions</label>
                               <input type="number" name="deductions" placeholder="Enter deductions"
                                      value={formData.deductions} onChange={handleChange} 
                                      min="0" step="0.01" />
