@@ -136,6 +136,8 @@ function Employees() {
         <table>
           <thead>
             <tr>
+              <th>S.No</th>
+              <th>Employee Id</th>
               <th>Name</th>
               <th>Email</th>
               <th>Department</th>
@@ -146,6 +148,8 @@ function Employees() {
           <tbody>
             {employees.map((emp) => (
               <tr key={emp._id}>
+                <td>{employees.indexOf(emp) + 1}</td>
+                <td>{emp.employeeId}</td>
                 <td>{emp.firstName} {emp.lastName}</td>
                 <td>{emp.email}</td>
                 <td>{emp.department || 'N/A'}</td>
