@@ -73,34 +73,198 @@
 
 /* ==================== TABLE STYLING ==================== */
 /* Main table element */
-.payroll-table table {
-  width: 100%;           /* Full width of container */
-  border-collapse: collapse; /* Remove spacing between cells */
+// .payroll-table table {
+//   width: 100%;           /* Full width of container */
+//   border-collapse: collapse; /* Remove spacing between cells */
+// }
+
+// /* Table header cells */
+// .payroll-table th {
+//   background: #f5f5f5;     /* Light gray background */
+//   padding: 15px;           /* Cell padding */
+//   text-align: left;        /* Left-align text */
+//   font-weight: 600;        /* Semi-bold text */
+//   color: #333;             /* Dark gray text */
+//   border-bottom: 1px solid #ddd; /* Bottom border */
+//   font-size: 13px;         /* Slightly smaller font */
+//   white-space: nowrap;     /* Prevent text wrapping */
+// }
+
+// /* Table data cells */
+// .payroll-table td {
+//   padding: 15px;                 /* Cell padding */
+//   border-bottom: 1px solid #eee; /* Bottom border */
+//   font-size: 14px;               /* Standard font size */
+// }
+
+// /* Row hover effect */
+// .payroll-table tbody tr:hover {
+//   background: #f9f9f9;   /* Light gray on hover */
+// }
+
+/* ==================== PAYROLL TABLE WRAPPER ==================== */
+.payroll-table {
+  margin-top: 24px;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e5e7eb;
+  
+  /* REMOVE SLIDER */
+  overflow-x: hidden !important;
 }
 
-/* Table header cells */
+/* Title */
+.payroll-table h2 {
+  font-size: 17px;
+  margin: 0 0 14px;
+  font-weight: 600;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payroll-table h2::before {
+  content: "";
+  width: 6px;
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #667eea, #22c55e);
+}
+
+/* ==================== TABLE STYLING ==================== */
+.payroll-table table {
+  width: 100%;
+  border-collapse: collapse;
+
+  /* AUTO FIT TABLE WITHOUT SCROLL */
+  table-layout: fixed;
+}
+
+/* Table header */
 .payroll-table th {
-  background: #f5f5f5;     /* Light gray background */
-  padding: 15px;           /* Cell padding */
-  text-align: left;        /* Left-align text */
-  font-weight: 600;        /* Semi-bold text */
-  color: #333;             /* Dark gray text */
-  border-bottom: 1px solid #ddd; /* Bottom border */
-  font-size: 13px;         /* Slightly smaller font */
-  white-space: nowrap;     /* Prevent text wrapping */
+  padding: 8px 10px;
+  background: #eef2ff;
+  font-size: 11px;
+  text-transform: uppercase;
+  border-bottom: 1px solid #d4d4d8;
+  color: #111827;
+
+  /* WRAPPING ENABLE */
+  white-space: normal !important;
+  word-break: break-word;
 }
 
 /* Table data cells */
 .payroll-table td {
-  padding: 15px;                 /* Cell padding */
-  border-bottom: 1px solid #eee; /* Bottom border */
-  font-size: 14px;               /* Standard font size */
+  padding: 10px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 12px;
+  color: #111827;
+
+  /* FIX TEXT OVERFLOW */
+  word-break: break-word;
+  white-space: normal !important;
 }
 
-/* Row hover effect */
-.payroll-table tbody tr:hover {
-  background: #f9f9f9;   /* Light gray on hover */
+/* Make numeric columns right aligned */
+.payroll-table td:nth-child(8),
+.payroll-table td:nth-child(9),
+.payroll-table td:nth-child(10),
+.payroll-table td:nth-child(11),
+.payroll-table td:nth-child(12) {
+  text-align: right;
 }
+
+/* Row Hover */
+.payroll-table tbody tr:hover {
+  background: #f3f4f6;
+  transition: 0.2s ease;
+}
+
+/* Selected Row */
+.payroll-table tr.selected-row {
+  background: #e0e7ff;
+  box-shadow: inset 3px 0 0 #4f46e5;
+}
+
+.payroll-table tr.selected-row:hover {
+  background: #d7defc;
+}
+
+/* Checkbox */
+.payroll-table input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #667eea;
+  cursor: pointer;
+}
+
+/* PDF Button */
+.pdf-btn {
+  padding: 5px 10px;
+  border-radius: 50px;
+  border: 1px solid #4f46e5;
+  background: #6366f1;
+  color: white;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.pdf-btn:hover {
+  transform: scale(1.03);
+}
+
+.pdf-btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Form Row */
+.form-row-container td {
+  background: #f8fafc;
+  padding: 16px;
+}
+
+/* Form Grid */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 1024px) {
+  /* Fit contents better */
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  /* FULLY RESPONSIVE */
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .payroll-table th,
+  .payroll-table td {
+    font-size: 11px;
+    padding: 6px 6px;
+  }
+
+  .pdf-btn {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+}
+
+
 
 /* ==================== SELECTED ROW HIGHLIGHTING ==================== */
 /* Highlight rows where checkbox is selected */
@@ -122,6 +286,8 @@
   height: 18px;          /* Checkbox height */
   accent-color: #667eea; /* Purple checkbox color (modern browsers) */
 }
+
+
 
 /* ==================== INLINE FORM CONTAINER ==================== */
 /* Table row that contains the form */

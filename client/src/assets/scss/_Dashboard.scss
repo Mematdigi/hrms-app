@@ -2,7 +2,7 @@
 // THEME VARIABLES
 // =======================================
 $div_border: #87c6f0;
-$dash_font:#f1f0af;
+$dash_font:#fffeb3;
 $div-bg-light: #8f9ff8;
 $div_bg-dark:#af77f3;
 $small-text: #443c26;
@@ -87,7 +87,7 @@ $dash-font-dark:#221e18;
   padding: 1px; // gradient border
   background: linear-gradient(
     135deg,
-    #e0edf5
+    #e1c9fd
   );
   animation: dashboardFadeUp 0.6s ease-out both, softFloat 12s ease-in-out infinite;
   z-index: 1;

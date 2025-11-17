@@ -24,7 +24,7 @@ function Employees() {
 
   const fetchEmployees = async () => {
     try {
-      
+
       const response = await employeeAPI.getAll();
       console.log('Fetched employees: ', response.data);
       setEmployees(response.data);
@@ -42,7 +42,7 @@ function Employees() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-     const response = await employeeAPI.create(formData);
+      const response = await employeeAPI.create(formData);
       setFormData({
         firstName: '',
         lastName: '',
@@ -131,7 +131,8 @@ function Employees() {
           <button type="submit">Create Employee</button>
         </form>
       )}
-
+      
+      {/* employee table */}
       <div className="employees-table">
         <table>
           <thead>
@@ -145,23 +146,28 @@ function Employees() {
               <th>Status</th>
             </tr>
           </thead>
+
           <tbody>
-            {employees.map((emp) => (
+            {employees.map((emp, index) => (
               <tr key={emp._id}>
-                <td>{employees.indexOf(emp) + 1}</td>
+                <td>{index + 1}</td>
                 <td>{emp.employeeId}</td>
                 <td>{emp.firstName} {emp.lastName}</td>
                 <td>{emp.email}</td>
                 <td>{emp.department || 'N/A'}</td>
                 <td>{emp.designation || 'N/A'}</td>
-                <td>{emp.isActive ? 'Active' : 'Inactive'}</td>
+                <td className={emp.isActive ? "status-active" : "status-inactive"}>
+                  {emp.isActive ? 'Active' : 'Inactive'}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+
     </div>
   );
-  }
+}
 
 export default Employees;
