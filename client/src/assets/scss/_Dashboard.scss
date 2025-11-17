@@ -131,7 +131,8 @@ $dash-font-dark:#221e18;
   padding: 10px 24px;
   border-radius: 24px;
   color: $dash_font;
-  background: $div_bg-dark;
+  background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
   background-size: 200% 200%;
   overflow: hidden;
   display: grid;
@@ -279,7 +280,8 @@ $dash-font-dark:#221e18;
 }
 
 .dashboard-card {
-  background: $div_bg-dark;
+  background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
   color: #e5e7eb;
   border-radius: 20px;
   padding: 10px 20px;
@@ -345,7 +347,8 @@ $dash-font-dark:#221e18;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: $div_bg-dark;
+  background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
   border: 1px solid $div_border;
 
   @media (max-width: 768px) {
@@ -416,7 +419,8 @@ $dash-font-dark:#221e18;
 .hr-features,
 .manager-features,
 .employee-features {
-  background: $div_bg-dark;
+  background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
   color: #e5e7eb;
   border-radius: 22px;
   padding: 10px 20px;
@@ -471,7 +475,8 @@ $dash-font-dark:#221e18;
   gap: 20px;
   padding: 10px;
   border-radius: 999px;
-  background: $div_bg-dark;
+  background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
   border: 1px solid $div_border;
   transition: all 0.25s ease;
   position: relative;
@@ -511,7 +516,8 @@ $dash-font-dark:#221e18;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: $div_bg-dark;
+  background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
   border: 1px solid $div_border;
 }
 
@@ -532,7 +538,8 @@ $dash-font-dark:#221e18;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
   gap: 10px 14px;
-  background: $div_bg-dark;
+  background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
   border: 1px solid $div_border;
 
   .badge {
@@ -640,7 +647,8 @@ $dash-font-dark:#221e18;
   justify-content: center;
 
   .dashboard-loader {
-    background: $div_bg-dark;
+    background: radial-gradient(circle at top left, $div-bg-light, transparent 55%), 
+              linear-gradient(135deg, $div_bg-dark);
     border-radius: 22px;
     padding: 24px 30px;
     display: flex;
