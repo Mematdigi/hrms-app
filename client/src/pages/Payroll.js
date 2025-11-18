@@ -601,7 +601,7 @@ const handleGeneratePDF = async (employee) => {
                     <tr className="form-row-container">
                       <td colSpan="13">
                         <form onSubmit={handleSubmit} className="inline-payroll-form">
-                          {/* <pre>{JSON.stringify(emp)}</pre> */}
+                          <pre>{JSON.stringify(formData)}</pre>
                           <h3>Generate Payroll for Employee</h3>
                           
                           <div className="selected-employees-box">
