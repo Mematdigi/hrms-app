@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { leaveAPI } from '../services/api';
-// import '../styles/Leave.css';
 
 function Leave() {
   const [leaves, setLeaves] = useState([]);
@@ -19,10 +18,24 @@ function Leave() {
   const [errorMessage, setErrorMessage] = useState('');
   const { user } = useSelector((state) => state.auth);
 
+  // --- DEFAULT LEAVES & BALANCES (Casual + Sick) ---
+  const [leaveDefaults, setLeaveDefaults] = useState({
+    casualDefault: 0,
+    sickDefault: 0,
+  });
+  const [balances, setBalances] = useState(null);
+  const [settingsForm, setSettingsForm] = useState({
+    casualDefault: '',
+    sickDefault: '',
+  });
+
   useEffect(() => {
     fetchLeaves();
+    fetchLeaveDefaults(); // default casual + sick
     if (user?.role === 'hr') {
       fetchPendingLeaves();
+    } else if (user?.role === 'employee') {
+      fetchBalances();
     }
   }, [user]);
 
@@ -51,6 +64,33 @@ function Leave() {
     }
   };
 
+  // --- GET default casual & sick leaves from backend ---
+  const fetchLeaveDefaults = async () => {
+    try {
+      const res = await leaveAPI.getDefaults();
+      if (res?.data) {
+        setLeaveDefaults(res.data);
+        setSettingsForm({
+          casualDefault: res.data.casualDefault || '',
+          sickDefault: res.data.sickDefault || '',
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch leave defaults', err);
+    }
+  };
+
+  // --- GET employee leave balances (casualRemaining, sickRemaining) ---
+  const fetchBalances = async () => {
+    if (!user?.id) return;
+    try {
+      const res = await leaveAPI.getBalances(user.id);
+      setBalances(res.data || null);
+    } catch (err) {
+      console.error('Failed to fetch balances', err);
+    }
+  };
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -58,11 +98,11 @@ function Leave() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await leaveAPI.apply({
+      await leaveAPI.apply({
         employeeId: user?.id,
         ...formData,
       });
-      
+
       setSuccessMessage('✅ Leave request submitted successfully! HR will review your request.');
       setFormData({
         leaveType: 'casual',
@@ -71,9 +111,10 @@ function Leave() {
         reason: '',
       });
       setShowForm(false);
-      
+
       setTimeout(() => setSuccessMessage(''), 5000);
       fetchLeaves();
+      if (user?.role === 'employee') fetchBalances();
     } catch (error) {
       console.error('Error applying leave:', error);
       setErrorMessage('Failed to submit leave request');
@@ -91,6 +132,7 @@ function Leave() {
       setTimeout(() => setSuccessMessage(''), 5000);
       fetchPendingLeaves();
       fetchLeaves();
+      fetchBalances();
     } catch (error) {
       console.error('Error approving leave:', error);
       setErrorMessage('Failed to approve leave request');
@@ -101,7 +143,6 @@ function Leave() {
   const handleRejectLeave = async (leaveId) => {
     const rejectionReason = prompt('Enter rejection reason:');
     if (!rejectionReason) return;
-
     try {
       await leaveAPI.reject({
         leaveId,
@@ -112,6 +153,7 @@ function Leave() {
       setTimeout(() => setSuccessMessage(''), 5000);
       fetchPendingLeaves();
       fetchLeaves();
+      fetchBalances();
     } catch (error) {
       console.error('Error rejecting leave:', error);
       setErrorMessage('Failed to reject leave request');
@@ -126,6 +168,24 @@ function Leave() {
       rejected: { class: 'status-rejected', text: '❌ Rejected' },
     };
     return badges[status] || { class: 'status-pending', text: status };
+  };
+
+  // --- SAVE default casual & sick leaves from HR settings tab ---
+  const handleSettingsSave = async (e) => {
+    e.preventDefault();
+    try {
+      await leaveAPI.updateDefaults({
+        casualDefault: Number(settingsForm.casualDefault),
+        sickDefault: Number(settingsForm.sickDefault),
+      });
+      setSuccessMessage('✅ Leave defaults updated');
+      fetchLeaveDefaults();
+      setTimeout(() => setSuccessMessage(''), 4000);
+    } catch (err) {
+      console.error('Failed to update defaults', err);
+      setErrorMessage('Failed to update defaults');
+      setTimeout(() => setErrorMessage(''), 4000);
+    }
   };
 
   if (loading) return <div className="loading">Loading...</div>;
@@ -144,7 +204,24 @@ function Leave() {
         )}
       </div>
 
-      {/* Tabs for HR */}
+      {/* EMPLOYEE: Default & Remaining leave balances */}
+      {user?.role === 'employee' && (
+        <div className="balances-summary">
+          <h3>Your Leave Balances</h3>
+          <p>Casual Leave (default per year): {leaveDefaults.casualDefault ?? '—'}</p>
+          <p>Sick Leave (default per year): {leaveDefaults.sickDefault ?? '—'}</p>
+          {balances ? (
+            <div>
+              <p>Casual remaining: {balances.casualRemaining ?? '—'}</p>
+              <p>Sick remaining: {balances.sickRemaining ?? '—'}</p>
+            </div>
+          ) : (
+            <p className="muted">Remaining balances not available</p>
+          )}
+        </div>
+      )}
+
+      {/* HR Tabs */}
       {user?.role === 'hr' && (
         <div className="leave-tabs">
           <button
@@ -159,109 +236,58 @@ function Leave() {
           >
             📊 All Requests
           </button>
+          <button
+            className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settings')}
+          >
+            ⚙️ Leave Settings
+          </button>
         </div>
       )}
 
-      {/* Leave Application Form */}
-      {showForm && user?.role === 'employee' && (
-        <form onSubmit={handleSubmit} className="leave-form">
-          <h2>Apply for Leave</h2>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Leave Type *</label>
-              <select name="leaveType" value={formData.leaveType} onChange={handleChange} required>
-                <option value="casual">Casual Leave</option>
-                <option value="sick">Sick Leave</option>
-                <option value="earned">Earned Leave</option>
-                <option value="maternity">Maternity Leave</option>
-                <option value="paternity">Paternity Leave</option>
-                <option value="unpaid">Unpaid Leave</option>
-              </select>
+      {/* HR: Leave Settings (Default Casual + Sick) */}
+      {user?.role === 'hr' && activeTab === 'settings' && (
+        <div className="settings-section">
+          <h2>Leave Defaults / Policy</h2>
+          <p>Set default annual allowances for Casual and Sick leaves.</p>
+          <form onSubmit={handleSettingsSave} className="settings-form">
+            <div className="form-row">
+              <div className="form-group">
+                <label>Casual Leave (per year)</label>
+                <input
+                  type="number"
+                  min="0"
+                  name="casualDefault"
+                  value={settingsForm.casualDefault}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, casualDefault: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Sick Leave (per year)</label>
+                <input
+                  type="number"
+                  min="0"
+                  name="sickDefault"
+                  value={settingsForm.sickDefault}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, sickDefault: e.target.value })}
+                  required
+                />
+              </div>
             </div>
-            <div className="form-group">
-              <label>Start Date *</label>
-              <input
-                type="date"
-                name="startDate"
-                value={formData.startDate}
-                onChange={handleChange}
-                required
-              />
+            <div className="form-actions">
+              <button type="submit" className="submit-btn">Save Defaults</button>
             </div>
-            <div className="form-group">
-              <label>End Date *</label>
-              <input
-                type="date"
-                name="endDate"
-                value={formData.endDate}
-                onChange={handleChange}
-                required
-              />
-            </div>
+          </form>
+          <div className="current-defaults">
+            <h4>Current defaults</h4>
+            <p>Casual: {leaveDefaults.casualDefault ?? '—'}</p>
+            <p>Sick: {leaveDefaults.sickDefault ?? '—'}</p>
           </div>
-          <div className="form-group">
-            <label>Reason for Leave *</label>
-            <textarea
-              name="reason"
-              value={formData.reason}
-              onChange={handleChange}
-              placeholder="Please provide a reason for your leave request..."
-              required
-              rows="4"
-            />
-          </div>
-          <div className="form-actions">
-            <button type="submit" className="submit-btn">Submit Request</button>
-            <button type="button" className="cancel-btn" onClick={() => setShowForm(false)}>Cancel</button>
-          </div>
-          <p className="form-info">ℹ️ Your leave request will be sent to HR for approval.</p>
-        </form>
-      )}
-
-      {/* Pending Leaves for HR */}
-      {user?.role === 'hr' && activeTab === 'pending' && (
-        <div className="leaves-section">
-          <h2>Pending Leave Requests for Approval</h2>
-          {pendingLeaves.length === 0 ? (
-            <div className="no-data">No pending leave requests</div>
-          ) : (
-            <div className="leaves-grid">
-              {pendingLeaves.map((leave) => (
-                <div key={leave._id} className="leave-card pending-card">
-                  <div className="card-header">
-                    <h3>{leave.employee?.firstName} {leave.employee?.lastName}</h3>
-                    <span className="badge badge-pending">⏳ Pending</span>
-                  </div>
-                  <div className="card-body">
-                    <p><strong>Department:</strong> {leave.employee?.department || 'N/A'}</p>
-                    <p><strong>Leave Type:</strong> {leave.leaveType}</p>
-                    <p><strong>Start Date:</strong> {new Date(leave.startDate).toLocaleDateString()}</p>
-                    <p><strong>End Date:</strong> {new Date(leave.endDate).toLocaleDateString()}</p>
-                    <p><strong>Days:</strong> {leave.numberOfDays}</p>
-                    <p><strong>Reason:</strong> {leave.reason}</p>
-                  </div>
-                  <div className="card-actions">
-                    <button 
-                      className="approve-btn"
-                      onClick={() => handleApproveLeave(leave._id)}
-                    >
-                      ✅ Approve
-                    </button>
-                    <button 
-                      className="reject-btn"
-                      onClick={() => handleRejectLeave(leave._id)}
-                    >
-                      ❌ Reject
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
-      {/* All Leaves Table */}
+      {/* All Leaves Table (Employee / HR All tab) */}
       {(user?.role === 'employee' || (user?.role === 'hr' && activeTab === 'all')) && (
         <div className="leaves-section">
           <h2>{user?.role === 'employee' ? 'My Leave Requests' : 'All Leave Requests'}</h2>
@@ -272,6 +298,7 @@ function Leave() {
               <table className="leaves-table">
                 <thead>
                   <tr>
+                    <th>S.no</th>
                     {user?.role === 'hr' && <th>Employee</th>}
                     <th>Leave Type</th>
                     <th>Start Date</th>
@@ -279,14 +306,17 @@ function Leave() {
                     <th>Days</th>
                     <th>Status</th>
                     <th>Reason</th>
+                    <th>Remaining Casual Leave</th>
+                    <th>Remaining Sick Leave</th>
                     {user?.role === 'hr' && <th>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {leaves.map((leave) => {
+                  {leaves.map((leave, index) => {
                     const badge = getStatusBadge(leave.status);
                     return (
                       <tr key={leave._id} className={`row-${leave.status}`}>
+                        <td>{index + 1}</td>
                         {user?.role === 'hr' && (
                           <td>{leave.employee?.firstName} {leave.employee?.lastName}</td>
                         )}
@@ -300,6 +330,8 @@ function Leave() {
                           </span>
                         </td>
                         <td>{leave.reason}</td>
+                        <td>{leave.casualLeave !== undefined ? leave.casualLeave : '—'}</td>
+                        <td>{leave.sickLeave !== undefined ? leave.sickLeave : '—'}</td>
                         {user?.role === 'hr' && leave.status === 'pending' && (
                           <td>
                             <button 

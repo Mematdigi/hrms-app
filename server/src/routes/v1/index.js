@@ -20,7 +20,7 @@ const defaultRoutes = [
   { path: '/auth',        route: authRoutes },
   { path: '/employees',   route: employeeRoutes },
   { path: '/attendance',  route: attendanceRoutes },
-  { path: '/leaves',      route: leaveRoutes },
+  { path: '/leave',      route: leaveRoutes },
   { path: '/payroll',     route: payrollRoutes },
   { path: '/performance', route: performanceRoutes },
   { path: '/roles',       route: roleRoutes },

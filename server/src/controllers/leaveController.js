@@ -1,6 +1,8 @@
 const Leave = require('../models/Leave');
 const User = require('../models/User');
 const nodemailer = require('nodemailer');
+const Payroll = require('../models/Payroll');
+const LeaveDefaults = require('../models/LeaveDefaults');
 
 // Email configuration (you can update this with your email service)
 const transporter = nodemailer.createTransport({
@@ -10,8 +12,8 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASSWORD || 'your-app-password'
   }
 });
-
-exports.applyLeave = async (req, res) => {
+class LeaveController {
+applyLeave = async (req, res) => {
   try {
     const { employeeId, leaveType, startDate, endDate, reason } = req.body;
     
@@ -80,7 +82,7 @@ exports.applyLeave = async (req, res) => {
   }
 };
 
-exports.getLeaveRequests = async (req, res) => {
+getLeaveRequests = async (req, res) => {
   try {
     const { employeeId, status, role, userId } = req.query;
     const query = {};
@@ -111,7 +113,7 @@ exports.getLeaveRequests = async (req, res) => {
   }
 };
 
-exports.getPendingLeaveRequests = async (req, res) => {
+getPendingLeaveRequests = async (req, res) => {
   try {
     // Get all pending leave requests for HR approval
     const leaves = await Leave.find({ status: 'pending' })
@@ -124,7 +126,7 @@ exports.getPendingLeaveRequests = async (req, res) => {
   }
 };
 
-exports.approveLeave = async (req, res) => {
+approveLeave = async (req, res) => {
   try {
     const { leaveId, approverId } = req.body;
     
@@ -168,6 +170,14 @@ exports.approveLeave = async (req, res) => {
         }
       });
     }
+    
+    // for update the payroll of the employee
+    const payroll = await Payroll.findOne({ employee: leave.employee._id, month: new Date().getMonth() + 1, year: new Date().getFullYear() }); 
+    if (payroll) {
+      payroll.deductions += (payroll.baseSalary / payroll.workingDays) * leave.numberOfDays;
+      payroll.netSalary = payroll.baseSalary - payroll.deductions;
+      await payroll.save();
+    }
 
     res.json({ message: 'Leave approved successfully', leave });
   } catch (error) {
@@ -175,7 +185,7 @@ exports.approveLeave = async (req, res) => {
   }
 };
 
-exports.rejectLeave = async (req, res) => {
+rejectLeave = async (req, res) => {
   try {
     const { leaveId, rejectionReason, approverId } = req.body;
     
@@ -228,7 +238,7 @@ exports.rejectLeave = async (req, res) => {
   }
 };
 
-exports.getLeaveStats = async (req, res) => {
+getLeaveStats = async (req, res) => {
   try {
     const stats = {
       pending: await Leave.countDocuments({ status: 'pending' }),
@@ -241,3 +251,42 @@ exports.getLeaveStats = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+  getDefaults = async (req, res) => {
+    try {
+      const defaults = await LeaveDefaults.findOne(); // Find leave defaults
+
+      if (!defaults) {
+        return res.status(404).json({ message: 'Leave defaults not found.' });
+      }
+
+      res.json(defaults); // Return default leave data
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  };
+
+  // --- NEW: Update Default Leaves (Casual & Sick) ---
+  updateDefaults = async (req, res) => {
+    try {
+      const { casualDefault, sickDefault } = req.body;
+
+      if (typeof casualDefault !== 'number' || typeof sickDefault !== 'number') {
+        return res.status(400).json({ message: 'Casual and Sick leave must be numbers.' });
+      }
+
+      // Update defaults or create if none exist
+      const updatedDefaults = await LeaveDefaults.findOneAndUpdate(
+        {},
+        { casualDefault, sickDefault },
+        { new: true, upsert: true }
+      );
+
+      res.json(updatedDefaults); // Return updated leave defaults
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  };
+}
+
+module.exports = new LeaveController();

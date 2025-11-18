@@ -30,6 +30,7 @@ function Employees() {
       setEmployees(response.data);
     } catch (error) {
       console.error('Error fetching employees:', error);
+      alert(error?.response?.data?.message || 'Error fetching employees');
     } finally {
       setLoading(false);
     }
@@ -56,7 +57,7 @@ function Employees() {
       console.log('Employee created:', response.data);
       fetchEmployees();
     } catch (error) {
-      // alert(response?.data?.message || 'Error creating employee');
+      alert(error?.response?.data?.message || 'Error fetching employees');
       console.error('Error creating employee:', error);
     }
   };
@@ -144,6 +145,7 @@ function Employees() {
               <th>Department</th>
               <th>Designation</th>
               <th>Status</th>
+              <th>Date of Joining</th>
             </tr>
           </thead>
 
@@ -159,6 +161,7 @@ function Employees() {
                 <td className={emp.isActive ? "status-active" : "status-inactive"}>
                   {emp.isActive ? 'Active' : 'Inactive'}
                 </td>
+                <td>{new Date(emp.dateOfJoining).toLocaleDateString()}</td>
               </tr>
             ))}
           </tbody>

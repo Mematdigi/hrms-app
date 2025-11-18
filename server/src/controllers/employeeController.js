@@ -2,7 +2,8 @@ const User = require('../models/User');
 const ApiError = require('../utils/ApiError');
 const apiResponse = require('../utils/ApiResponse');
 const catchAsync = require('../utils/catchAsync');
-
+const Leave = require('../models/Leave');
+const Defaults = require('../models/LeaveDefaults');
 class EmployeeController {
 getAllEmployees = async (req, res) => {
   try {
@@ -28,25 +29,47 @@ async (req, res) => {
 
 createEmployee = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, department, designation, dateOfJoining} = req.body;    
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'Email already exists' });
-    }
+    const { firstName, lastName, email, password, department, designation, dateOfJoining } = req.body;
 
+    // Check if the email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ message: 'Email already exists' });
+
+    // Find the latest employeeId, extract the number, and increment it
+    const lastEmployee = await User.findOne().sort({ employeeId: -1 }).select('employeeId');
+    const nextEmployeeId = lastEmployee ? parseInt(lastEmployee.employeeId, 10) + 1 : 1; // Increment by 1 or start from 1
+    const employeeId = nextEmployeeId; // New employee ID purely as a number
+
+    // Create the new employee
     const user = new User({
       firstName,
       lastName,
       email,
       password,
-      role : 'employee',
+      role: 'employee',
       department,
       designation,
       dateOfJoining,
-      employeeId: `EMP${(await User.findOne().sort({ employeeId: -1 }))?.employeeId?.slice(3) * 1 + 1 || 1}`.padStart(4, '0')
+      employeeId, // The new employee ID
     });
-
     await user.save();
+
+    // Default leave allocation (casual & sick)
+    const defaultLeave = await Defaults.findOne({});
+    const casualLeave = (defaultLeave ? defaultLeave.casualDefault : 8) * (12 - new Date(dateOfJoining).getMonth()) / 12;
+    const sickLeave = (defaultLeave ? defaultLeave.sickDefault : 6) * (12 - new Date(dateOfJoining).getMonth()) / 12;
+
+    // Create initial leave record
+    const leave = new Leave({
+      employee: user._id,
+      leaveType: 'Initial Allocation',
+      numberOfDays: 0,
+      reason: 'Initial leave allocation based on joining date',
+      status: 'left',
+      casualLeave, sickLeave, earnedLeave: 0, maternityLeave: 0, paternityLeave: 0
+    });
+    await leave.save();
+
     res.status(201).json({ message: 'Employee created successfully', user });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -136,7 +159,6 @@ getEmployeePayrolls = catchAsync(async (req, res) => {
   throw new ApiError(500, "Server Error");
     }
 })
-
 
 }
 

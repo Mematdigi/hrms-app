@@ -46,6 +46,13 @@ export const leaveAPI = {
   getStats: () => api.get('/leave/stats'),
   approve: (data) => api.put('/leave/approve', data),
   reject: (data) => api.put('/leave/reject', data),
+    // --- ADDED: defaults & holidays & balances
+  // default leaves
+  getDefaults: () => api.get('/leave/defaults'),
+  updateDefaults: (data) => api.put('/leave/defaults', data),
+
+  // employee balances
+  getBalances: (employeeId) => api.get(`/employees/${employeeId}/balances`),
 };
 
 export const payrollAPI = {

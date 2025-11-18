@@ -7,7 +7,7 @@ const payrollSchema = new mongoose.Schema({
   baseSalary: { type: Number, required: true },
   workedDays: { type: Number, default: 0 },
   deductions: { type: Number, default: 0 },
-  workingDays: { type: Number, default: 0 },
+  workingDays: { type: Number, default: 24 },
   netSalary: { type: Number, required: true },
   status: { type: String, enum: ['draft', 'processed', 'paid'], default: 'draft' },
   paidDate: { type: Date },
