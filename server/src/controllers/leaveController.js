@@ -1,6 +1,8 @@
 const Leave = require('../models/Leave');
 const User = require('../models/User');
 const nodemailer = require('nodemailer');
+const Payroll = require('../models/Payroll');
+const LeaveDefaults = require('../models/LeaveDefaults');
 
 // Email configuration (you can update this with your email service)
 const transporter = nodemailer.createTransport({
@@ -10,14 +12,23 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASSWORD || 'your-app-password'
   }
 });
-
-exports.applyLeave = async (req, res) => {
+class LeaveController {
+applyLeave = async (req, res) => {
   try {
     const { employeeId, leaveType, startDate, endDate, reason } = req.body;
     
     const start = new Date(startDate);
     const end = new Date(endDate);
     const numberOfDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+    const remaningLeaves = await Leave.findOne({ employee: employeeId }).sort({ createdAt: -1 });
+
+    if (leaveType === 'casual' && remaningLeaves && remaningLeaves.employee.casualLeave < numberOfDays) {
+      return res.status(400).json({ message: 'Insufficient casual leave balance.' });
+    }
+    if (leaveType === 'sick' && remaningLeaves && remaningLeaves.employee.sickLeave < numberOfDays) {
+      return res.status(400).json({ message: 'Insufficient sick leave balance.' });
+    }
 
     // Create leave request with pending status
     const leave = new Leave({
@@ -80,7 +91,7 @@ exports.applyLeave = async (req, res) => {
   }
 };
 
-exports.getLeaveRequests = async (req, res) => {
+getLeaveRequests = async (req, res) => {
   try {
     const { employeeId, status, role, userId } = req.query;
     const query = {};
@@ -89,29 +100,84 @@ exports.getLeaveRequests = async (req, res) => {
     if (role === 'employee' && employeeId) {
       query.employee = employeeId;
     }
-    // If user is HR or Manager, show all pending/approved leaves
-    else if (role === 'hr' || role === 'manager') {
+    // HR / Manager / Admin → filter by status if provided
+    else if (role === 'hr' || role === 'manager' || role === 'admin') {
       if (status) {
         query.status = status;
       }
+       
+         else {
+    query.status = { $ne: "left" }; // otherwise exclude left
+      }
     }
-    // If specific status is requested
+    // If specific status is requested for others
     else if (status) {
       query.status = status;
     }
 
+    // 1️⃣ Main leaves list (with employee details)
     const leaves = await Leave.find(query)
-      .populate('employee', 'firstName lastName email department')
-      .populate('approvedBy', 'firstName lastName')
-      .sort({ createdAt: -1 });
-    
-    res.json(leaves);
+      .populate({
+        path: 'employee',
+        select:
+          'firstName lastName email department designation dateOfJoining employeeId',
+      })
+      .populate({
+        path: 'approvedBy',
+        select: 'firstName lastName',
+      })
+      .sort({ createdAt: -1 })
+      .lean(); // <-- so we can easily attach custom fields
+
+    // If no leaves, just return empty as before
+    if (!leaves || leaves.length === 0) {
+      return res.json([]);
+    }
+
+    // 2️⃣ Unique employee IDs from these leaves
+    const employeeIds = [
+      ...new Set(
+        leaves
+          .map((l) => l.employee && l.employee._id && l.employee._id.toString())
+          .filter(Boolean)
+      ),
+    ];
+
+    // 3️⃣ Fetch full leave history for these employees
+    const allLeavesForEmployees = await Leave.find({
+      employee: { $in: employeeIds },
+      // status: { $in: [''pending', 'approved', 'rejected'] }, // only past leaves
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // 4️⃣ Group history by employeeId
+    const historyMap = {};
+    allLeavesForEmployees.forEach((lv) => {
+      const empId = lv.employee.toString();
+      if (!historyMap[empId]) historyMap[empId] = [];
+      historyMap[empId].push(lv);
+    });
+
+    // 5️⃣ Attach employeeLeaveHistory to each leave entry
+    const enrichedLeaves = leaves.map((l) => {
+      const empId =
+        l.employee && l.employee._id && l.employee._id.toString();
+      return {
+        ...l,
+        employeeLeaveHistory: empId ? historyMap[empId] || [] : [],
+      };
+    });
+
+    // 🔁 Response still an array (same style as before)
+    return res.json(enrichedLeaves);
   } catch (error) {
+    console.error('Error in getLeaveRequests:', error);
     res.status(500).json({ message: error.message });
   }
 };
 
-exports.getPendingLeaveRequests = async (req, res) => {
+getPendingLeaveRequests = async (req, res) => {
   try {
     // Get all pending leave requests for HR approval
     const leaves = await Leave.find({ status: 'pending' })
@@ -124,21 +190,44 @@ exports.getPendingLeaveRequests = async (req, res) => {
   }
 };
 
-exports.approveLeave = async (req, res) => {
+approveLeave = async (req, res) => {
   try {
-    const { leaveId, approverId } = req.body;
-    
-    const leave = await Leave.findByIdAndUpdate(
-      leaveId,
-      {
-        status: 'approved',
-        approvedBy: approverId,
-        approvalDate: new Date()
-      },
-      { new: true }
-    ).populate('employee', 'firstName lastName email')
-     .populate('approvedBy', 'firstName lastName');
+    const { leaveId, approverId, leaveType, numberOfDays } = req.body;
 
+    const leave = await Leave.findById(
+      leaveId,
+      // {
+      //   status: 'approved',
+      //   approvedBy: approverId,
+      //   approvalDate: new Date()
+      // },
+      { new: true }
+    ).populate('employee casualLeave sickLeave status reason', 'firstName lastName email employeeId')
+
+    console.log("leave",leave);
+    leave.status = 'approved';
+    leave.approvedBy = approverId;
+    leave.approvalDate = new Date();
+    leave.numberOfDays = numberOfDays;
+
+    if (leaveType === 'casual'){
+      leave.casualLeave = (leave.casualLeave || 0) - numberOfDays;
+    }else
+    {
+      leave.sickLeave = (leave.sickLeave || 0) - numberOfDays;
+    }
+
+    leave.status = 'approved';
+    leave.approvedBy = approverId;
+    leave.approvalDate = new Date();
+    leave.numberOfDays = numberOfDays;
+        // console.log("leave after",leave);
+
+    const updateLeave = await Leave.findByIdAndUpdate(leave._id, leave, { new: true });
+     
+    if(!updateLeave){
+      return res.status(404).json({ message: 'Leave  not updated' });
+    }
     // Send approval email to employee
     if (leave.employee.email) {
       const mailOptions = {
@@ -169,29 +258,49 @@ exports.approveLeave = async (req, res) => {
       });
     }
 
+    // for update the payroll of the employee
+    const payroll = await Payroll.findOne({ employee: leave.employee._id, month: new Date().getMonth() + 1, year: new Date().getFullYear() }); 
+    if (payroll) {
+      payroll.deductions += (payroll.baseSalary / payroll.workingDays) * leave.numberOfDays;
+      payroll.netSalary = payroll.baseSalary - payroll.deductions;
+      await payroll.save();
+    }
+
     res.json({ message: 'Leave approved successfully', leave });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-exports.rejectLeave = async (req, res) => {
+rejectLeave = async (req, res) => {
   try {
-    const { leaveId, rejectionReason, approverId } = req.body;
-    
-    const leave = await Leave.findByIdAndUpdate(
-      leaveId,
-      {
-        status: 'rejected',
-        rejectionReason,
-        approvedBy: approverId,
-        approvalDate: new Date()
-      },
-      { new: true }
-    ).populate('employee', 'firstName lastName email')
-     .populate('approvedBy', 'firstName lastName');
+    const { leaveId,leaveType,numberOfDays,rejectionReason, approverId } = req.body;
 
-    // Send rejection email to employee
+     const leave = await Leave.findById(
+      leaveId,
+      { new: true }
+    ).populate('employee casualLeave sickLeave status reason', 'firstName lastName email employeeId')
+
+    if(leave.status !="rejected"){
+    if (leaveType === 'casual'){
+      leave.casualLeave = (leave.casualLeave || 0) + numberOfDays;
+    }else(leaveType === 'sick')
+    {
+      leave.sickLeave = (leave.sickLeave || 0) + numberOfDays;
+    }
+    }
+    
+        leave.status = 'rejected',
+       leave.approvedBy= approverId,
+      leave.approvalDate= new Date()
+    
+
+    const updateLeave = await Leave.findByIdAndUpdate(leave._id, leave, { new: true });
+
+    if(!updateLeave){
+      return res.status(404).json({ message: 'Leave  not updated' });
+    }
+        // Send rejection email to employee
     if (leave.employee.email) {
       const mailOptions = {
         from: process.env.EMAIL_USER || 'your-email@gmail.com',
@@ -221,6 +330,7 @@ exports.rejectLeave = async (req, res) => {
         }
       });
     }
+    
 
     res.json({ message: 'Leave rejected successfully', leave });
   } catch (error) {
@@ -228,7 +338,7 @@ exports.rejectLeave = async (req, res) => {
   }
 };
 
-exports.getLeaveStats = async (req, res) => {
+getLeaveStats = async (req, res) => {
   try {
     const stats = {
       pending: await Leave.countDocuments({ status: 'pending' }),
@@ -241,3 +351,42 @@ exports.getLeaveStats = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+  getDefaults = async (req, res) => {
+    try {
+      const defaults = await LeaveDefaults.findOne(); // Find leave defaults
+
+      if (!defaults) {
+        return res.status(404).json({ message: 'Leave defaults not found.' });
+      }
+
+      res.json(defaults); // Return default leave data
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  };
+
+  // --- NEW: Update Default Leaves (Casual & Sick) ---
+  updateDefaults = async (req, res) => {
+    try {
+      const { casualDefault, sickDefault } = req.body;
+
+      if (typeof casualDefault !== 'number' || typeof sickDefault !== 'number') {
+        return res.status(400).json({ message: 'Casual and Sick leave must be numbers.' });
+      }
+
+      // Update defaults or create if none exist
+      const updatedDefaults = await LeaveDefaults.findOneAndUpdate(
+        {},
+        { casualDefault, sickDefault },
+        { new: true, upsert: true }
+      );
+
+      res.json(updatedDefaults); // Return updated leave defaults
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  };
+}
+
+module.exports = new LeaveController();

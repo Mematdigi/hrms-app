@@ -186,7 +186,7 @@ const handleGeneratePDF = async (employee) => {
     doc.text('Designation', rightX, yPos);
     doc.text(': ' + (employee.designation || 'N/A'), rightX + labelWidth, yPos);
 
-    yPos += 5;
+    yPos += 5;  
 
     // Worked Days
     doc.text('Worked Days', leftX, yPos);
@@ -269,14 +269,14 @@ const handleGeneratePDF = async (employee) => {
 
     const providentFund = baseSalary * 0.12;   // 12%
     const professionalTax = baseSalary * 0.05; // 5%
-    const loan = deductions;
-    const totaldeductions = providentFund + professionalTax + loan;
+    const leaves = deductions;
+    const totaldeductions = providentFund + professionalTax + leaves;
 
     const deductionsData = [
       ['deductions', 'Amount'],
       ['Provident Fund', Math.round(providentFund).toString()],
       ['Professional Tax', Math.round(professionalTax).toString()],
-      ['Loan', Math.round(loan).toString()],
+      ['Leave', Math.round(leaves).toString()],
     ];
 
     autoTable(doc, {
@@ -401,7 +401,7 @@ const handleGeneratePDF = async (employee) => {
     } else {
       const link = document.createElement('a');
       link.href = pdfUrl;
-      link.download = `Payslip_${employee.employeeId}_${employee.firstName}_${employee.lastName}.pdf`;
+      link.download = `Payslip_ EMP00${employee.employeeId}_${employee.firstName}_${employee.lastName}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -521,6 +521,8 @@ const handleGeneratePDF = async (employee) => {
               <th>Select</th>
               <th>Employee ID</th>
               <th>Employee Name</th>
+              <th>Month</th>
+              <th>Year</th>
               <th>Email</th>
               <th>Department</th>
               <th>Designation</th>
@@ -533,7 +535,6 @@ const handleGeneratePDF = async (employee) => {
               <th>Actions</th>
             </tr>
           </thead>
-          
           <tbody>
             {currentEmployees.length === 0 ? (
               <tr>
@@ -552,8 +553,10 @@ const handleGeneratePDF = async (employee) => {
                         onChange={() => handleCheckboxChange(emp._id)}
                       />
                     </td>
-                    <td>{emp.employeeId}</td>
+                <td>{`EMP00${emp.employeeId}`}</td>
                     <td>{emp.firstName} {emp.lastName}</td>
+                    <td>{emp.payroll.month}</td>
+                    <td>{emp.payroll.year}</td>
                     <td>{emp.email}</td>
                     <td>{emp.department}</td>
                     <td>{emp.designation}</td>
@@ -608,7 +611,7 @@ const handleGeneratePDF = async (employee) => {
                             <h4>Selected Employee:</h4>
                             <div className="employee-chips">
                               <div className="employee-chip">
-                                <span className="emp-id">{emp.employeeId}</span>
+                                <span className="emp-id">{`EMP00${emp.employeeId}`}</span>
                                 <span className="emp-name">{emp.firstName} {emp.lastName}</span>
                                 <button
                                   type="button"
