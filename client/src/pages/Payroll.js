@@ -183,7 +183,7 @@ function Payroll() {
       doc.text('Designation', rightX, yPos);
       doc.text(': ' + (employee.designation || 'N/A'), rightX + labelWidth, yPos);
 
-      yPos += 5;
+    yPos += 5;  
 
       // Worked Days
       doc.text('Worked Days', leftX, yPos);
@@ -264,17 +264,17 @@ function Payroll() {
       // ========== deductions TABLE ==========
       yPos = doc.lastAutoTable.finalY + 10;
 
-      const providentFund = baseSalary * 0.12;   // 12%
-      const professionalTax = baseSalary * 0.05; // 5%
-      const loan = deductions;
-      const totaldeductions = providentFund + professionalTax + loan;
+    const providentFund = baseSalary * 0.12;   // 12%
+    const professionalTax = baseSalary * 0.05; // 5%
+    const leaves = deductions;
+    const totaldeductions = providentFund + professionalTax + leaves;
 
-      const deductionsData = [
-        ['deductions', 'Amount'],
-        ['Provident Fund', Math.round(providentFund).toString()],
-        ['Professional Tax', Math.round(professionalTax).toString()],
-        ['Loan', Math.round(loan).toString()],
-      ];
+    const deductionsData = [
+      ['deductions', 'Amount'],
+      ['Provident Fund', Math.round(providentFund).toString()],
+      ['Professional Tax', Math.round(professionalTax).toString()],
+      ['Leave', Math.round(leaves).toString()],
+    ];
 
       autoTable(doc, {
         startY: yPos,
@@ -386,37 +386,36 @@ function Payroll() {
       doc.setTextColor(100, 100, 100);
       doc.text('This is system generated payslip', pageWidth / 2, yPos, { align: 'center' });
 
-      // ========== OPEN PDF IN NEW TAB ==========
-      const pdfBlob = doc.output('blob');
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-
-      const newWindow = window.open(pdfUrl, '_blank');
-
-      if (newWindow) {
-        newWindow.document.title = `Payslip - ${employee.firstName} ${employee.lastName}`;
-        toast.success('PDF opened in new tab!');
-      } else {
-        const link = document.createElement('a');
-        link.href = pdfUrl;
-        link.download = `Payslip_${employee.employeeId}_${employee.firstName}_${employee.lastName}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.warning('Popup blocked! PDF downloaded instead.');
-      }
-
-      setTimeout(() => {
-        URL.revokeObjectURL(pdfUrl);
-      }, 100);
-
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast.error('Failed to generate PDF: ' + error.message);
-    } finally {
-      setGeneratingPDF(null);
+    // ========== OPEN PDF IN NEW TAB ==========
+    const pdfBlob = doc.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    
+    const newWindow = window.open(pdfUrl, '_blank');
+    
+    if (newWindow) {
+      newWindow.document.title = `Payslip - ${employee.firstName} ${employee.lastName}`;
+      toast.success('PDF opened in new tab!');
+    } else {
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = `Payslip_ EMP00${employee.employeeId}_${employee.firstName}_${employee.lastName}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.warning('Popup blocked! PDF downloaded instead.');
     }
-  };
-
+    
+    setTimeout(() => {
+      URL.revokeObjectURL(pdfUrl);
+    }, 100);
+    
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    toast.error('Failed to generate PDF: ' + error.message);
+  } finally {
+    setGeneratingPDF(null);
+  }
+};
   // ==================== EVENT HANDLERS ====================
 
   // HELPER: get employee object by id (CHANGE: new helper)
@@ -577,6 +576,8 @@ function Payroll() {
               <th>Select</th>
               <th>Employee ID</th>
               <th>Employee Name</th>
+              <th>Month</th>
+              <th>Year</th>
               <th>Email</th>
               <th>Department</th>
               <th>Designation</th>
@@ -609,8 +610,10 @@ function Payroll() {
                         onChange={() => selectEmployee(emp)}
                       />
                     </td>
-                    <td>{emp.employeeId}</td>
+                <td>{`EMP00${emp.employeeId}`}</td>
                     <td>{emp.firstName} {emp.lastName}</td>
+                    <td>{emp.payroll.month}</td>
+                    <td>{emp.payroll.year}</td>
                     <td>{emp.email}</td>
                     <td>{emp.department}</td>
                     <td>{emp.designation}</td>
@@ -664,7 +667,7 @@ function Payroll() {
                             <h4>Selected Employee:</h4>
                             <div className="employee-chips">
                               <div className="employee-chip">
-                                <span className="emp-id">{emp.employeeId}</span>
+                                <span className="emp-id">{`EMP00${emp.employeeId}`}</span>
                                 <span className="emp-name">{emp.firstName} {emp.lastName}</span>
                                 <button
                                   type="button"
