@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { employeeAPI } from '../services/api';
-// import '../styles/Employees.css';
 
 function Employees() {
   const [employees, setEmployees] = useState([]);
@@ -24,7 +23,6 @@ function Employees() {
 
   const fetchEmployees = async () => {
     try {
-
       const response = await employeeAPI.getAll();
       console.log('Fetched employees: ', response.data);
       setEmployees(response.data);
@@ -164,8 +162,6 @@ function Employees() {
           </tbody>
         </table>
       </div>
-
-
     </div>
   );
 }

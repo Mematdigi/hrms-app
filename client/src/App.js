@@ -11,6 +11,7 @@ import Payroll from './pages/Payroll';
 import Performance from './pages/Performance';
 import RoleManagement from './pages/RoleManagement';
 import Navbar from './components/Navbar';
+// import Dashboard from './pages/DashCopy';
 import './assets/scss/main.scss'
 import Notfound from './pages/Notfound';
 

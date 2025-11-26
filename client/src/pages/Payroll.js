@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { payrollAPI, employeeAPI } from '../services/api';
-// import '../styles/Payroll.scss';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { jsPDF } from 'jspdf';
@@ -473,7 +472,7 @@ function Payroll() {
     e.preventDefault();
 
     if (!selectedEmployee) {
-      toast.error('Please select an employee');
+      alert('Please select an employee');
       return;
     }
 
