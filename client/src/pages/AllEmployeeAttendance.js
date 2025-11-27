@@ -45,7 +45,6 @@ const AllEmployeesAttendance = () => {
 
   useEffect(() => {
     fetchAllAttendance();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ✅ Handle search and filter

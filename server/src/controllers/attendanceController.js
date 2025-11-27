@@ -59,12 +59,12 @@ checkOut = async (req, res) => {
     const checkInTotalMinutes = checkInHours * 60 + checkInMinutes;
     const checkOutTotalMinutes = checkOutHours * 60 + checkOutMinutes;
     const latestCheckIn = 9 * 60 + 40; // 9:40 AM
-    const earliestCheckOut = 18 * 60 + 30; // 6:30 PM
+    const earliestCheckOut = 14 * 60 + 30; // 6:30 PM
 
     // Determine attendance status
-    if (attendance.workingHours >= 9) {
-      attendance.status = 'present';
-    } else if (checkInTotalMinutes <= latestCheckIn && checkOutTotalMinutes >= earliestCheckOut) {
+   
+     if (checkInTotalMinutes <= latestCheckIn && checkOutTotalMinutes >= earliestCheckOut) 
+      {
       attendance.status = 'present';
     } else if (attendance.workingHours >= 5) {
       attendance.status = 'half-day';
