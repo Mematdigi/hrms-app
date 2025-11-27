@@ -86,8 +86,8 @@ const Navbar = () => {
         {/* LEFT: Logo + desktop menu */}
         <div className="navbar-left">
           <Link to="/dashboard" className="text-decoration-none">
-            <div className="logo-circle">
-              <span className="logo-icon">★</span>
+            <div className="logo-circle p-2">
+              <span className="logo-icon">HRMS</span>
             </div>
           </Link>
 
@@ -115,7 +115,7 @@ const Navbar = () => {
 
         {/* RIGHT: Desktop search + icons + profile */}
         <div className="navbar-right d-none d-lg-flex">
-          <form onSubmit={handleSearchSubmit} className="search-box">
+          <form onSubmit={handleSearchSubmit} className="search-boxes">
             <i className="bi bi-search" />
             <input
               type="text"

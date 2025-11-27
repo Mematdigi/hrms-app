@@ -478,7 +478,7 @@
   flex-wrap: wrap;
 }
 
-.stat-card {
+.stat-cards {
   flex: 1 1 120px;
   border-radius: 18px;
   padding: 5px 20px;
@@ -502,7 +502,7 @@
   background: linear-gradient(135deg, #fdac21, #eee7ff);
 }
 
-.stat-card:hover {
+.stat-cards:hover {
   transform: translateY(-1px);
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
 }
