@@ -37,6 +37,7 @@ export const attendanceAPI = {
   checkOut: (data) => api.post('/attendance/check-out', data),
   getAttendance: (params) => api.get('/attendance', { params }),
   markAttendance: (data) => api.post('/attendance/mark', data),
+  getAllAttendance: (params) => api.get('/attendance/attendance_list', { params }),
 };
 
 export const leaveAPI = {

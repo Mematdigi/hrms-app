@@ -20,6 +20,7 @@ const userSchema = new mongoose.Schema({
   zipCode: { type: String },
   profileImage: { type: String },
   reportingManager_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  baseSalary:{type:Number},
   isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
