@@ -28,13 +28,12 @@ async (req, res) => {
   }
 });
 
-
 createEmployee = catchAsync(async (req, res) => {
   let user = null;
   let leave = null;
 
   try {
-    const { firstName, lastName, email, password, department, designation, dateOfJoining } = req.body;
+    const { firstName, lastName, email, password, department, designation, dateOfJoining,baseSalary} = req.body;
 
     // Check if the email already exists
     const existingUser = await User.findOne({ email });
@@ -56,6 +55,7 @@ createEmployee = catchAsync(async (req, res) => {
       designation,
       dateOfJoining,
       employeeId, // The new employee ID
+      baseSalary
     });
     await user.save(); // Save employee record
     // Employee created successfully, proceed to create leave record

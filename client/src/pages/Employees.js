@@ -17,6 +17,7 @@ function Employees() {
     department: '',
     designation: '',
     dateOfJoining: '',
+    baseSalary:''
   });
 
   const [editFormData, setEditFormData] = useState({
@@ -27,6 +28,7 @@ function Employees() {
     designation: '',
     dateOfJoining: '',
     isActive: true,
+    baseSalary:'',
   });
 
   const [successMessage, setSuccessMessage] = useState('');
@@ -76,6 +78,7 @@ function Employees() {
         department: '',
         designation: '',
         dateOfJoining: '',
+        baseSalary:''
       });
       setShowForm(false);
       setSuccessMessage('✅ Employee created successfully!');
@@ -100,6 +103,7 @@ function Employees() {
       designation: employee.designation || '',
       dateOfJoining: employee.dateOfJoining ? employee.dateOfJoining.split('T')[0] : '',
       isActive: employee.isActive,
+      baseSalary:employee.baseSalary
     });
     setShowEditModal(true);
   };
@@ -242,6 +246,15 @@ function Employees() {
                 onChange={handleChange}
               />
             </div>
+              <div className="form-group">
+              <label>Base of Salary</label>
+              <input
+                type="text"
+                name="baseSalary"
+                value={formData.baseSalary}
+                onChange={handleChange}
+              />
+            </div>
           </div>
           <div className="form-actions">
             <button type="submit" className="submit-btn">Create Employee</button>
@@ -310,12 +323,22 @@ function Employees() {
                     onChange={handleEditChange}
                   />
                 </div>
+
                 <div className="form-group">
                   <label>Date of Joining</label>
                   <input
                     type="date"
                     name="dateOfJoining"
                     value={editFormData.dateOfJoining}
+                    onChange={handleEditChange}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Base Salary</label>
+                  <input
+                    type="number"
+                    name="baseSalary"
+                    value={editFormData.baseSalary} 
                     onChange={handleEditChange}
                   />
                 </div>
@@ -355,11 +378,11 @@ function Employees() {
               <th>Designation</th>
               <th>Status</th>
               <th>Date of Joining</th>
+              <th>Base Salary</th>
               {/* ✅ NEW: Actions Column */}
               {(user?.role === 'admin' || user?.role === 'hr') && <th>Actions</th>}
             </tr>
           </thead>
-
           <tbody>
             {employees.map((emp, index) => (
               <tr key={emp._id}>
@@ -373,7 +396,8 @@ function Employees() {
                   {emp.isActive ? 'Active' : 'Inactive'}
                 </td>
                 <td>{new Date(emp.dateOfJoining).toLocaleDateString()}</td>
-                
+<td>₹{emp.baseSalary || 0}</td>
+
                 {/* ✅ NEW: Action Buttons */}
                 {(user?.role === 'admin' || user?.role === 'hr') && (
                   <td className="actions-cell">

@@ -11,7 +11,7 @@ import Payroll from './pages/Payroll';
 import Performance from './pages/Performance';
 import RoleManagement from './pages/RoleManagement';
 import Navbar from './components/Navbar';
-// import Dashboard from './pages/DashCopy';
+import AllEmployeesAttendance from './pages/AllEmployeeAttendance';
 import './assets/scss/main.scss'
 import Notfound from './pages/Notfound';
 
@@ -31,6 +31,7 @@ function App() {
         <Route path="/payroll" element={token ? <Payroll /> : <Navigate to="/login" />} />
         <Route path="/performance" element={token ? <Performance /> : <Navigate to="/login" />} />
         <Route path="/roles" element={token ? <RoleManagement /> : <Navigate to="/login" />} />
+        <Route path="/all_employee_attendance" element={token ? <AllEmployeesAttendance /> : <Navigate to="/login" />} />
         <Route path="/" element={<Navigate to={"/login"} />} />
         <Route path="*" element={<Notfound/>}/>
       </Routes>

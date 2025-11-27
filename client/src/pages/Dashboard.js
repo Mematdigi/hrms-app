@@ -225,16 +225,16 @@ const Dashboard = () => {
   // ---- routing for quick actions (only actions defined in QUICK_ACTIONS are allowed) ----
   const handleCardClick = (action) => {
     const routes = {
-      employees: "/employees",
-      attendance: "/attendance",
-      leave: "/leave",
-      payroll: "/payroll",
-      performance: "/performance",
-      roles: "/roles",
-      reports: "/reports",
-      settings: "/settings",
-      team: "/team",
-      profile: "/profile",
+      'employees': '/employees',
+      'attendance': '/attendance',
+      'allEmployeeAttendance':'/allEmployeeAttendance',
+      'leave': '/leave',
+      'payroll': '/payroll',
+      'roles': '/roles',
+      'reports': '/reports',
+      'settings': '/settings',
+      'team': '/team',
+      'profile': '/profile',
     };
 
     if (routes[action]) {

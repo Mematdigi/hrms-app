@@ -34,23 +34,25 @@ const Navbar = () => {
     if (user?.role === "admin") {
       return [
         ...baseItems,
-        { label: "Employees", path: "/employees" },
-        { label: "Attendance", path: "/attendance" },
-        { label: "Leave", path: "/leave" },
-        { label: "Payroll", path: "/payroll" },
-        { label: "Performance", path: "/performance" },
-        { label: "Roles", path: "/roles", admin: true },
+        { label: 'Employees', path: '/employees' },
+        { label: 'My Attendance', path: '/attendance' },
+        { label: 'Leave', path: '/leave' },
+        { label: 'Payroll', path: '/payroll' },
+        { label: 'Performance', path: '/performance' },
+        { label: 'Roles', path: '/roles', admin: true },
+        {label:'Employee Attendance',path:'/all_employee_attendance'}
       ];
     }
 
     if (user?.role === "hr") {
       return [
         ...baseItems,
-        { label: "Employees", path: "/employees" },
-        { label: "Attendance", path: "/attendance" },
-        { label: "Leave", path: "/leave" },
-        { label: "Payroll", path: "/payroll" },
-        { label: "Performance", path: "/performance" },
+        { label: 'Employees', path: '/employees' },
+        { label: 'My Attendance', path: '/attendance' },
+        { label: 'Leave', path: '/leave' },
+        { label: 'Payroll', path: '/payroll' },
+        { label: 'Performance', path: '/performance' },
+        {label:'Employee Attendance',path:'/all_employee_attendance'}
       ];
     }
 

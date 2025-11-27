@@ -72,6 +72,7 @@ function Attendance() {
         <table>
           <thead>
             <tr>
+              <th>S.No</th>
               <th>Date</th>
               <th>Check In</th>
               <th>Check Out</th>
@@ -80,8 +81,9 @@ function Attendance() {
             </tr>
           </thead>
           <tbody>
-            {attendance.map((record) => (
+            {attendance.map((record,index) => (
               <tr key={record._id}>
+                <td>{index + 1}</td>
                 <td>{new Date(record.date).toLocaleDateString()}</td>
                 <td>{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString() : '-'}</td>
                 <td>{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString() : '-'}</td>
