@@ -513,7 +513,7 @@ const Dashboard = () => {
                   <div className="stat-row">
                     {/* For all roles: show employees stats, but actions differ via handleCardClick */}
                     <div
-                      className="stat-card stat-card-purple"
+                      className="stat-cards stat-card-purple"
                       onClick={() => handleCardClick("employees")}
                     >
                       <div className="stat-icon">👥</div>
@@ -526,7 +526,7 @@ const Dashboard = () => {
                     </div>
 
                     <div
-                      className="stat-card stat-card-pink"
+                      className="stat-cards stat-card-pink"
                       onClick={() => handleCardClick("attendance")}
                     >
                       <div className="stat-icon">✅</div>
@@ -543,7 +543,7 @@ const Dashboard = () => {
                     {/* Departments card only makes sense for admin / hr */}
                     {(role === "admin" || role === "hr") && (
                       <div
-                        className="stat-card stat-card-gold"
+                        className="stat-cards stat-card-gold"
                         onClick={() => handleCardClick("employees")}
                       >
                         <div className="stat-icon">🏢</div>
