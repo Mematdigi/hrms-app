@@ -3,8 +3,7 @@
 .payroll-container {
   max-width: 1400px;      /* Maximum width to prevent content from stretching too wide */
   margin: 0 auto;         /* Center the container horizontally */
-  // margin-top: 80px;
-  padding: 40px 20px;     /* Spacing around the content */
+  padding: 5px 20px;     /* Spacing around the content */
 }
 
 /* ==================== HEADER SECTION ==================== */
@@ -13,7 +12,7 @@
   display: flex;                    /* Use flexbox for layout */
   justify-content: space-between;   /* Space between items */
   align-items: center;              /* Vertically center items */
-  margin-bottom: 30px;              /* Space below header */
+  // margin-bottom: 30px;              /* Space below header */
   flex-wrap: wrap;                  /* Allow wrapping on small screens */
   gap: 15px;                        /* Space between wrapped items */
 }
