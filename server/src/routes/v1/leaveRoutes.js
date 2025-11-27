@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { authMiddleware, roleMiddleware } = require('../../middleware/auth'); // ✅
-const leaveController = require('../../controllers/leaveController');
+const {leaveController} = require('../../controllers/index');
 
 // Apply for leave (Employee)
 router.post('/apply', authMiddleware, leaveController.applyLeave);
@@ -21,5 +21,9 @@ router.put('/approve', authMiddleware, roleMiddleware(['hr']), leaveController.a
 
 // Reject leave (HR only)
 router.put('/reject', authMiddleware, roleMiddleware(['hr']), leaveController.rejectLeave);
+
+router.get('/defaults', leaveController.getDefaults);  // Get default leave settings
+router.put('/defaults', authMiddleware, roleMiddleware(['hr']), leaveController.updateDefaults);  // Update default leave settings (HR only)
+
 
 module.exports = router;
