@@ -491,15 +491,15 @@
 }
 
 .stat-card-purple {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      background: linear-gradient(135deg, #fd82d7, #e8e2f7);
 }
 
 .stat-card-pink {
-  background: linear-gradient(135deg, #f97316, #ec4899);
+  background: linear-gradient(135deg, #ff7f24dc, #eee7ff);
 }
 
 .stat-card-gold {
-  background: linear-gradient(135deg, #f59e0b, #f97316);
+  background: linear-gradient(135deg, #fdac21, #eee7ff);
 }
 
 .stat-card:hover {
@@ -908,9 +908,9 @@
   border-radius: 22px;
   padding: 20px;
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
-  margin-bottom: 20px;
+  // margin-bottom: 20px;
   transition: all 0.3s ease;
-  border: 1px solid #e5e7eb;
+  // border-bottom: 1px solid #e5e7eb;
 
   &:hover {
     box-shadow: 0 8px 30px rgba(15, 23, 42, 0.12);
@@ -922,7 +922,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    // margin-bottom: 16px;
     padding-bottom: 12px;
     border-bottom: 1px solid #f1f5f9;
 
@@ -989,7 +989,7 @@
     justify-content: space-around;
     margin-top: 16px;
     padding-top: 16px;
-    border-top: 1px solid #f1f5f9;
+    // border-top: 1px solid #f1f5f9;
     gap: 12px;
 
     .stat-item {
@@ -1041,6 +1041,7 @@
     .chart-header {
       flex-direction: column;
       align-items: flex-start;
+      border-bottom:1px solid grey;
       gap: 10px;
 
       .chart-legend {

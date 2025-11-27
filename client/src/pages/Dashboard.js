@@ -59,41 +59,12 @@ const ATTENDANCE_SERIES = [
 const CHART_WIDTH = 120;
 const CHART_HEIGHT = 60;
 
-// smooth SVG path like reference image
-// const buildAttendancePath = (values) => {
-//   if (!values || values.length === 0) return "";
-//   const stepX = CHART_WIDTH / Math.max(values.length - 1, 1);
-
-//   const points = values.map((v, i) => {
-//     const x = i * stepX;
-//     const y =
-//       CHART_HEIGHT -
-//       (Math.min(v, MAX_ATTENDANCE) / MAX_ATTENDANCE) * CHART_HEIGHT;
-//     return { x, y };
-//   });
-
-//   if (points.length < 2) {
-//     const p = points[0];
-//     return `M ${p.x} ${p.y}`;
-//   }
-
-//   let d = `M ${points[0].x} ${points[0].y}`;
-//   for (let i = 1; i < points.length; i++) {
-//     const prev = points[i - 1];
-//     const curr = points[i];
-//     const midX = (prev.x + curr.x) / 2;
-//     d += ` Q ${midX} ${prev.y}, ${curr.x} ${curr.y}`;
-//   }
-//   return d;
-// };
-
-
 
 // Example workforce mix – replace these values with real counts
 const EMPLOYMENT_BREAKDOWN = [
-  { key: 'employees', label: 'Full-time Employees', value: 28, colorClass: 'seg-blue' },
-  { key: 'interns', label: 'Interns', value: 10, colorClass: 'seg-green' },
-  { key: 'contract', label: 'Contract Staff', value: 6, colorClass: 'seg-red' },
+  { key: 'employees', label: 'Full-time Employees', value: 88, colorClass: 'seg-blue' },
+  { key: 'interns', label: 'Interns', value: 50, colorClass: 'seg-green' },
+  { key: 'contract', label: 'Contract Staff', value: 26, colorClass: 'seg-red' },
 ];
 
 const EMPLOYEES_SIDEBAR = [
@@ -156,7 +127,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
 
-    // attendance graph
+  // attendance graph
   const lineChartRef = useRef(null);
 
   useEffect(() => {
@@ -223,7 +194,6 @@ const Dashboard = () => {
     fetchDashboardData();
   }, [user]);
 
-
   const MAX_ATTENDANCE = 100;
 
   // helper to build a smooth-ish SVG path for attandance
@@ -251,8 +221,6 @@ const Dashboard = () => {
     }
     return d;
   };
-
-
 
   // ---- routing for quick actions (only actions defined in QUICK_ACTIONS are allowed) ----
   const handleCardClick = (action) => {
@@ -300,7 +268,7 @@ const Dashboard = () => {
 
 
   // attendence
-    useEffect(() => {
+  useEffect(() => {
     if (!lineChartRef.current) return;
 
     const svgEl = lineChartRef.current;
@@ -329,43 +297,44 @@ const Dashboard = () => {
   }, []);
 
 
-  // ✅ NEW: Dummy data for Monthly Chart
-  const monthlyChartData = {
-    labels: ['02', '04', '06', '08', '10', '12', '14', '16', '18', '20', '22', '24', '26', '28', '30'],
-    datasets: [
-      {
-        label: 'Present',
-        data: [2800, 2900, 2100, 2700, 1500, 2700, 3600, 2800, 3400, 2900, 3200, 3100, 1800, 3000, 3100],
-        borderColor: '#667eea',
-        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-        tension: 0.4,
-        borderWidth: 3,
-        pointRadius: 5,
-        pointBackgroundColor: '#667eea',
-      },
-      {
-        label: 'Absent',
-        data: [1800, 2700, 2700, 2600, 1442, 1900, 1700, 3442, 2100, 1800, 2400, 2000, 1900, 2200, 2000],
-        borderColor: '#fa709a',
-        backgroundColor: 'rgba(250, 112, 154, 0.1)',
-        tension: 0.4,
-        borderWidth: 3,
-        pointRadius: 5,
-        pointBackgroundColor: '#fa709a',
-      },
-      {
-        label: 'Half Day',
-        data: [2000, 1900, 1442, 2200, 3400, 2800, 2100, 1800, 2400, 1442, 1600, 1900, 2200, 1800, 1900],
-        borderColor: '#84fab0',
-        backgroundColor: 'rgba(132, 250, 176, 0.1)',
-        tension: 0.4,
-        borderWidth: 3,
-        pointRadius: 5,
-        pointBackgroundColor: '#10b981',
-      },
-    ],
+  // changing number of overview
+  const AnimatedNumber = ({ value, className = "", duration = 1200 }) => {
+    const [display, setDisplay] = React.useState(0);
+
+    React.useEffect(() => {
+      let startTimestamp = null;
+      const startValue = 0;
+      const diff = value - startValue;
+
+      if (diff === 0) {
+        setDisplay(value);
+        return;
+      }
+
+      const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+
+        const current = Math.round(startValue + diff * progress);
+        setDisplay(current);
+
+        if (progress < 1) {
+          window.requestAnimationFrame(step);
+        }
+      };
+
+      window.requestAnimationFrame(step);
+    }, [value, duration]);
+
+    return (
+      <div className={className}>
+        {display.toLocaleString()}
+      </div>
+    );
   };
 
+
+  // NEW: Dummy data for Monthly Chart
   const monthlyChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -437,6 +406,7 @@ const Dashboard = () => {
     <div className="hr-page">
       <main className="container-xxl hr-main m-0 p-3">
         <div className="dashboard-shell border">
+
           {/* Role-based header (from old version) */}
           <div className="mb-4">
             <h2 className="page-greeting">
@@ -449,16 +419,13 @@ const Dashboard = () => {
           </div>
 
           <div className="row g-4">
+
             <div className="col-lg-8 d-flex flex-column gap-4">
 
-              {/* attandance graph */}
-{/* Weekly Attendance – smooth animated line chart */}
-          {/* ✅ NEW: Monthly Overview Chart - Full Width Section with Dummy Data */}
-          <div className="row g-4 ">
-            <div className="col-12">
+              {/*Monthly Overview Chart*/}
               <div className="dashboard-chart-card">
                 <div className="chart-header">
-                  <h3 className="chart-title">📈 Monthly Overview</h3>
+                  <h3 className="chart-title">📈 Daily Overview</h3>
                   <div className="chart-legend">
                     <div className="legend-item">
                       <span className="legend-dot blue"></span>
@@ -475,33 +442,40 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                <div className="chart-container">
-                  <Line data={monthlyChartData} options={monthlyChartOptions} />
-                </div>
-
                 <div className="chart-stats">
                   <div className="stat-item">
-                    <div className="stat-value blue">3442</div>
+                    <AnimatedNumber
+                      value={3442}
+                      className="stat-value blue"
+                      duration={1200}  // 1.2s
+                    />
                     <div className="stat-label">Total Present</div>
                   </div>
+
                   <div className="stat-item">
-                    <div className="stat-value pink">1442</div>
+                    <AnimatedNumber
+                      value={1442}
+                      className="stat-value pink"
+                      duration={1200}
+                    />
                     <div className="stat-label">Total Absent</div>
                   </div>
+
                   <div className="stat-item">
-                    <div className="stat-value green">856</div>
+                    <AnimatedNumber
+                      value={856}
+                      className="stat-value green"
+                      duration={1200}
+                    />
                     <div className="stat-label">Half Days</div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-
 
               {/* HR / Admin / Manager / Employee Features – role-based quick actions */}
-              <div className="card hr-card">
-                <div className="card-header hr-card-header">
-                  <span>
+              <div className="dashboard-chart-card">
+                <div className="chart-header">
+                  <h3 className="chart-title"><span>🧑‍💼
                     {role === "admin"
                       ? "Admin Features"
                       : role === "hr"
@@ -509,9 +483,9 @@ const Dashboard = () => {
                         : role === "manager"
                           ? "Manager Features"
                           : "Employee Features"}
-                  </span>
-                  <button className="dots-btn">⋯</button>
+                  </span></h3>
                 </div>
+
                 <div className="card-body">
                   <div className="feature-grid">
                     {quickActions.map((item) => (
@@ -529,13 +503,12 @@ const Dashboard = () => {
                 </div>
               </div>
 
-
-              {/* Overview stats */}
-              <div className="card hr-card">
-                <div className="card-header hr-card-header">
-                  <span>Overview</span>
-                  <button className="dots-btn">⋯</button>
+              {/* Overview */}
+              <div className="dashboard-chart-card">
+                <div className="chart-header">
+                  <h3 className="chart-title">📋 Overview</h3>
                 </div>
+
                 <div className="card-body">
                   <div className="stat-row">
                     {/* For all roles: show employees stats, but actions differ via handleCardClick */}
@@ -588,101 +561,106 @@ const Dashboard = () => {
 
             {/* RIGHT COLUMN – reminders + Employee Work Rate (same for all roles for now) */}
             <div className="col-lg-4 d-flex flex-column gap-4">
-              {/* Reminders */}
-              {/* Employee Work Rate – sample static list */}
-              <div className="card hr-card">
-                <div className="card-header hr-card-header">
-                  <span>Employee Work Rate</span>
-                  <button className="dots-btn">⋯</button>
+
+              {/* Employee Work Rate */}
+              <div className="dashboard-chart-card">
+                <div className="chart-header">
+                  <h3 className="chart-title">📊 Empoloyee Work Rate</h3>
+                  <div className="chart-legend">
+                    <div className="legend-item">
+                      <span className="legend-dot blue"></span>
+                      <span className="legend-dot green"></span>
+                      <span className="legend-dot seg-red"></span>
+                    </div>
+                  </div>
                 </div>
+
                 <div className="card-body access-vertical">
-  {/* TOP: full-width animated multi-ring chart */}
-  <div className="access-chart-wrap access-chart-full">
-    <svg viewBox="0 0 140 140" className="access-chart-svg">
-      {(() => {
-        const baseRadius = 52;          // outer ring
-        const ringGap = 8;              // distance between rings
-        const total = EMPLOYMENT_BREAKDOWN.reduce(
-          (sum, item) => sum + item.value,
-          0
-        );
+                  {/* TOP: full-width animated multi-ring chart */}
+                  <div className="access-chart-wrap access-chart-full">
+                    <svg viewBox="0 0 140 140" className="access-chart-svg">
+                      {(() => {
+                        const baseRadius = 62;          // outer ring
+                        const ringGap = 8;              // distance between rings
+                        const total = EMPLOYMENT_BREAKDOWN.reduce(
+                          (sum, item) => sum + item.value,
+                          0
+                        );
 
-        return EMPLOYMENT_BREAKDOWN.map((item, index) => {
-          const radius = baseRadius - index * ringGap;
-          const circumference = 2 * Math.PI * radius;
-          const fraction = total ? item.value / total : 0;
-          const length = fraction * circumference;
+                        return EMPLOYMENT_BREAKDOWN.map((item, index) => {
+                          const radius = baseRadius - index * ringGap;
+                          const circumference = 2 * Math.PI * radius;
+                          const fraction = total ? item.value / total : 0;
+                          const length = fraction * circumference;
 
-          return (
-            <g key={item.key}>
-              {/* grey base ring */}
-              <circle
-                cx="70"
-                cy="70"
-                r={radius}
-                className="access-segment-bg"
-              />
-              {/* colored animated ring */}
-              <circle
-                cx="70"
-                cy="70"
-                r={radius}
-                className={`access-segment ${item.colorClass}`}
-                style={{
-                  '--dash': length,
-                  '--gap': circumference - length,
-                  '--delay': `${index * 0.18}s`,
-                }}
-              />
-            </g>
-          );
-        });
-      })()}
-    </svg>
+                          return (
+                            <g key={item.key}>
+                              {/* grey base ring */}
+                              <circle
+                                cx="70"
+                                cy="70"
+                                r={radius}
+                                className="access-segment-bg"
+                              />
+                              {/* colored animated ring */}
+                              <circle
+                                cx="70"
+                                cy="70"
+                                r={radius}
+                                className={`access-segment ${item.colorClass}`}
+                                style={{
+                                  '--dash': length,
+                                  '--gap': circumference - length,
+                                  '--delay': `${index * 0.18}s`,
+                                }}
+                              />
+                            </g>
+                          );
+                        });
+                      })()}
+                    </svg>
 
-    <div className="access-chart-center">
-      <div className="access-center-value">
-        {EMPLOYMENT_BREAKDOWN.reduce((s, i) => s + i.value, 0)}
-      </div>
-      <div className="access-center-label">Total Staff</div>
-    </div>
-  </div>
+                    <div className="access-chart-center">
+                      <div className="access-center-value">
+                        {EMPLOYMENT_BREAKDOWN.reduce((s, i) => s + i.value, 0)}
+                      </div>
+                      <div className="access-center-label">Total Staff</div>
+                    </div>
+                  </div>
 
-  {/* BOTTOM: Category values + tiny badges */}
-  <div className="access-legend access-legend-bottom">
-    {EMPLOYMENT_BREAKDOWN.map((item) => (
-      <div className="access-legend-row" key={item.key}>
-        <div className="legend-label-wrap">
-          <span className={`legend-dot ${item.colorClass}`} />
-          <span className="legend-label">{item.label}</span>
-        </div>
-        <div className="legend-values">
-          <span className="legend-count">{item.value}</span>
-          <span
-            className={
-              item.colorClass === 'seg-red'
-                ? 'legend-badge badge-down'
-                : 'legend-badge badge-up'
-            }
-          >
-            {item.colorClass === 'seg-red' ? '-1.2%' : '+3.4%'}
-          </span>
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
+                  {/* BOTTOM: Category values + tiny badges */}
+                  <div className="access-legend access-legend-bottom">
+                    {EMPLOYMENT_BREAKDOWN.map((item) => (
+                      <div className="access-legend-row" key={item.key}>
+                        <div className="legend-label-wrap">
+                          <span className={`legend-dot ${item.colorClass}`} />
+                          <span className="legend-label">{item.label}</span>
+                        </div>
+                        <div className="legend-values">
+                          <span className="legend-count">{item.value}</span>
+                          <span
+                            className={
+                              item.colorClass === 'seg-red'
+                                ? 'legend-badge badge-down'
+                                : 'legend-badge badge-up'
+                            }
+                          >
+                            {item.colorClass === 'seg-red' ? '-1.2%' : '+3.4%'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
               </div>
 
-                            {/* All Employees */}
-              <div className="card hr-card">
-                <div className="card-header hr-card-header">
-                  <span>All Employees</span>
-                  <button className="dots-btn">⋯</button>
+              {/* All Employees */}
+              <div className="dashboard-chart-card">
+                <div className="chart-header">
+                  <h3 className="chart-title">🧑‍🤝‍🧑 All Employees</h3>
                 </div>
-
-                {/* 👇 add employees-scroll to make it scrollable */}
+                {/*  add employees-scroll to make it scrollable */}
                 <div className="card-body reminders-body employees-scroll">
                   {employees.map((item, index) => {
                     const isActive = item.status === "active"; // status-based
@@ -705,7 +683,7 @@ const Dashboard = () => {
                           </div>
                         </div>
 
-                        {/* ✅ Tick for active, cross for others */}
+                        {/* Tick for active, cross for others */}
                         <span className="check-badge">
                           {item.isActive ? "✓" : "❌"}
                         </span>
@@ -716,9 +694,7 @@ const Dashboard = () => {
               </div>
 
             </div>
-            {/* END RIGHT COLUMN */}
           </div>
-
         </div>
       </main>
     </div>

@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, Link, useLocation } from "react-router-dom";
-// import "bootstrap/dist/css/bootstrap.min.css";
+
 
 const Navbar = () => {
   const dispatch = useDispatch();
@@ -25,9 +25,9 @@ const Navbar = () => {
     // hook real search later
   };
 
-  const toggleMenu = () => setMenuOpen(!menuOpen);
+  const toggleMenu = () => setMenuOpen((prev) => !prev);
 
-  // ---- ROLE-BASED MENU ITEMS (from your original Navbar) ----
+  // ---- ROLE-BASED MENU ITEMS ----
   const getMenuItems = () => {
     const baseItems = [{ label: "Dashboard", path: "/dashboard" }];
 
@@ -78,11 +78,11 @@ const Navbar = () => {
   const menuItems = getMenuItems();
 
   return (
-    <div className=" hr-mains m-3 p-3">
-      {/* TOP ROW – HR style + hamburger + search + user info */}
-      <div className="d-flex justify-content-between align-items-center">
-        {/* LEFT: Logo + menu (desktop) */}
-        <div className="d-flex align-items-center gap-3">
+    <div className="hr-mains m-3 p-3">
+      {/* TOP ROW – logo + menu + search + profile */}
+      <div className="navbar-row">
+        {/* LEFT: Logo + desktop menu */}
+        <div className="navbar-left">
           <Link to="/dashboard" className="text-decoration-none">
             <div className="logo-circle">
               <span className="logo-icon">★</span>
@@ -111,8 +111,8 @@ const Navbar = () => {
           </ul>
         </div>
 
-        {/* RIGHT: Search + icons + user info (desktop) */}
-        <div className="d-none d-lg-flex align-items-center gap-3">
+        {/* RIGHT: Desktop search + icons + profile */}
+        <div className="navbar-right d-none d-lg-flex">
           <form onSubmit={handleSearchSubmit} className="search-box">
             <i className="bi bi-search" />
             <input
@@ -124,29 +124,25 @@ const Navbar = () => {
             />
           </form>
 
-          <button className="icon-btn" title="Notifications">
-            <i className="bi bi-bell" />
-          </button>
-          <button className="icon-btn" title="Settings">
-            <i className="bi bi-gear" />
-          </button>
-
-          <div className="d-flex align-items-center gap-2">
+          <div className="navbar-profile">
             <div className="avatar-circle" title="Profile">
               <span>
                 {(user?.firstName && user.firstName[0]?.toUpperCase()) ||
                   (user?.role?.[0]?.toUpperCase() || "U")}
               </span>
             </div>
-            <div className="d-flex flex-column">
+            <div className="navbar-profile-text">
               <span className="small fw-semibold">
                 {user?.firstName} {user?.lastName}
               </span>
-              <span className={`small text-muted text-capitalize`}>
+              <span className="small text-muted text-capitalize">
                 {user?.role}
               </span>
             </div>
-            <button onClick={handleLogout} className="btn btn-sm btn-outline-danger ms-2">
+            <button
+              onClick={handleLogout}
+              className="btn btn-sm btn-outline-danger ms-2"
+            >
               Logout
             </button>
           </div>
@@ -154,11 +150,15 @@ const Navbar = () => {
 
         {/* MOBILE: hamburger icon */}
         <div className="d-lg-none">
-          <div className="menu-icon" onClick={toggleMenu}>
+          <button
+            className={`menu-icon ${menuOpen ? "open" : ""}`}
+            onClick={toggleMenu}
+            aria-label="Toggle navigation"
+          >
             <span className="bar" />
             <span className="bar" />
             <span className="bar" />
-          </div>
+          </button>
         </div>
       </div>
 
@@ -183,7 +183,7 @@ const Navbar = () => {
                 <Link
                   to={item.path}
                   className={
-                    "nav-link d-block py-1 px-2 rounded" +
+                    "nav-link nav-link-mobile" +
                     (isActive ? " active" : "") +
                     (item.admin ? " admin-link" : "")
                   }
@@ -196,19 +196,19 @@ const Navbar = () => {
           })}
         </ul>
 
-        <div className="d-flex align-items-center justify-content-between mt-2">
-          <div className="d-flex align-items-center gap-2">
+        <div className="navbar-mobile-footer">
+          <div className="navbar-mobile-profile">
             <div className="avatar-circle" title="Profile">
               <span>
                 {(user?.firstName && user.firstName[0]?.toUpperCase()) ||
                   (user?.role?.[0]?.toUpperCase() || "U")}
               </span>
             </div>
-            <div className="d-flex flex-column">
+            <div className="navbar-profile-text">
               <span className="small fw-semibold">
                 {user?.firstName} {user?.lastName}
               </span>
-              <span className={`small text-muted text-capitalize`}>
+              <span className="small text-muted text-capitalize">
                 {user?.role}
               </span>
             </div>
