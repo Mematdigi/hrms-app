@@ -29,13 +29,17 @@ class AuthController {
 
     // const hashedPassword = await bcrypt.hash(password, 10);
 
+  const employeeId = await User.findOne().sort({ employeeId: -1 })
+
+  console.log("employeeId",employeeId)
+  console.log("EmployeeId new",employeeId.employeeId)
     const user = await User.create({
       firstName,
       lastName,
       email,
       password,
       role: role || 'employee',
-      employeeId: `EMP${(await User.findOne().sort({ employeeId: -1 }))?.employeeId?.slice(3) * 1 + 1 || 1}`.padStart(4, '0')
+      employeeId: employeeId.employeeId+1
     });
 
     const token = tokenService.generateToken(user);

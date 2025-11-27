@@ -12,12 +12,16 @@ function Payroll() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState(null); // stores employee._id
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [employeesPerPage] = useState(10);
   const [generatingPDF, setGeneratingPDF] = useState(null);
 
-  // FORM data - these will be prefilled from selected employee's payroll if exists
+  // NEW: Month/Year Filter State
+  const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
+  const [filterYear, setFilterYear] = useState(new Date().getFullYear());
+
+  // FORM data
   const [formData, setFormData] = useState({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
@@ -32,20 +36,103 @@ function Payroll() {
   // ==================== DATA FETCHING ====================
   useEffect(() => {
     fetchEmployees();
-  }, []);
+  }, [filterMonth, filterYear]); // Re-fetch when filter changes
 
   const fetchEmployees = async () => {
     try {
+      setLoading(true);
       const response = await employeeAPI.getPayrolls();
-      // console.log retained for debugging
       console.log('Fetched employees: payroll', response.data);
-      setEmployees(response.data.data || []);
+      
+      // Process employees and extract payroll for selected month/year
+      const allEmployees = response.data.data || [];
+      const processedEmployees = allEmployees.map(emp => {
+        // Find the index where month and year match the filter
+        const payrollIndex = emp.payroll?.month?.findIndex((m, idx) => 
+          m === filterMonth && emp.payroll.year[idx] === filterYear
+        );
+        
+        // If payroll exists for the filtered month/year, extract that specific data
+        if (payrollIndex !== -1 && payrollIndex !== undefined) {
+          return {
+            ...emp,
+            payroll: {
+              month: emp.payroll.month[payrollIndex],
+              year: emp.payroll.year[payrollIndex],
+              baseSalary: emp.payroll.baseSalary[payrollIndex],
+              workedDays: emp.payroll.workedDays[payrollIndex],
+              deductions: emp.payroll.deductions[payrollIndex],
+              netSalary: emp.payroll.netSalary[payrollIndex],
+              workingDays: emp.payroll.workingDays[payrollIndex],
+              status: emp.payroll.status[payrollIndex],
+              employeeUniqueId: emp.payroll.employeeUniqueId[payrollIndex]
+            }
+          };
+        } else {
+          // No payroll for this month/year, return empty structure
+          return {
+            ...emp,
+            payroll: {
+              month: filterMonth,
+              year: filterYear,
+              baseSalary: null,
+              workedDays: null,
+              deductions: null,
+              netSalary: null,
+              workingDays: null,
+              status: null,
+              employeeUniqueId: null
+            }
+          };
+        }
+      });
+      
+      setEmployees(processedEmployees);
     } catch (error) {
       console.error('Error fetching employees:', error);
       toast.error('Failed to fetch employees');
     } finally {
       setLoading(false);
     }
+  };
+
+  // ==================== MONTH/YEAR FILTER HANDLERS ====================
+  const handleMonthChange = (e) => {
+    setFilterMonth(parseInt(e.target.value));
+    setCurrentPage(1);
+    setSelectedEmployee(null);
+    setShowForm(false);
+  };
+
+  const handleYearChange = (e) => {
+    setFilterYear(parseInt(e.target.value));
+    setCurrentPage(1);
+    setSelectedEmployee(null);
+    setShowForm(false);
+  };
+
+  const goToNextMonth = () => {
+    if (filterMonth === 12) {
+      setFilterMonth(1);
+      setFilterYear(filterYear + 1);
+    } else {
+      setFilterMonth(filterMonth + 1);
+    }
+    setCurrentPage(1);
+    setSelectedEmployee(null);
+    setShowForm(false);
+  };
+
+  const goToPreviousMonth = () => {
+    if (filterMonth === 1) {
+      setFilterMonth(12);
+      setFilterYear(filterYear - 1);
+    } else {
+      setFilterMonth(filterMonth - 1);
+    }
+    setCurrentPage(1);
+    setSelectedEmployee(null);
+    setShowForm(false);
   };
 
   // ==================== PAGINATION LOGIC ====================
@@ -58,10 +145,9 @@ function Payroll() {
     setCurrentPage(pageNumber);
     setSelectedEmployee(null);
     setShowForm(false);
-    // reset form when changing page (optional)
     setFormData({
-      month: new Date().getMonth() + 1,
-      year: new Date().getFullYear(),
+      month: filterMonth,
+      year: filterYear,
       baseSalary: "",
       workedDays: '',
       deductions: '',
@@ -106,7 +192,7 @@ function Payroll() {
       (num % 10000000 !== 0 ? ' ' + numberToWords(num % 10000000) : '');
   };
 
-  // ==================== PDF GENERATION (unchanged logic) ====================
+  // ==================== PDF GENERATION ====================
   const handleGeneratePDF = async (employee) => {
     if (!employee.payroll || !employee.payroll.netSalary) {
       toast.error('No payroll data available for this employee');
@@ -120,23 +206,19 @@ function Payroll() {
       const pageWidth = doc.internal.pageSize.width;
       const pageHeight = doc.internal.pageSize.height;
 
-      // ========== CONVERT ALL VALUES TO NUMBERS ==========
       const baseSalary = parseFloat(employee.payroll.baseSalary) || 0;
       const workedDays = parseInt(employee.payroll.workedDays) || 0;
       const deductions = parseFloat(employee.payroll.deductions) || 0;
       const workingDays = parseInt(employee.payroll.workingDays) || 0;
 
-      // ========== BACKGROUND ==========
       doc.setFillColor(255, 255, 255);
       doc.rect(0, 0, pageWidth, pageHeight, 'F');
 
-      // ========== HEADER: PAYSLIP ==========
       let yPos = 20;
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
       doc.text('Payslip', pageWidth / 2, yPos, { align: 'center' });
 
-      // ========== COMPANY INFO ==========
       yPos = 30;
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
@@ -150,27 +232,22 @@ function Payroll() {
       yPos += 5;
       doc.text('Delhi', pageWidth / 2, yPos, { align: 'center' });
 
-      // ========== EMPLOYEE DETAILS SECTION ==========
       yPos = 50;
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
 
-      // Left Column
       const leftX = 20;
       const rightX = 110;
       const labelWidth = 40;
 
-      // Date of Joining
       doc.text('Date of Joining', leftX, yPos);
       doc.text(': ' + new Date(employee.dateOfJoining).toLocaleDateString(), leftX + labelWidth, yPos);
 
-      // Employee Name
       doc.text('Employee name', rightX, yPos);
       doc.text(': ' + employee.firstName + ' ' + employee.lastName, rightX + labelWidth, yPos);
 
       yPos += 5;
 
-      // Pay Period
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'];
       const payMonth = monthNames[(employee.payroll.month || 1) - 1] || 'January';
@@ -179,26 +256,22 @@ function Payroll() {
       doc.text('Pay Period', leftX, yPos);
       doc.text(': ' + payMonth + ' ' + payYear, leftX + labelWidth, yPos);
 
-      // Designation
       doc.text('Designation', rightX, yPos);
       doc.text(': ' + (employee.designation || 'N/A'), rightX + labelWidth, yPos);
 
-    yPos += 5;  
+      yPos += 5;
 
-      // Worked Days
       doc.text('Worked Days', leftX, yPos);
       doc.text(': ' + workedDays, leftX + labelWidth, yPos);
 
-      // Department
       doc.text('Department', rightX, yPos);
       doc.text(': ' + (employee.department || 'N/A'), rightX + labelWidth, yPos);
 
-      // ========== EARNINGS TABLE ==========
       yPos += 15;
 
-      const incentivePay = baseSalary * 0.10; // 10% incentive
-      const houseRent = baseSalary * 0.04;     // 4% house rent
-      const mealAllowance = baseSalary * 0.02; // 2% meal allowance
+      const incentivePay = baseSalary * 0.10;
+      const houseRent = baseSalary * 0.04;
+      const mealAllowance = baseSalary * 0.02;
       const totalEarnings = baseSalary + incentivePay + houseRent + mealAllowance;
 
       const earningsData = [
@@ -237,7 +310,6 @@ function Payroll() {
         margin: { left: 15, right: 15 },
       });
 
-      // Total Earnings Row
       const earningsY = doc.lastAutoTable.finalY;
       autoTable(doc, {
         startY: earningsY,
@@ -261,20 +333,19 @@ function Payroll() {
         margin: { left: 15, right: 15 },
       });
 
-      // ========== deductions TABLE ==========
       yPos = doc.lastAutoTable.finalY + 10;
 
-    const providentFund = baseSalary * 0.12;   // 12%
-    const professionalTax = baseSalary * 0.05; // 5%
-    const leaves = deductions;
-    const totaldeductions = providentFund + professionalTax + leaves;
+      const providentFund = baseSalary * 0.12;
+      const professionalTax = baseSalary * 0.05;
+      const leaves = deductions;
+      const totaldeductions = providentFund + professionalTax + leaves;
 
-    const deductionsData = [
-      ['deductions', 'Amount'],
-      ['Provident Fund', Math.round(providentFund).toString()],
-      ['Professional Tax', Math.round(professionalTax).toString()],
-      ['Leave', Math.round(leaves).toString()],
-    ];
+      const deductionsData = [
+        ['deductions', 'Amount'],
+        ['Provident Fund', Math.round(providentFund).toString()],
+        ['Professional Tax', Math.round(professionalTax).toString()],
+        ['Leave', Math.round(leaves).toString()],
+      ];
 
       autoTable(doc, {
         startY: yPos,
@@ -304,7 +375,6 @@ function Payroll() {
         margin: { left: 15, right: 15 },
       });
 
-      // Total deductions Row
       const deductionsY = doc.lastAutoTable.finalY;
       autoTable(doc, {
         startY: deductionsY,
@@ -328,7 +398,6 @@ function Payroll() {
         margin: { left: 15, right: 15 },
       });
 
-      // Net Pay Row
       const netPayY = doc.lastAutoTable.finalY;
       const netPay = totalEarnings - totaldeductions;
 
@@ -354,7 +423,6 @@ function Payroll() {
         margin: { left: 15, right: 15 },
       });
 
-      // ========== NET PAY IN WORDS ==========
       yPos = doc.lastAutoTable.finalY + 10;
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
@@ -366,76 +434,66 @@ function Payroll() {
       const netPayWords = numberToWords(Math.round(netPay));
       doc.text(`Rs. ${netPayWords} only`, pageWidth / 2, yPos, { align: 'center' });
 
-      // ========== SIGNATURE SECTION ==========
       yPos = pageHeight - 50;
 
-      // Employer Signature
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.text('Employer Signature', 40, yPos);
       doc.line(30, yPos + 15, 80, yPos + 15);
 
-      // Employee Signature
       doc.text('Employee Signature', pageWidth - 60, yPos);
       doc.line(pageWidth - 80, yPos + 15, pageWidth - 30, yPos + 15);
 
-      // ========== FOOTER ==========
       yPos = pageHeight - 20;
       doc.setFontSize(8);
       doc.setFont('helvetica', 'italic');
       doc.setTextColor(100, 100, 100);
       doc.text('This is system generated payslip', pageWidth / 2, yPos, { align: 'center' });
 
-    // ========== OPEN PDF IN NEW TAB ==========
-    const pdfBlob = doc.output('blob');
-    const pdfUrl = URL.createObjectURL(pdfBlob);
-    
-    const newWindow = window.open(pdfUrl, '_blank');
-    
-    if (newWindow) {
-      newWindow.document.title = `Payslip - ${employee.firstName} ${employee.lastName}`;
-      toast.success('PDF opened in new tab!');
-    } else {
-      const link = document.createElement('a');
-      link.href = pdfUrl;
-      link.download = `Payslip_ EMP00${employee.employeeId}_${employee.firstName}_${employee.lastName}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.warning('Popup blocked! PDF downloaded instead.');
-    }
-    
-    setTimeout(() => {
-      URL.revokeObjectURL(pdfUrl);
-    }, 100);
-    
-  } catch (error) {
-    console.error('Error generating PDF:', error);
-    toast.error('Failed to generate PDF: ' + error.message);
-  } finally {
-    setGeneratingPDF(null);
-  }
-};
-  // ==================== EVENT HANDLERS ====================
+      const pdfBlob = doc.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
 
-  // HELPER: get employee object by id (CHANGE: new helper)
+      const newWindow = window.open(pdfUrl, '_blank');
+
+      if (newWindow) {
+        newWindow.document.title = `Payslip - ${employee.firstName} ${employee.lastName}`;
+        toast.success('PDF opened in new tab!');
+      } else {
+        const link = document.createElement('a');
+        link.href = pdfUrl;
+        link.download = `Payslip_EMP00${employee.employeeId}_${employee.firstName}_${employee.lastName}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.warning('Popup blocked! PDF downloaded instead.');
+      }
+
+      setTimeout(() => {
+        URL.revokeObjectURL(pdfUrl);
+      }, 100);
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF: ' + error.message);
+    } finally {
+      setGeneratingPDF(null);
+    }
+  };
+
+  // ==================== EVENT HANDLERS ====================
   const getEmployeeById = (id) => {
     return employees.find((e) => e._id === id) || null;
   };
 
-  // CHANGE: selectEmployee replaces old handleCheckboxChange
-  // - expects the full employee object
-  // - toggles selection, and PREFILLS formData from employee.payroll if available
   const selectEmployee = (employee) => {
     if (!employee) return;
 
-    // If clicking same employee => deselect + reset form
     if (selectedEmployee === employee._id) {
       setSelectedEmployee(null);
       setShowForm(false);
       setFormData({
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear(),
+        month: filterMonth,
+        year: filterYear,
         baseSalary: "",
         workedDays: '',
         deductions: '',
@@ -444,15 +502,13 @@ function Payroll() {
       return;
     }
 
-    // Select the employee and prefill formData
     setSelectedEmployee(employee._id);
-    setShowForm(false); // keep closed until user clicks Generate or toggle
+    setShowForm(false);
 
     const payroll = employee.payroll || {};
     setFormData({
-      month: payroll.month || (new Date().getMonth() + 1),
-      year: payroll.year || new Date().getFullYear(),
-      // keep values empty string if not present so inputs are editable
+      month: filterMonth,
+      year: filterYear,
       baseSalary: payroll.baseSalary != null ? payroll.baseSalary : '',
       workedDays: payroll.workedDays != null ? payroll.workedDays : '',
       deductions: payroll.deductions != null ? payroll.deductions : '',
@@ -467,7 +523,6 @@ function Payroll() {
     });
   };
 
-  // CHANGE: handleSubmit now uses formData correctly, calls API, then reloads employees and REFILLS form from updated payroll
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -477,10 +532,8 @@ function Payroll() {
     }
 
     try {
-      // send payload
       await payrollAPI.generate({
         employee: selectedEmployee,
-        // raw formData spread is okay; below we override typed fields with parsed numbers
         ...formData,
         baseSalary: parseFloat(formData.baseSalary) || 0,
         workedDays: parseFloat(formData.workedDays) || 0,
@@ -490,23 +543,20 @@ function Payroll() {
         year: parseInt(formData.year)
       });
 
-      // After successful generation, fetch latest employees (CHANGE)
       await fetchEmployees();
 
-      // Try to find the updated employee and refill the form with the server's payroll (so user sees "previous" data)
       const updatedEmp = getEmployeeById(selectedEmployee);
       const updatedPayroll = updatedEmp?.payroll || {};
 
       setFormData({
-        month: updatedPayroll.month || (new Date().getMonth() + 1),
-        year: updatedPayroll.year || new Date().getFullYear(),
+        month: updatedPayroll.month || filterMonth,
+        year: updatedPayroll.year || filterYear,
         baseSalary: updatedPayroll.baseSalary != null ? updatedPayroll.baseSalary : '',
         workedDays: updatedPayroll.workedDays != null ? updatedPayroll.workedDays : '',
         deductions: updatedPayroll.deductions != null ? updatedPayroll.deductions : '',
         workingDays: updatedPayroll.workingDays != null ? updatedPayroll.workingDays : '',
       });
 
-      // Keep form open so user can see/update the values again if needed
       setShowForm(false);
       toast.success('Payroll generated successfully!');
 
@@ -520,9 +570,15 @@ function Payroll() {
     }
   };
 
-  // HELPER: is employee selected
   const isEmployeeSelected = (employeeId) => {
     return selectedEmployee === employeeId;
+  };
+
+  // ==================== MONTH NAME HELPER ====================
+  const getMonthName = (monthNumber) => {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+    return monthNames[monthNumber - 1] || '';
   };
 
   // ==================== RENDERING ====================
@@ -534,12 +590,106 @@ function Payroll() {
       <div className="payroll-header">
         <h1>Payroll Management</h1>
 
+        {/* NEW: Month/Year Filter */}
+        <div className="month-filter-container" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '15px',
+          margin: '20px 0',
+          padding: '15px',
+          backgroundColor: '#f5f5f5',
+          borderRadius: '8px'
+        }}>
+          <button
+            onClick={goToPreviousMonth}
+            style={{
+              padding: '8px 15px',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            ← Previous
+          </button>
+
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px' }}>Filter by:</label>
+            
+            <select
+              value={filterMonth}
+              onChange={handleMonthChange}
+              style={{
+                padding: '8px 12px',
+                fontSize: '14px',
+                borderRadius: '5px',
+                border: '1px solid #ddd'
+              }}
+            >
+              <option value="1">January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+
+            <select
+              value={filterYear}
+              onChange={handleYearChange}
+              style={{
+                padding: '8px 12px',
+                fontSize: '14px',
+                borderRadius: '5px',
+                border: '1px solid #ddd'
+              }}
+            >
+              {[2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030].map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={goToNextMonth}
+            style={{
+              padding: '8px 15px',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            Next →
+          </button>
+
+          <div style={{
+            marginLeft: 'auto',
+            padding: '8px 15px',
+            backgroundColor: '#2196F3',
+            color: 'white',
+            borderRadius: '5px',
+            fontWeight: 'bold'
+          }}>
+            {getMonthName(filterMonth)} {filterYear}
+          </div>
+        </div>
+
         <div className="pagination-info">
           Showing {indexOfFirstEmployee + 1} to {Math.min(indexOfLastEmployee, employees.length)} of {employees.length} employees
         </div>
 
         {(user?.role === 'admin' || user?.role === 'hr') && selectedEmployee && (
-          // CHANGE: When opening form via header button, we ensure formData is set from selected employee (if not already)
           <button
             onClick={() => {
               const willOpen = !showForm;
@@ -550,8 +700,8 @@ function Payroll() {
                 if (emp) {
                   const payroll = emp.payroll || {};
                   setFormData({
-                    month: payroll.month || (new Date().getMonth() + 1),
-                    year: payroll.year || new Date().getFullYear(),
+                    month: filterMonth,
+                    year: filterYear,
                     baseSalary: payroll.baseSalary != null ? payroll.baseSalary : '',
                     workedDays: payroll.workedDays != null ? payroll.workedDays : '',
                     deductions: payroll.deductions != null ? payroll.deductions : '',
@@ -569,7 +719,7 @@ function Payroll() {
 
       {/* ========== PAYROLL TABLE ========== */}
       <div className="payroll-table">
-        <h2>Employee Payroll</h2>
+        <h2>Employee Payroll - {getMonthName(filterMonth)} {filterYear}</h2>
         <table>
           <thead>
             <tr>
@@ -594,7 +744,7 @@ function Payroll() {
           <tbody>
             {currentEmployees.length === 0 ? (
               <tr>
-                <td colSpan="13" style={{ textAlign: 'center', padding: '30px' }}>
+                <td colSpan="15" style={{ textAlign: 'center', padding: '30px' }}>
                   No employees found
                 </td>
               </tr>
@@ -606,14 +756,13 @@ function Payroll() {
                       <input
                         type="checkbox"
                         checked={isEmployeeSelected(emp._id)}
-                        // CHANGE: call selectEmployee(emp) instead of passing id
                         onChange={() => selectEmployee(emp)}
                       />
                     </td>
-                <td>{`EMP00${emp.employeeId}`}</td>
+                    <td>{`EMP00${emp.employeeId}`}</td>
                     <td>{emp.firstName} {emp.lastName}</td>
-                    <td>{emp.payroll.month}</td>
-                    <td>{emp.payroll.year}</td>
+                    <td>{emp.payroll?.month || '-'}</td>
+                    <td>{emp.payroll?.year || '-'}</td>
                     <td>{emp.email}</td>
                     <td>{emp.department}</td>
                     <td>{emp.designation}</td>
@@ -659,9 +808,9 @@ function Payroll() {
                   {/* Form Row */}
                   {showForm && selectedEmployee === emp._id && (
                     <tr className="form-row-container">
-                      <td colSpan="13">
+                      <td colSpan="15">
                         <form onSubmit={handleSubmit} className="inline-payroll-form">
-                          <h3>Generate Payroll for Employee</h3>
+                          <h3>Generate Payroll for {getMonthName(filterMonth)} {filterYear}</h3>
 
                           <div className="selected-employees-box">
                             <h4>Selected Employee:</h4>
@@ -676,8 +825,8 @@ function Payroll() {
                                     setSelectedEmployee(null);
                                     setShowForm(false);
                                     setFormData({
-                                      month: new Date().getMonth() + 1,
-                                      year: new Date().getFullYear(),
+                                      month: filterMonth,
+                                      year: filterYear,
                                       baseSalary: "",
                                       workedDays: '',
                                       deductions: '',
@@ -694,33 +843,29 @@ function Payroll() {
 
                           <div className="form-grid">
                             <div className="form-group">
-                              <label>Month *</label>
-                              <select name="month" value={formData.month} onChange={handleChange} required>
-                                <option value="1">January</option>
-                                <option value="2">February</option>
-                                <option value="3">March</option>
-                                <option value="4">April</option>
-                                <option value="5">May</option>
-                                <option value="6">June</option>
-                                <option value="7">July</option>
-                                <option value="8">August</option>
-                                <option value="9">September</option>
-                                <option value="10">October</option>
-                                <option value="11">November</option>
-                                <option value="12">December</option>
-                              </select>
+                              <label>Month * (Auto-filled)</label>
+                              <input
+                                type="text"
+                                value={getMonthName(formData.month)}
+                                readOnly
+                                style={{ backgroundColor: '#f0f0f0' }}
+                              />
                             </div>
                             <div className="form-group">
-                              <label>Year *</label>
-                              <input type="number" name="year" min="2020" max="2030"
-                                value={formData.year} onChange={handleChange} required />
+                              <label>Year * (Auto-filled)</label>
+                              <input
+                                type="number"
+                                value={formData.year}
+                                readOnly
+                                style={{ backgroundColor: '#f0f0f0' }}
+                              />
                             </div>
 
                             <div className="form-group">
-                              <label>Base Salary *</label>
+                              <label>Base Salary</label>
                               <input type="number" name="baseSalary" placeholder="Enter base salary"
                                 value={formData.baseSalary} onChange={handleChange}
-                                required min="0" step="0.01" />
+                                 min="0" step="0.01" />
                             </div>
 
                             <div className="form-group">

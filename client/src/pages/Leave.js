@@ -540,7 +540,7 @@ function Leave() {
                   <thead>
                     <tr>
                       <th>S.no</th>
-                      {(user?.role === 'hr' || user?.role === 'admin') && <th>Employee</th>}
+                      {(user?.role === 'hr' || user?.role === 'admin') && <th>Employee Name</th>}
                       <th>Leave Type</th>
                       <th>Start Date</th>
                       <th>End Date</th>

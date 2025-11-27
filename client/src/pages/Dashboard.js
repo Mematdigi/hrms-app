@@ -35,6 +35,7 @@ const Dashboard = () => {
     const routes = {
       'employees': '/employees',
       'attendance': '/attendance',
+      'allEmployeeAttendance':'/allEmployeeAttendance',
       'leave': '/leave',
       'payroll': '/payroll',
       'roles': '/roles',
@@ -74,7 +75,6 @@ const Dashboard = () => {
               <h1>Admin Dashboard</h1>
               <p>Full System Access & Control</p>
             </div>
-
             <div className="dashboard-grid">
               <div
                 className="dashboard-card admin-card clickable-card"
@@ -86,7 +86,6 @@ const Dashboard = () => {
                   <p className="card-value">{stats.totalEmployees || 0}</p>
                 </div>
               </div>
-
               <div
                 className="dashboard-card admin-card clickable-card"
                 onClick={() => handleCardClick('attendance')}
@@ -97,18 +96,15 @@ const Dashboard = () => {
                   <p className="card-value">{stats.activeEmployees || 0}</p>
                 </div>
               </div>
-
               <div
                 className="dashboard-card admin-card clickable-card"
-                onClick={() => handleCardClick('leave')}
-              >
+                onClick={() => handleCardClick('leave')}>
                 <div className="card-icon">🏢</div>
                 <div className="card-content">
                   <h3>Departments</h3>
                   <p className="card-value">{stats.departments || 0}</p>
                 </div>
               </div>
-
               <div
                 className="dashboard-card admin-card clickable-card"
                 onClick={() => handleCardClick('settings')}

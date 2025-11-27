@@ -25,11 +25,12 @@ function Navbar() {
       return [
         ...baseItems,
         { label: 'Employees', path: '/employees' },
-        { label: 'Attendance', path: '/attendance' },
+        { label: 'My Attendance', path: '/attendance' },
         { label: 'Leave', path: '/leave' },
         { label: 'Payroll', path: '/payroll' },
         { label: 'Performance', path: '/performance' },
-        { label: 'Roles', path: '/roles', admin: true }
+        { label: 'Roles', path: '/roles', admin: true },
+        {label:'Employee Attendance',path:'/all_employee_attendance'}
       ];
     }
 
@@ -37,10 +38,11 @@ function Navbar() {
       return [
         ...baseItems,
         { label: 'Employees', path: '/employees' },
-        { label: 'Attendance', path: '/attendance' },
+        { label: 'My Attendance', path: '/attendance' },
         { label: 'Leave', path: '/leave' },
         { label: 'Payroll', path: '/payroll' },
-        { label: 'Performance', path: '/performance' }
+        { label: 'Performance', path: '/performance' },
+        {label:'Employee Attendance',path:'/all_employee_attendance'}
       ];
     }
 
