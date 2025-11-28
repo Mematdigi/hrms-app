@@ -8,7 +8,6 @@ function Employees() {
   const [showForm, setShowForm] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-  
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -17,9 +16,8 @@ function Employees() {
     department: '',
     designation: '',
     dateOfJoining: '',
-    baseSalary:''
+    baseSalary: ''
   });
-
   const [editFormData, setEditFormData] = useState({
     firstName: '',
     lastName: '',
@@ -28,23 +26,36 @@ function Employees() {
     designation: '',
     dateOfJoining: '',
     isActive: true,
-    baseSalary:'',
+    baseSalary: ''
   });
-
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  
+  const [filters, setFilters] = useState({
+    name: '',
+    employeeId: '',
+    department: 'All Departments',
+    designation: 'All Designations'
+  });
+
   const { user } = useSelector((state) => state.auth);
 
   useEffect(() => {
     fetchEmployees();
-  }, []);
+  }, [filters]);
 
   const fetchEmployees = async () => {
     try {
+      setLoading(true);
       const response = await employeeAPI.getAll();
-      console.log('Fetched employees: ', response.data);
-      setEmployees(response.data);
+      const filteredEmployees = response.data.filter((emp) => {
+        return (
+          (filters.name ? emp.firstName.toLowerCase().includes(filters.name.toLowerCase()) || emp.lastName.toLowerCase().includes(filters.name.toLowerCase()) || emp.email.toLowerCase().includes(filters.name.toLowerCase()) || emp.employeeId.toString().includes(filters.name) : true) &&
+          (filters.employeeId ? emp.employeeId.toString().includes(filters.employeeId) : true) &&
+          (filters.department !== 'All Departments' ? emp.department?.toLowerCase().includes(filters.department.toLowerCase()) : true) &&
+          (filters.designation !== 'All Designations' ? emp.designation?.toLowerCase().includes(filters.designation.toLowerCase()) : true)
+        );
+      });
+      setEmployees(filteredEmployees);
     } catch (error) {
       console.error('Error fetching employees:', error);
       setErrorMessage(error?.response?.data?.message || 'Error fetching employees');
@@ -52,6 +63,11 @@ function Employees() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters({ ...filters, [name]: value });
   };
 
   const handleChange = (e) => {
@@ -78,7 +94,7 @@ function Employees() {
         department: '',
         designation: '',
         dateOfJoining: '',
-        baseSalary:''
+        baseSalary: ''
       });
       setShowForm(false);
       setSuccessMessage('✅ Employee created successfully!');
@@ -92,7 +108,6 @@ function Employees() {
     }
   };
 
-  // ✅ NEW: Handle Edit Button Click
   const handleEditClick = (employee) => {
     setSelectedEmployee(employee);
     setEditFormData({
@@ -103,12 +118,11 @@ function Employees() {
       designation: employee.designation || '',
       dateOfJoining: employee.dateOfJoining ? employee.dateOfJoining.split('T')[0] : '',
       isActive: employee.isActive,
-      baseSalary:employee.baseSalary
+      baseSalary: employee.baseSalary
     });
     setShowEditModal(true);
   };
 
-  // ✅ NEW: Handle Edit Submit
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -125,12 +139,11 @@ function Employees() {
     }
   };
 
-  // ✅ NEW: Handle Delete
   const handleDelete = async (employeeId, employeeName) => {
     const confirmDelete = window.confirm(
       `Are you sure you want to delete ${employeeName}?\n\nThis action cannot be undone.`
     );
-    
+
     if (!confirmDelete) return;
 
     try {
@@ -145,7 +158,6 @@ function Employees() {
     }
   };
 
-  // ✅ NEW: Close Edit Modal
   const handleCloseEditModal = () => {
     setShowEditModal(false);
     setSelectedEmployee(null);
@@ -166,6 +178,43 @@ function Employees() {
             {showForm ? '✕ Cancel' : '+ Add Employee'}
           </button>
         )}
+      </div>
+
+      {/* Filter Section */}
+      <div className="filter-section">
+        <input
+          type="text"
+          name="name"
+          placeholder="Search by name, email, or employee ID..."
+          value={filters.name}
+          onChange={handleFilterChange}
+        />
+        <input
+          type="text"
+          name="employeeId"
+          placeholder="Employee ID"
+          value={filters.employeeId}
+          onChange={handleFilterChange}
+        />
+        <select
+          name="department"
+          value={filters.department}
+          onChange={handleFilterChange}
+        >
+          <option value="All Departments">All Departments</option>
+          {/* Add departments dynamically if needed */}
+        </select>
+        <select
+          name="designation"
+          value={filters.designation}
+          onChange={handleFilterChange}
+        >
+          <option value="All Designations">All Designations</option>
+          {/* Add designations dynamically if needed */}
+        </select>
+        <button onClick={() => fetchEmployees()} className="apply-filters-btn">
+          Apply Filters
+        </button>
       </div>
 
       {/* Add Employee Form */}
@@ -246,7 +295,7 @@ function Employees() {
                 onChange={handleChange}
               />
             </div>
-              <div className="form-group">
+            <div className="form-group">
               <label>Base of Salary</label>
               <input
                 type="text"
@@ -265,7 +314,7 @@ function Employees() {
         </form>
       )}
 
-      {/* ✅ NEW: Edit Employee Modal */}
+      {/* Edit Employee Modal */}
       {showEditModal && (
         <div className="modal-overlay" onClick={handleCloseEditModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -379,7 +428,6 @@ function Employees() {
               <th>Status</th>
               <th>Date of Joining</th>
               <th>Base Salary</th>
-              {/* ✅ NEW: Actions Column */}
               {(user?.role === 'admin' || user?.role === 'hr') && <th>Actions</th>}
             </tr>
           </thead>
@@ -396,9 +444,7 @@ function Employees() {
                   {emp.isActive ? 'Active' : 'Inactive'}
                 </td>
                 <td>{new Date(emp.dateOfJoining).toLocaleDateString()}</td>
-<td>₹{emp.baseSalary || 0}</td>
-
-                {/* ✅ NEW: Action Buttons */}
+                <td>₹{emp.baseSalary || 0}</td>
                 {(user?.role === 'admin' || user?.role === 'hr') && (
                   <td className="actions-cell">
                     <button
