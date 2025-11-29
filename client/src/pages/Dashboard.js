@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import api, { employeeAPI } from "../services/api";
 import "bootstrap/dist/css/bootstrap.min.css";
+import { attendanceAPI } from '../services/api';
 
 // ✅ NEW: Chart.js imports
 import { Line } from 'react-chartjs-2';
@@ -18,6 +19,8 @@ import {
   Legend
 } from 'chart.js';
 
+
+
 // ✅ Register Chart.js components
 ChartJS.register(
   CategoryScale,
@@ -28,7 +31,6 @@ ChartJS.register(
   Tooltip,
   Legend
 );
-
 
 // ---- attendance chart helpers ----
 // Weekly attendance series (you can change the data)
@@ -125,6 +127,68 @@ const ROLE_SUBTITLE_MAP = {
 const Dashboard = () => {
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
+
+  // checkin
+  const [attendance, setAttendance] = useState([]);
+  const [checkedIn, setCheckedIn] = useState(false);
+  useEffect(() => {
+    fetchAttendance();
+  }, []);
+
+  const fetchAttendance = async () => {
+    try {
+      const response = await attendanceAPI.getAttendance({
+        employeeId: user?.id,
+      });
+      setAttendance(response.data);
+      const today = response.data.find(
+        (a) => new Date(a.date).toDateString() === new Date().toDateString()
+      );
+      setCheckedIn(!!today?.checkInTime);
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCheckIn = async () => {
+    try {
+      await attendanceAPI.checkIn({ employeeId: user?.id });
+      setCheckedIn(true);
+      fetchAttendance();
+    } catch (error) {
+      console.error('Error checking in:', error);
+    }
+  };
+
+  const handleCheckOut = async () => {
+    try {
+      await attendanceAPI.checkOut({ employeeId: user?.id });
+      setCheckedIn(false);
+      fetchAttendance();
+    } catch (error) {
+      console.error('Error checking out:', error);
+    }
+  };
+
+// ⬇️ Put this inside your component, AFTER attendance is defined in state
+
+let lastCheckInTime = null;
+
+if (attendance && attendance.length > 0) {
+  const lastObject = attendance[attendance.length - 1];
+
+  if (lastObject && lastObject.checkInTime) {
+    const date = new Date(lastObject.checkInTime);
+
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
+
+    lastCheckInTime = `${hours}:${minutes}:${seconds}`;
+  }
+}
 
 
   // attendance graph
@@ -227,7 +291,7 @@ const Dashboard = () => {
     const routes = {
       'employees': '/employees',
       'attendance': '/attendance',
-      'allEmployeeAttendance':'/allEmployeeAttendance',
+      'allEmployeeAttendance': '/allEmployeeAttendance',
       'leave': '/leave',
       'payroll': '/payroll',
       'roles': '/roles',
@@ -406,16 +470,31 @@ const Dashboard = () => {
     <div className="hr-page">
       <main className="container-xxl hr-main m-0 p-3">
         <div className="dashboard-shell border">
+          <div className="mb-4 d-flex justify-content-between align-items-center">
+            <div className="greeting-container">
+              <h2 className="page-greeting">
+                {roleTitle}
+                {user?.firstName ? ` – ${user.firstName}` : ""}
+              </h2>
+              {roleSubtitle && (
+                <div className="text-muted small mt-1">{roleSubtitle}</div>
+              )}
+            </div>
 
-          {/* Role-based header (from old version) */}
-          <div className="mb-4">
-            <h2 className="page-greeting">
-              {roleTitle}
-              {user?.firstName ? ` – ${user.firstName}` : ""}
-            </h2>
-            {roleSubtitle && (
-              <div className="text-muted small mt-1">{roleSubtitle}</div>
-            )}
+            <div className="button-container d-flex">
+              
+                  <div className="mt-2 h5">{lastCheckInTime}</div>
+              {!checkedIn ? (
+                <button onClick={handleCheckIn} className="check-in-btn">
+                  Check In
+                  <div>{lastCheckInTime}</div>
+                </button>
+              ) : (
+                <button onClick={handleCheckOut} className="add-btn">
+                  Check Out
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="row g-4">
@@ -692,7 +771,6 @@ const Dashboard = () => {
                   })}
                 </div>
               </div>
-
             </div>
           </div>
         </div>

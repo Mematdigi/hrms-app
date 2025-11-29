@@ -18,7 +18,7 @@
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: #10b981;
+  // background: #10b981;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1089,4 +1089,74 @@
 
 .access-legend-bottom .access-legend-row:last-child {
   border-bottom: none;
+}
+
+// punch button
+/* Container for greeting and buttons */
+.greeting-container {
+  flex: 1;
+}
+
+.button-container {
+  display: flex;
+  gap: 12px;
+}
+
+/* Punch In / Punch Out buttons */
+.punch-btn {
+  background: #32ecae;
+  color: #ffffff;
+  border-radius: 16px;
+  padding: 8px 16px;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  border:none;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.punch-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+
+/* Specific style for Punch Out button */
+.punch-btn.btn-secondary {
+  background-color: #8688ff; /* Add specific color for punch-out */
+}
+
+.punch-btn small {
+  font-weight: 600;
+}
+
+/* Small text inside the button (for time) */
+.punch-btn .text-muted {
+  font-size: 12px;
+  font-weight: 400;
+  color: #e5e7eb;
+}
+
+/* Styling for the greeting text */
+.page-greeting {
+  margin-top: 4px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .button-container {
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .punch-btn {
+    width: 100%;
+  }
 }

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { attendanceAPI } from '../services/api';
-// import '../styles/Attendance.css';
 
 function Attendance() {
   const [attendance, setAttendance] = useState([]);
