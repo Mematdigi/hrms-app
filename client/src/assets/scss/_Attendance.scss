@@ -1,739 +1,298 @@
-.attendance-container {
+// --- Variables ---
+$primary: #4f46e5; // Modern Indigo
+$primary-hover: #4338ca;
+$secondary: #64748b;
+$success: #10b981;
+$danger: #ef4444;
+$warning: #f59e0b;
+$bg-body: #f3f4f6;
+$bg-card: #ffffff;
+$text-main: #1f2937;
+$text-light: #6b7280;
+$radius: 12px;
+$shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+// --- Layout & Global ---
+.attendance-dashboard {
   // max-width: 1200px;
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: 24px;
+  background-color: $bg-body;
+  color: $text-main;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 
-  h1 {
-    font-size: 32px;
-    margin-bottom: 30px;
-    color: #333;
+  h1, h2, h3 { margin: 0; }
+}
+
+// --- 1. Header ---
+.dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  
+  .header-title {
+    h1 { font-size: 28px; font-weight: 700; color: #111; }
+    p { color: $text-light; font-size: 14px; margin-top: 4px; }
+  }
+
+  // Small, compact buttons as requested
+  .btn-action {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+
+    &:active { transform: scale(0.98); }
+    &:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    &.check-in {
+      background: $primary;
+      color: white;
+      &:hover:not(:disabled) { background: $primary-hover; }
+    }
+
+    &.check-out {
+      background: white;
+      border: 1px solid $danger;
+      color: $danger;
+      &:hover:not(:disabled) { background: $danger; color: white; }
+    }
   }
 }
 
-.attendance-header {
-  margin-bottom: 30px;
-
-  h1 {
-    margin: 0;
-  }
-}
-
-// Top Section: Summary Cards and Calendar Side by Side
-.top-section {
+// --- 2. Stats Grid ---
+.stats-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 30px;
-  margin-bottom: 30px;
-}
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
 
-// Summary Cards
-.summary-cards {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-
-  .summary-card {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
+  .stat-card {
+    background: $bg-card;
+    padding: 16px;
+    border-radius: $radius;
+    box-shadow: $shadow;
     display: flex;
     align-items: center;
-    gap: 15px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s;
+    gap: 16px;
+    border-left: 4px solid transparent;
 
-    &:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
-    }
-
-    .summary-icon {
-      width: 50px;
-      height: 50px;
+    .icon-box {
+      width: 40px; height: 40px;
       border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: bold; font-size: 18px;
     }
 
-    .summary-content {
-      h3 {
-        margin: 0;
-        font-size: 28px;
-        font-weight: bold;
-        color: #333;
-      }
-
-      p {
-        margin: 5px 0 0;
-        font-size: 13px;
-        color: #666;
-        font-weight: 500;
-      }
+    .info {
+      h3 { font-size: 24px; font-weight: 700; }
+      span { font-size: 13px; color: $text-light; text-transform: uppercase; letter-spacing: 0.5px; }
     }
 
-    &.summary-present {
-      .summary-icon {
-        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-        color: #155724;
-      }
-    }
-
-    &.summary-absent {
-      .summary-icon {
-        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-        color: #721c24;
-      }
-    }
-
-    &.summary-halfday {
-      .summary-icon {
-        background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
-        color: #856404;
-      }
-    }
-
-    &.summary-hours {
-      .summary-icon {
-        background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
-        color: #0c5460;
-      }
-    }
+    // Color variants
+    &.present { border-color: $success; .icon-box { background: rgba($success, 0.1); color: $success; } }
+    &.absent { border-color: $danger; .icon-box { background: rgba($danger, 0.1); color: $danger; } }
+    &.half { border-color: $warning; .icon-box { background: rgba($warning, 0.1); color: $warning; } }
+    &.hours { border-color: $primary; .icon-box { background: rgba($primary, 0.1); color: $primary; } }
   }
 }
 
-// Mini Calendar Styles
-.mini-calendar-wrapper {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+// --- 3. Split Content ---
+.content-split {
+  display: grid;
+  grid-template-columns: 2fr 2fr;
+  gap: 24px;
+  
+  @media (max-width: 900px) { grid-template-columns: 1fr; }
 }
 
-.mini-calendar-container {
-  .mini-calendar-header {
+.card {
+  background: $bg-card;
+  border-radius: $radius;
+  box-shadow: $shadow;
+  padding: 20px;
+  
+  .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
+    h3 { font-size: 18px; font-weight: 600; }
+  }
+}
 
-    .mini-calendar-month {
-      margin: 0;
-      font-size: 16px;
-      color: #333;
-      font-weight: 600;
+// Calendar Specifics
+.calendar-card {
+  .cal-nav {
+    display: flex; align-items: center; gap: 10px;
+    button { 
+      background: none; border: 1px solid #ddd; border-radius: 4px; 
+      cursor: pointer; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+      &:hover { background: #eee; }
     }
-
-    .mini-nav-btn {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      cursor: pointer;
-      font-size: 18px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.3s;
-
-      &:hover {
-        transform: scale(1.1);
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
-      }
-    }
+    span { font-weight: 600; font-size: 14px; min-width: 100px; text-align: center; }
   }
 
-  .mini-calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 5px;
-    margin-bottom: 15px;
+  .cal-grid-header {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    text-align: center; font-size: 12px; color: $text-light; font-weight: 600; margin-bottom: 8px;
+  }
 
-    .mini-calendar-day-header {
-      padding: 8px 4px;
-      text-align: center;
-      font-weight: 600;
-      font-size: 11px;
-      color: #666;
-    }
-
-    .mini-calendar-day {
+  .cal-grid-body {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
+     margin-right:-10px;
+    
+    .cal-day {
       aspect-ratio: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-      background: #f8f9fa;
-      border: 1px solid #e0e0e0;
-
-      &.empty {
-        background: transparent;
-        border: none;
-      }
-
-      &.today {
-        border: 2px solid #007bff;
-        font-weight: bold;
-      }
-
-      &:hover:not(.empty) {
-        transform: scale(1.1);
-        z-index: 10;
-      }
-
-      &.status-present {
-        background: #d4edda;
-        color: #155724;
-        border-color: #28a745;
-      }
-
-      &.status-absent {
-        background: #f8d7da;
-        color: #721c24;
-        border-color: #dc3545;
-      }
-
-      &.status-half-day {
-        background: #fff3cd;
-        color: #856404;
-        border-color: #ffc107;
-      }
-
-      &.status-leave {
-        background: #d1ecf1;
-        color: #0c5460;
-        border-color: #17a2b8;
-      }
-
-      &.status-working {
-        background: #e2e3e5;
-        color: #383d41;
-        border-color: #6c757d;
-      }
-
-      &.status-pending-approval {
-        background: #ffeaa7;
-        color: #d63031;
-        border-color: #fdcb6e;
-      }
-
-      .day-number {
-        font-size: 12px;
-      }
-    }
-  }
-
-  .mini-calendar-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding-top: 10px;
-    border-top: 1px solid #e0e0e0;
-
-    .mini-legend-item {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 11px;
-      color: #666;
-
-      .mini-legend-dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 3px;
-
-        &.status-present {
-          background: #d4edda;
-          border: 1px solid #28a745;
-        }
-
-        &.status-absent {
-          background: #f8d7da;
-          border: 1px solid #dc3545;
-        }
-
-        &.status-half-day {
-          background: #fff3cd;
-          border: 1px solid #ffc107;
-        }
-
-        &.status-leave {
-          background: #d1ecf1;
-          border: 1px solid #17a2b8;
-        }
-      }
-    }
-  }
-}
-
-// Office Location Card
-.office-location-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 25px;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-
-  .location-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 15px;
-
-    .location-icon {
-      font-size: 24px;
-    }
-
-    h3 {
-      margin: 0;
-      font-size: 20px;
-      font-weight: 600;
-    }
-  }
-
-  .location-details {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 10px;
-    padding-left: 34px;
-
-    p {
-      margin: 5px 0;
-      font-size: 14px;
-      opacity: 0.95;
-
-      strong {
-        font-weight: 600;
-        margin-right: 5px;
-      }
-    }
-  }
-}
-
-.error-message {
-  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
-  color: white;
-  padding: 15px 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  box-shadow: 0 2px 10px rgba(238, 90, 111, 0.3);
-  animation: slideDown 0.3s ease-out;
-
-  .error-icon {
-    font-size: 20px;
-  }
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.attendance-actions {
-  margin-bottom: 30px;
-  text-align: center;
-}
-
-.check-in-btn,
-.check-out-btn {
-  padding: 15px 40px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 18px;
-  transition: all 0.3s;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-
-  &:hover:not(:disabled) {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-  }
-}
-
-.check-in-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.check-out-btn {
-  background: linear-gradient(135deg, #bbc5d3 0%, #1d6cae 100%);
-  color: white;
-}
-
-.attendance-table {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
-  padding: 20px;
-
-  .table-heading {
-    margin: 0 0 20px 0;
-    font-size: 20px;
-    color: #333;
-    font-weight: 600;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  th {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 15px;
-    text-align: left;
-    font-weight: 600;
-    border: none;
-  }
-
-  td {
-    padding: 15px;
-    border-bottom: 1px solid #eee;
-    color: #333;
-  }
-
-  tr:hover {
-    background: #f9f9f9;
-  }
-
-  .no-data {
-    text-align: center;
-    padding: 40px;
-    color: #999;
-    font-style: italic;
-  }
-}
-
-.status-badge {
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  display: inline-block;
-
-  &.status-present {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-    color: #155724;
-  }
-
-  &.status-absent {
-    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-    color: #721c24;
-  }
-
-  &.status-half-day {
-    background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
-    color: #856404;
-  }
-
-  &.status-leave {
-    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
-    color: #0c5460;
-  }
-
-  &.status-working {
-    background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);
-    color: #383d41;
-  }
-
-  &.status-pending-approval {
-    background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
-    color: #d63031;
-  }
-}
-
-// Modal Styles
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  animation: fadeIn 0.3s ease-in-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.modal-content {
-  background: white;
-  padding: 35px;
-  border-radius: 12px;
-  max-width: 550px;
-  width: 90%;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  animation: slideUp 0.3s ease-in-out;
-  max-height: 90vh;
-  overflow-y: auto;
-
-  h2 {
-    margin-top: 0;
-    margin-bottom: 15px;
-    color: #333;
-    font-size: 26px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .modal-description {
-    color: #666;
-    margin-bottom: 25px;
-    line-height: 1.6;
-    font-size: 15px;
-  }
-
-  .form-group {
-    margin-bottom: 25px;
-
-    label {
-      display: block;
-      margin-bottom: 10px;
-      font-weight: 600;
-      color: #333;
-      font-size: 15px;
-
-      .required {
-        color: #dc3545;
-        margin-left: 4px;
-      }
-    }
-
-    textarea {
-      width: 100%;
-      padding: 12px;
-      border: 2px solid #ddd;
       border-radius: 8px;
-      font-family: inherit;
-      font-size: 14px;
-      resize: vertical;
-      transition: all 0.3s;
-      box-sizing: border-box;
-      line-height: 1.5;
-
-      &:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 500;
+      height: 55px;
+      background: #f8fafc; cursor: default;
+      position: relative;
+      
+      &.empty { background: transparent; }
+      &.today { border: 2px solid $primary; }
+      
+      // Status Colors
+      &.status-present { background: rgba($success, 0.1); color: darken($success, 20%); }
+      &.status-absent { background: rgba($danger, 0.1); color: darken($danger, 20%); }
+      &.status-half-day { background: rgba($warning, 0.1); color: darken($warning, 20%); }
+      
+      .day-dot {
+        width: 4px; height: 4px; border-radius: 50%; background: currentColor; margin-top: 2px;
       }
-
-      &:disabled {
-        background-color: #f5f5f5;
-        cursor: not-allowed;
-      }
-    }
-
-    .char-count {
-      display: block;
-      text-align: right;
-      color: #999;
-      font-size: 12px;
-      margin-top: 5px;
     }
   }
 
-  .modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-top: 25px;
+  .cal-legend {
+    margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;
+    .badge { font-size: 11px; padding: 4px 8px; border-radius: 12px; background: #eee; }
+    .present { background: rgba($success, 0.1); color: darken($success, 10%); }
+    .absent { background: rgba($danger, 0.1); color: darken($danger, 10%); }
+  }
+}
 
-    .cancel-btn,
-    .submit-btn {
-      padding: 12px 24px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 600;
-      transition: all 0.3s;
+// Location Card Styling
+.location-card {
+  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  color: white;
+  
+  .map-placeholder {
+    height: 258px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    position: relative;
+    display: flex; justify-content: center; align-items: center;
+    overflow: hidden;
 
-      &:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
+    .radar-circle {
+      width: 80px; height: 80px; border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%; animation: pulse 2s infinite;
+    }
+    .pin { position: absolute; font-size: 24px; }
+  }
+
+  .loc-details {
+    h4 { margin: 0 0 5px; font-size: 16px; }
+    p { font-size: 13px; opacity: 0.9; margin-bottom: 12px; line-height: 1.4; }
+    .loc-meta {
+      display: flex; gap: 10px; font-size: 12px; background: rgba(0,0,0,0.1);
+      padding: 8px; border-radius: 6px;
+    }
+  }
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.5); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+// --- 4. Table ---
+.table-responsive {
+  overflow-x: auto;
+  
+  table {
+    width: 100%; border-collapse: collapse; min-width: 600px;
+    th { text-align: left; padding: 12px; font-size: 12px; text-transform: uppercase; color: $text-light; border-bottom: 1px solid #eee; }
+    td { padding: 14px 12px; font-size: 14px; border-bottom: 1px solid #f3f4f6; color: $text-main; }
+    tr:last-child td { border-bottom: none; }
+    
+    .status-pill {
+      padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      text-transform: capitalize;
+      &.present, &.Present { background: rgba($success, 0.1); color: darken($success, 10%); }
+      &.absent, &.Absent { background: rgba($danger, 0.1); color: darken($danger, 10%); }
+      &.half-day { background: rgba($warning, 0.1); color: darken($warning, 15%); }
+      &.checked-out { background: #e0e7ff; color: $primary; }
+    }
+    .text-warning { color: $warning; font-size: 12px; }
+  }
+}
+
+// --- 5. Modal ---
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(2px);
+
+  .modal-box {
+    background: white; width: 90%; max-width: 400px;
+    border-radius: $radius; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    animation: slideUp 0.3s ease-out;
+
+    .modal-header {
+      padding: 16px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;
+      h2 { font-size: 18px; }
+      button { background: none; border: none; font-size: 24px; cursor: pointer; color: $text-light; }
+    }
+    
+    .modal-body {
+      padding: 20px;
+      p { font-size: 14px; color: $text-light; margin-bottom: 10px; }
+      textarea {
+        width: 100%; height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 8px;
+        font-family: inherit; resize: none;
+        &:focus { outline: none; border-color: $primary; ring: 2px rgba($primary, 0.2); }
       }
     }
 
-    .cancel-btn {
-      background: #6c757d;
-      color: white;
-
-      &:hover:not(:disabled) {
-        background: #5a6268;
-        transform: translateY(-2px);
-      }
-    }
-
-    .submit-btn {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-
-      &:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    .modal-footer {
+      padding: 16px 20px; background: #f9fafb; border-radius: 0 0 $radius $radius;
+      display: flex; justify-content: flex-end; gap: 10px;
+      
+      button {
+        padding: 8px 16px; border-radius: 6px; font-size: 14px; cursor: pointer; border: none;
+        &.btn-secondary { background: white; border: 1px solid #ddd; color: $text-main; &:hover { background: #f3f4f6; } }
+        &.btn-primary { background: $primary; color: white; &:hover { background: $primary-hover; } }
       }
     }
   }
 }
 
-@keyframes slideUp {
-  from {
-    transform: translateY(50px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+.error-banner {
+  background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c;
+  padding: 12px; border-radius: 8px; font-size: 14px; display: flex; align-items: center; gap: 8px;
 }
 
-.loading {
-  text-align: center;
-  padding: 60px 20px;
-  font-size: 18px;
-  color: #666;
-}
+.page-loader { display: flex; height: 300px; align-items: center; justify-content: center; color: $text-light; gap: 10px; }
 
-// Responsive Design
-@media (max-width: 1200px) {
-  .top-section {
-    grid-template-columns: 1fr;
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+// --- Mobile Optimizations ---
+@media (max-width: 600px) {
+  .attendance-dashboard { padding: 16px; }
+  .dash-header { 
+    flex-direction: column; align-items: flex-start; gap: 12px; 
+    .header-action { width: 100%; .btn-action { width: 100%; } }
   }
-
-  .summary-cards {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .attendance-container {
-    padding: 20px 15px;
-
-    h1 {
-      font-size: 24px;
-    }
-  }
-
-  .top-section {
-    grid-template-columns: 1fr;
-  }
-
-  .summary-cards {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 15px;
-
-    .summary-card {
-      padding: 15px;
-
-      .summary-icon {
-        width: 40px;
-        height: 40px;
-        font-size: 20px;
-      }
-
-      .summary-content {
-        h3 {
-          font-size: 22px;
-        }
-
-        p {
-          font-size: 12px;
-        }
-      }
-    }
-  }
-
-  .mini-calendar-wrapper {
-    max-width: 100%;
-  }
-
-  .office-location-card {
-    .location-details {
-      grid-template-columns: 1fr;
-      padding-left: 0;
-
-      p {
-        font-size: 13px;
-      }
-    }
-  }
-
-  .check-in-btn,
-  .check-out-btn {
-    width: 100%;
-    padding: 12px 20px;
-    font-size: 16px;
-  }
-
-  .attendance-table {
-    overflow-x: auto;
-
-    table {
-      min-width: 600px;
-    }
-
-    th,
-    td {
-      padding: 10px;
-      font-size: 13px;
-    }
-  }
-
-  .modal-content {
-    padding: 25px;
-    width: 95%;
-
-    h2 {
-      font-size: 22px;
-    }
-
-    .modal-actions {
-      flex-direction: column;
-
-      .cancel-btn,
-      .submit-btn {
-        width: 100%;
-      }
-    }
-  }
+  .cal-grid-body .cal-day { font-size: 11px; }
 }

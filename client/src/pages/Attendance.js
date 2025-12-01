@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { attendanceAPI } from '../services/api';
+// import './Attendance.scss'; // Assuming you link the SCSS here
 
 function Attendance() {
-  // Hardcoded Office Coordinates
+  // --- CONFIGURATION ---
   const OFFICE_LOCATION = {
     name: 'Main Office',
     latitude: 28.570419,
@@ -12,6 +13,7 @@ function Attendance() {
     address: 'N 28° 34\' 13.509\'\' E 77° 27\' 13.397\'\''
   };
 
+  // --- STATE MANAGEMENT ---
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [checkedIn, setCheckedIn] = useState(false);
@@ -25,6 +27,7 @@ function Attendance() {
   const [attendanceSummary, setAttendanceSummary] = useState(null);
   const { user } = useSelector((state) => state.auth);
 
+  // --- EFFECTS ---
   useEffect(() => {
     fetchAttendance();
     fetchAttendanceSummary();
@@ -35,11 +38,10 @@ function Attendance() {
     fetchCalendarData();
   }, [currentDate]);
 
+  // --- API CALLS ---
   const fetchAttendance = async () => {
     try {
-      const response = await attendanceAPI.getAttendance({
-        employeeId: user?.id,
-      });
+      const response = await attendanceAPI.getAttendance({ employeeId: user?.id });
       setAttendance(response.data);
       const today = response.data.find(
         (a) => new Date(a.date).toDateString() === new Date().toDateString()
@@ -54,15 +56,15 @@ function Attendance() {
 
   const fetchAttendanceSummary = async () => {
     try {
-      const currentDate = new Date();
+      const curDate = new Date();
       const response = await attendanceAPI.getAttendanceSummary({
         employeeId: user?.id,
-        month: currentDate.getMonth() + 1,
-        year: currentDate.getFullYear()
+        month: curDate.getMonth() + 1,
+        year: curDate.getFullYear()
       });
       setAttendanceSummary(response.data.data);
     } catch (error) {
-      console.error('Error fetching attendance summary:', error);
+      console.error('Error fetching summary:', error);
     }
   };
 
@@ -70,37 +72,32 @@ function Attendance() {
     try {
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth() + 1;
-      
       const response = await attendanceAPI.getCalendarData({
         employeeId: user?.id,
         year,
         month
       });
-      
       setCalendarData(response.data.data || response.data);
     } catch (error) {
-      console.error('Error fetching calendar data:', error);
+      console.error('Error fetching calendar:', error);
       setCalendarData(attendance || []);
     }
   };
 
-  // Calculate distance between two coordinates using Haversine formula
+  // --- GEOLOCATION LOGIC ---
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371e3; // Earth's radius in meters
+    const R = 6371e3;
     const φ1 = lat1 * Math.PI / 180;
     const φ2 = lat2 * Math.PI / 180;
     const Δφ = (lat2 - lat1) * Math.PI / 180;
     const Δλ = (lon2 - lon1) * Math.PI / 180;
-
     const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
               Math.cos(φ1) * Math.cos(φ2) *
               Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c; // Distance in meters
+    return R * c;
   };
 
-  // Check if current location is within office premises
   const isWithinOffice = (latitude, longitude) => {
     const distance = calculateDistance(
       OFFICE_LOCATION.latitude,
@@ -117,84 +114,42 @@ function Attendance() {
   const getCurrentLocation = () => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
-        reject(new Error('Geolocation is not supported by your browser'));
+        reject(new Error('Geolocation not supported'));
       } else {
         navigator.geolocation.getCurrentPosition(
-          (position) => {
-            resolve({
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude
-            });
-          },
-          (error) => {
-            reject(error);
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-          }
+          (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+          (err) => reject(err),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
       }
     });
   };
 
+  // --- HANDLERS ---
   const handleCheckIn = async () => {
     try {
       setLocationError('');
       setLoading(true);
-      
       const location = await getCurrentLocation();
-      console.log('Current location for check-in:', location);
-      // // Check if within office premises
-      // const locationCheck = isWithinOffice(location.latitude, location.longitude);
       
-      // if (!locationCheck.isWithin) {
-      //   const distanceKm = (locationCheck.distance / 1000).toFixed(2);
-      //   const distanceM = locationCheck.distance.toFixed(0);
-      //   setLocationError(`You are ${distanceKm}km (${distanceM}m) away from office. You must be within ${OFFICE_LOCATION.radiusInMeters}m radius to check in.`);
-      //   alert(`❌ Check-in failed!\n\nYou are ${distanceKm}km away from the office.\nYou must be within ${OFFICE_LOCATION.radiusInMeters}m radius to check in.`);
-      //   setLoading(false);
-      //   return;
-      // }
+      // Check location logic (Currently commented out in source, but structure remains)
+      // const locationCheck = isWithinOffice(location.latitude, location.longitude);
+      // if (!locationCheck.isWithin) { ... }
 
       const response = await attendanceAPI.checkIn({ 
         employeeId: user?.id,
         latitude: location.latitude,
         longitude: location.longitude
       });
-      console.log('Check-in response:', response);
 
       if (response.data.success || response.data.attendance) {
         setCheckedIn(true);
-        fetchAttendance();
-        fetchAttendanceSummary();
-        fetchCalendarData();
-        
-        const checkInTime = new Date().toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
-        
-        const distanceM = locationCheck.distance.toFixed(0);
-        alert(`✅ Check-in successful!\n\nTime: ${checkInTime}\nDistance from office: ${distanceM}m`);
+        refreshAllData();
+        const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        alert(`✅ Check-in successful at ${time}`);
       }
     } catch (error) {
-      console.error('Error checking in:', error);
-      if (error.response?.status === 403) {
-        const errorData = error.response.data;
-        setLocationError(errorData.message);
-        alert(`❌ Check-in failed!\n\n${errorData.message}\n\nYour distance: ${errorData.distanceKm}km\nRequired: Within ${errorData.requiredRadius}m`);
-      } else if (error.response?.status === 400) {
-        setLocationError(error.response.data.message);
-        alert(`❌ ${error.response.data.message}`);
-      } else if (error.message) {
-        setLocationError(error.message);
-        alert(`❌ Location error: ${error.message}`);
-      } else {
-        setLocationError('Failed to check in. Please try again.');
-      }
+      handleError(error, 'Check-in');
     } finally {
       setLoading(false);
     }
@@ -204,18 +159,17 @@ function Attendance() {
     try {
       setLocationError('');
       setLoading(true);
-      
       const location = await getCurrentLocation();
       setCurrentLocation(location);
       
-      // Check if within office premises
+      // Strict Check-out location check
       const locationCheck = isWithinOffice(location.latitude, location.longitude);
       
       if (!locationCheck.isWithin) {
-        const distanceKm = (locationCheck.distance / 1000).toFixed(2);
-        const distanceM = locationCheck.distance.toFixed(0);
-        setLocationError(`You are ${distanceKm}km (${distanceM}m) away from office. You must be within ${OFFICE_LOCATION.radiusInMeters}m radius to check out.`);
-        alert(`❌ Check-out failed!\n\nYou are ${distanceKm}km away from the office.\nYou must be within ${OFFICE_LOCATION.radiusInMeters}m radius to check out.`);
+        const distKm = (locationCheck.distance / 1000).toFixed(2);
+        const msg = `You are ${distKm}km away. You must be within ${OFFICE_LOCATION.radiusInMeters}m to check out.`;
+        setLocationError(msg);
+        alert(`❌ Check-out failed!\n\n${msg}`);
         setLoading(false);
         return;
       }
@@ -229,39 +183,14 @@ function Attendance() {
       if (response.data.success || response.data.attendance) {
         setCheckedIn(false);
         setCurrentLocation(null);
-        fetchAttendance();
-        fetchAttendanceSummary();
-        fetchCalendarData();
-        
-        const checkOutTime = new Date().toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
-        
-        const workingHours = response.data.workingHours || response.data.attendance?.workingHours || 0;
-        const status = response.data.status || response.data.attendance?.status || 'checked-out';
-        
-        alert(`✅ Check-out successful!\n\nTime: ${checkOutTime}\nWorking Hours: ${workingHours} hrs\nStatus: ${status}`);
+        refreshAllData();
+        alert(`✅ Check-out successful!`);
       }
     } catch (error) {
-      console.error('Error checking out:', error);
-      
       if (error.response?.data?.requiresApproval) {
-        // Early checkout detected - show modal
         setShowEarlyCheckoutModal(true);
-      } else if (error.response?.status === 403) {
-        const errorData = error.response.data;
-        setLocationError(errorData.message);
-        alert(`❌ Check-out failed!\n\n${errorData.message}\n\nYour distance: ${errorData.distanceKm}km\nRequired: Within ${errorData.requiredRadius}m`);
-      } else if (error.response?.status === 400) {
-        setLocationError(error.response.data.message);
-        alert(`❌ ${error.response.data.message}`);
-      } else if (error.message) {
-        setLocationError(error.message);
-        alert(`❌ Location error: ${error.message}`);
       } else {
-        setLocationError('Failed to check out. Please try again.');
+        handleError(error, 'Check-out');
       }
     } finally {
       setLoading(false);
@@ -270,11 +199,7 @@ function Attendance() {
 
   const handleEarlyCheckoutSubmit = async (e) => {
     e.preventDefault();
-    
-    if (earlyCheckoutReason.trim() === '') {
-      alert('Please provide a reason for early checkout');
-      return;
-    }
+    if (!earlyCheckoutReason.trim()) return alert('Reason required');
 
     setIsSubmitting(true);
     try {
@@ -286,30 +211,34 @@ function Attendance() {
       });
       
       if (response.data.success) {
-        setShowEarlyCheckoutModal(false);
-        setEarlyCheckoutReason('');
-        setCurrentLocation(null);
-        fetchAttendance();
-        fetchAttendanceSummary();
-        fetchCalendarData();
-        alert('✅ Early checkout request submitted successfully!\n\nYour request has been sent to HR for approval.\nYou will be notified once it is reviewed.');
+        handleModalCancel();
+        refreshAllData();
+        alert('✅ Early checkout requested successfully.');
       }
     } catch (error) {
-      console.error('Error requesting early checkout:', error);
-      
-      if (error.response?.status === 403) {
-        const errorData = error.response.data;
-        setLocationError(errorData.message);
-        alert(`❌ Request failed!\n\n${errorData.message}\n\nYour distance: ${errorData.distanceKm}km\nRequired: Within ${errorData.requiredRadius}m`);
-        setShowEarlyCheckoutModal(false);
-      } else if (error.response?.data?.message) {
-        alert(`❌ Request failed!\n\n${error.response.data.message}`);
-      } else {
-        alert('Failed to submit early checkout request. Please try again.');
-      }
+      handleError(error, 'Request');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Helper to refresh everything
+  const refreshAllData = () => {
+    fetchAttendance();
+    fetchAttendanceSummary();
+    fetchCalendarData();
+  };
+
+  // Centralized Error Handling
+  const handleError = (error, action) => {
+    console.error(`Error ${action}:`, error);
+    let msg = 'An unexpected error occurred.';
+    if (error.response?.status === 403) msg = error.response.data.message;
+    else if (error.response?.data?.message) msg = error.response.data.message;
+    else if (error.message) msg = error.message;
+    
+    setLocationError(msg);
+    alert(`❌ ${action} failed: ${msg}`);
   };
 
   const handleModalCancel = () => {
@@ -318,307 +247,220 @@ function Attendance() {
     setCurrentLocation(null);
   };
 
-  // Calendar Functions
+  // --- CALENDAR RENDERING ---
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-
-    return { daysInMonth, startingDayOfWeek };
+    return { daysInMonth: lastDay.getDate(), startingDayOfWeek: firstDay.getDay() };
   };
 
   const getStatusForDate = (day) => {
-    const dateToCheck = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth(),
-      day
-    );
+    const dateToCheck = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
     dateToCheck.setHours(0, 0, 0, 0);
-
     const record = calendarData.find(item => {
       const itemDate = new Date(item.date);
       itemDate.setHours(0, 0, 0, 0);
       return itemDate.getTime() === dateToCheck.getTime();
     });
-
     return record?.status || null;
   };
 
   const renderCalendar = () => {
     const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
     const days = [];
-
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(<div key={`empty-${i}`} className="mini-calendar-day empty"></div>);
-    }
-
+    for (let i = 0; i < startingDayOfWeek; i++) days.push(<div key={`empty-${i}`} className="cal-day empty"></div>);
+    
     for (let day = 1; day <= daysInMonth; day++) {
       const status = getStatusForDate(day);
-      const isToday = 
-        day === new Date().getDate() &&
-        currentDate.getMonth() === new Date().getMonth() &&
-        currentDate.getFullYear() === new Date().getFullYear();
-
+      const isToday = day === new Date().getDate() && currentDate.getMonth() === new Date().getMonth();
       days.push(
-        <div
-          key={day}
-          className={`mini-calendar-day ${status ? `status-${status}` : ''} ${isToday ? 'today' : ''}`}
-          title={status ? `${day} - ${status}` : `${day}`}
-        >
-          <span className="day-number">{day}</span>
+        <div key={day} className={`cal-day ${status ? `status-${status}` : ''} ${isToday ? 'today' : ''}`}>
+          <span className="day-num">{day}</span>
+          {status && <span className="day-dot"></span>}
         </div>
       );
     }
-
     return days;
   };
 
-  const previousMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
-  };
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
-  };
-
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-
-  if (loading && attendance.length === 0) {
-    return <div className="loading">⏳ Loading...</div>;
-  }
+  if (loading && attendance.length === 0) return <div className="page-loader"><div className="spinner"></div> Loading Attendance...</div>;
 
   return (
-    <div className="attendance-container">
-      <div className="attendance-header">
-        <h1>My Attendance</h1>
-      </div>
-
-      {/* Top Section: Summary Cards and Calendar Side by Side */}
-      <div className="top-section">
-        {/* Left: Summary Cards */}
-        <div className="summary-cards">
-          <div className="summary-card summary-present">
-            <div className="summary-icon">✓</div>
-            <div className="summary-content">
-              <h3>{attendanceSummary?.present || 0}</h3>
-              <p>Days Present</p>
-            </div>
-          </div>
-          
-          <div className="summary-card summary-absent">
-            <div className="summary-icon">✗</div>
-            <div className="summary-content">
-              <h3>{attendanceSummary?.absent || 0}</h3>
-              <p>Days Absent</p>
-            </div>
-          </div>
-          
-          <div className="summary-card summary-halfday">
-            <div className="summary-icon">½</div>
-            <div className="summary-content">
-              <h3>{attendanceSummary?.halfDay || 0}</h3>
-              <p>Half Days</p>
-            </div>
-          </div>
-          
-          <div className="summary-card summary-hours">
-            <div className="summary-icon">⏰</div>
-            <div className="summary-content">
-              <h3>{attendanceSummary?.totalWorkingHours || 0}</h3>
-              <p>Total Hours</p>
-            </div>
-          </div>
+    <div className="attendance-dashboard">
+      {/* 1. Header Section: Title & Actions */}
+      <header className="dash-header">
+        <div className="header-title">
+          <h1>Attendance</h1>
+          <p>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-
-        {/* Right: Mini Calendar */}
-        <div className="mini-calendar-wrapper">
-          <div className="mini-calendar-container">
-            <div className="mini-calendar-header">
-              <button onClick={previousMonth} className="mini-nav-btn">‹</button>
-              <h3 className="mini-calendar-month">
-                {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-              </h3>
-              <button onClick={nextMonth} className="mini-nav-btn">›</button>
-            </div>
-
-            <div className="mini-calendar-grid">
-              <div className="mini-calendar-day-header">S</div>
-              <div className="mini-calendar-day-header">M</div>
-              <div className="mini-calendar-day-header">T</div>
-              <div className="mini-calendar-day-header">W</div>
-              <div className="mini-calendar-day-header">T</div>
-              <div className="mini-calendar-day-header">F</div>
-              <div className="mini-calendar-day-header">S</div>
-              {renderCalendar()}
-            </div>
-
-            <div className="mini-calendar-legend">
-              <div className="mini-legend-item">
-                <span className="mini-legend-dot status-present"></span>
-                <span>Present</span>
-              </div>
-              <div className="mini-legend-item">
-                <span className="mini-legend-dot status-absent"></span>
-                <span>Absent</span>
-              </div>
-              <div className="mini-legend-item">
-                <span className="mini-legend-dot status-half-day"></span>
-                <span>Half</span>
-              </div>
-              <div className="mini-legend-item">
-                <span className="mini-legend-dot status-leave"></span>
-                <span>Leave</span>
-              </div>
-            </div>
-          </div>
+        
+        <div className="header-action">
+          {!checkedIn ? (
+            <button onClick={handleCheckIn} className="btn-action check-in" disabled={loading}>
+              {loading ? 'Processing...' : '📍 Check In Now'}
+            </button>
+          ) : (
+            <button onClick={handleCheckOut} className="btn-action check-out" disabled={loading}>
+              {loading ? 'Processing...' : '👋 Check Out'}
+            </button>
+          )}
         </div>
-      </div>
+      </header>
 
-      {/* Office Location Info */}
-      <div className="office-location-card">
-        <div className="location-header">
-          <span className="location-icon">📍</span>
-          <h3>{OFFICE_LOCATION.name}</h3>
-        </div>
-        <div className="location-details">
-          <p><strong>Latitude:</strong> {OFFICE_LOCATION.latitude}° N</p>
-          <p><strong>Longitude:</strong> {OFFICE_LOCATION.longitude}° E</p>
-          <p><strong>Check-in Radius:</strong> {OFFICE_LOCATION.radiusInMeters}m</p>
-          <p><strong>Coordinates:</strong> {OFFICE_LOCATION.address}</p>
-        </div>
-      </div>
-      
+      {/* 2. Error Banner */}
       {locationError && (
-        <div className="error-message">
-          <span className="error-icon">⚠️</span>
-          {locationError}
+        <div className="error-banner">
+          <i className="icon">⚠️</i> {locationError}
         </div>
       )}
 
-      <div className="attendance-actions">
-        {!checkedIn ? (
-          <button 
-            onClick={handleCheckIn} 
-            className="check-in-btn"
-            disabled={loading}
-          >
-            {loading ? '⏳ Processing...' : '✓ Check In'}
-          </button>
-        ) : (
-          <button 
-            onClick={handleCheckOut}
-            className="check-out-btn"
-            disabled={loading}
-          >
-            {loading ? '⏳ Processing...' : '✗ Check Out'}
-          </button>
-        )}
+      {/* 3. Summary Stats Grid */}
+      <section className="stats-grid">
+        <div className="stat-card present">
+          <div className="icon-box">✓</div>
+          <div className="info">
+            <h3>{attendanceSummary?.present || 0}</h3>
+            <span>Present</span>
+          </div>
+        </div>
+        <div className="stat-card absent">
+          <div className="icon-box">✗</div>
+          <div className="info">
+            <h3>{attendanceSummary?.absent || 0}</h3>
+            <span>Absent</span>
+          </div>
+        </div>
+        <div className="stat-card half">
+          <div className="icon-box">½</div>
+          <div className="info">
+            <h3>{attendanceSummary?.halfDay || 0}</h3>
+            <span>Half Day</span>
+          </div>
+        </div>
+        <div className="stat-card hours">
+          <div className="icon-box">⏰</div>
+          <div className="info">
+            <h3>{attendanceSummary?.totalWorkingHours || 0}</h3>
+            <span>Hours</span>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Main Content: Split View (Calendar & Location) */}
+      <div className="content-split">
+        {/* Calendar Card */}
+        <div className="card calendar-card">
+          <div className="card-header">
+            <h3>Monthly Overview</h3>
+            <div className="cal-nav">
+              <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}>‹</button>
+              <span>{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</span>
+              <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}>›</button>
+            </div>
+          </div>
+          <div className="cal-grid-header">
+            {['S','M','T','W','T','F','S'].map(d => <span key={d}>{d}</span>)}
+          </div>
+          <div className="cal-grid-body">
+            {renderCalendar()}
+          </div>
+          <div className="cal-legend">
+            <span className="badge present">Present</span>
+            <span className="badge absent">Absent</span>
+            <span className="badge half">Half</span>
+            <span className="badge leave">Leave</span>
+          </div>
+        </div>
+
+        {/* Location & Info Card */}
+        <div className="side-panel">
+          <div className="card location-card">
+            <div className="card-header">
+              <h3>Office Location</h3>
+            </div>
+            <div className="map-placeholder">
+              {/* Abstract Map visual representation */}
+              <div className="radar-circle"></div>
+              <div className="pin">📍</div>
+            </div>
+            <div className="loc-details">
+              <h4>{OFFICE_LOCATION.name}</h4>
+              <p>{OFFICE_LOCATION.address}</p>
+              <div className="loc-meta">
+                <span><strong>Radius:</strong> {OFFICE_LOCATION.radiusInMeters}m</span>
+                <span><strong>Lat:</strong> {OFFICE_LOCATION.latitude.toFixed(4)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Attendance List Table */}
-      <div className="attendance-table">
-        <h2 className="table-heading">Attendance Records</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>S.No</th>
-              <th>Date</th>
-              <th>Check In</th>
-              <th>Check Out</th>
-              <th>Working Hours</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {attendance.length === 0 ? (
+      {/* 5. Detailed Table */}
+      <section className="card table-card">
+        <div className="card-header">
+          <h3>Recent Logs</h3>
+        </div>
+        <div className="table-responsive">
+          <table>
+            <thead>
               <tr>
-                <td colSpan="6" className="no-data">No attendance records found</td>
+                <th>Date</th>
+                <th>Check In</th>
+                <th>Check Out</th>
+                <th>Hours</th>
+                <th>Status</th>
               </tr>
-            ) : (
-              attendance.map((record, index) => (
-                <tr key={record._id}>
-                  <td>{index + 1}</td>
-                  <td>{new Date(record.date).toLocaleDateString()}</td>
-                  <td>
-                    {record.checkInTime 
-                      ? new Date(record.checkInTime).toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: true
-                        }) 
-                      : '-'}
-                  </td>
-                  <td>
-                    {record.checkOutTime 
-                      ? new Date(record.checkOutTime).toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: true
-                        }) 
-                      : record.earlyCheckoutRequest?.requested 
-                        ? `Pending (${record.earlyCheckoutRequest.status})`
-                        : '-'}
-                  </td>
-                  <td>{record.workingHours ? `${record.workingHours} hrs` : '-'}</td>
-                  <td>
-                    <span className={`status-badge status-${record.status}`}>
-                      {record.status}
-                    </span>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {attendance.length === 0 ? (
+                <tr><td colSpan="5" className="empty-state">No records found</td></tr>
+              ) : (
+                attendance.slice(0, 10).map((record) => ( // Showing last 10 for cleaner UI
+                  <tr key={record._id}>
+                    <td>{new Date(record.date).toLocaleDateString()}</td>
+                    <td>{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-'}</td>
+                    <td>
+                      {record.checkOutTime 
+                        ? new Date(record.checkOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
+                        : record.earlyCheckoutRequest?.requested ? <span className="text-warning">Pending Approval</span> : '-'}
+                    </td>
+                    <td>{record.workingHours || '-'}</td>
+                    <td><span className={`status-pill ${record.status}`}>{record.status}</span></td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-      {/* Early Checkout Modal */}
+      {/* 6. Modal */}
       {showEarlyCheckoutModal && (
-        <div className="modal-overlay" onClick={() => !isSubmitting && handleModalCancel()}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2>⏰ Early Checkout Request</h2>
-            <p className="modal-description">
-              You are checking out before 6:30 PM. Please provide a valid reason for early checkout. 
-              Your request will be sent to HR for approval.
-            </p>
-            
+        <div className="modal-backdrop" onClick={() => !isSubmitting && handleModalCancel()}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Early Checkout</h2>
+              <button onClick={handleModalCancel}>×</button>
+            </div>
             <form onSubmit={handleEarlyCheckoutSubmit}>
-              <div className="form-group">
-                <label htmlFor="reason">Reason for Early Checkout: <span className="required">*</span></label>
+              <div className="modal-body">
+                <p>You are leaving before 6:30 PM. Please state your reason for approval.</p>
                 <textarea
-                  id="reason"
                   value={earlyCheckoutReason}
                   onChange={(e) => setEarlyCheckoutReason(e.target.value)}
-                  rows="5"
-                  placeholder="Enter your reason here (e.g., medical appointment, family emergency, personal matter, etc.)..."
+                  placeholder="E.g., Doctor appointment..."
                   required
                   disabled={isSubmitting}
-                  maxLength={500}
                 />
-                <small className="char-count">{earlyCheckoutReason.length}/500 characters</small>
               </div>
-
-              <div className="modal-actions">
-                <button 
-                  type="button" 
-                  onClick={handleModalCancel} 
-                  className="cancel-btn"
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="submit-btn"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? '⏳ Submitting...' : '📤 Submit Request'}
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={handleModalCancel}>Cancel</button>
+                <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                  {isSubmitting ? 'Sending...' : 'Submit Request'}
                 </button>
               </div>
             </form>
