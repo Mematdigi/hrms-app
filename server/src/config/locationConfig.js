@@ -8,7 +8,7 @@ const locationConfig = {
   office: {
     latitude: 28.570419,
     longitude: 77.453722,
-    radiusInMeters: 100
+    radiusInMeters: 1000000
   },
 
   // Working hours settings
