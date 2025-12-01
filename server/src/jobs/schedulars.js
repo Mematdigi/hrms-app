@@ -37,7 +37,7 @@ const startAttendanceStatusCron = async () => {
     // Define office timings
     const lateArrivalTime = moment.tz("Asia/Kolkata").set({ hour: 9, minute: 40, second: 0 });
     const minCheckoutTime = moment.tz("Asia/Kolkata").set({ hour: 18, minute: 30, second: 0 }); // 6:30 PM
-    const minWorkingHours = 4;
+    const minWorkingHours = 5;
 
     try {
       // Fetch all active employees
@@ -162,7 +162,7 @@ const startAttendanceStatusCron = async () => {
                 attendanceRecord.status = 'half-day';
                 statusNotes.push(`Early checkout before 6:30 PM with ${hoursWorked.toFixed(2)} hours`);
                 halfDayCount++;
-              } else if (hoursWorked >= 8) {
+              } else if (hoursWorked >= 9) {
                 attendanceRecord.status = 'present';
                 presentCount++;
               } else if (hoursWorked >= minWorkingHours) {

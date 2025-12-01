@@ -4,7 +4,7 @@
  * Contact at copperdigital.com
  */
 
-module.exports.attendanceController = require('./attendanceController');
+module.exports.attendanceController = require('./attendanceControllerOld');
 module.exports.authController = require('./authController');
 module.exports.employeeController = require('./employeeController');
 module.exports.leaveController = require('./leaveController');

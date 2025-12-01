@@ -33,11 +33,25 @@ export const employeeAPI = {
 };
 
 export const attendanceAPI = {
+  // Employee attendance operations
   checkIn: (data) => api.post('/attendance/check-in', data),
+  
   checkOut: (data) => api.post('/attendance/check-out', data),
+  
+  requestEarlyCheckout: (data) => api.post('/attendance/request-early-checkout', data),
+  
   getAttendance: (params) => api.get('/attendance', { params }),
+  
+  getCalendarData: (params) => api.get('/attendance/calendar', { params }),
+  
+  // HR/Admin/Manager operations
   markAttendance: (data) => api.post('/attendance/mark', data),
+  
   getAllAttendance: (params) => api.get('/attendance/attendance_list', { params }),
+  
+  getPendingRequests: () => api.get('/attendance/pending-requests'),
+  
+  approveEarlyCheckout: (data) => api.post('/attendance/approve-early-checkout', data),
 };
 
 export const leaveAPI = {
