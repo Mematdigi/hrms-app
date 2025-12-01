@@ -29,9 +29,10 @@ class AttendanceController {
       this.OFFICE_LOCATION.longitude,
       this.OFFICE_LOCATION.radiusInMeters
     );
+console.log('Location check result:', result);
 
     return {
-      isWithin: result.isWithin,
+      isWithin: result.withinRadius,
       distance: result.distance.toFixed(2)
     };
   }
