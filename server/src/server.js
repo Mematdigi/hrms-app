@@ -9,6 +9,8 @@ const ApiError = require('./utils/ApiError');
 const { errorConverter, errorHandler } = require('./middleware/error');
 const morgan = require('morgan');
 
+const startAttendanceStatusCron = require('./jobs/schedulars')
+
 
 // Load environment variables
 dotenv.config();
@@ -66,3 +68,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+// startAttendanceStatusCron()

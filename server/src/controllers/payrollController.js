@@ -27,7 +27,7 @@ generatePayroll = catchAsync(async (req, res) => {
     }
 
     // Set default working days if not provided
-    if (!workingDays && workedDays == 0) {
+    if (!workingDays) {
       workingDays = 24; // Default working days in a month
     }
 
@@ -135,11 +135,10 @@ generatePayroll = catchAsync(async (req, res) => {
     });
 
     // Calculate total worked days
-    const calculatedWorkedDays = presentDays + (halfDays * 0.5) + paidLeaveDays;
     
     // Use provided workedDays or calculated value
-    if (!workedDays && workedDays !== 0) {
-      workedDays = calculatedWorkedDays;
+    if (!workedDays && workedDays == 0) {
+      workedDays = workingDays - (absentDays + halfDays*0.5)
     }
 
     // ========== CALCULATE DEDUCTIONS ==========
@@ -245,7 +244,6 @@ generatePayroll = catchAsync(async (req, res) => {
   }
 });
 
-
 getPayroll = catchAsync(async (req, res) => {
   try {
     const { employeeId, month, year } = req.query;
@@ -293,6 +291,7 @@ payPayroll = catchAsync( async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 })
+
 }
 
 module.exports = new PayrollController();

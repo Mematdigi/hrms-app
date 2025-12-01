@@ -52,7 +52,7 @@ const Navbar = () => {
         { label: 'My Attendance', path: '/attendance' },
         { label: 'Leave', path: '/leave' },
         { label: 'Payroll', path: '/payroll' },
-        { label: 'Performance', path: '/performance' },
+        // { label: 'Performance', path: '/performance' },
         {label:'Employee Attendance',path:'/all_employee_attendance'}
       ];
     }
@@ -71,7 +71,7 @@ const Navbar = () => {
         ...baseItems,
         { label: "Attendance", path: "/attendance" },
         { label: "Leave", path: "/leave" },
-        { label: "Performance", path: "/performance" },
+        // { label: "Performance", path: "/performance" },
       ];
     }
 
