@@ -1,13 +1,15 @@
 // src/pages/Dashboard.js
-import React, { useEffect, useState, useRef } from "react";
-import { useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
-import api, { employeeAPI } from "../services/api";
-import "bootstrap/dist/css/bootstrap.min.css";
-import { attendanceAPI } from '../services/api';
 
-// ✅ NEW: Chart.js imports
-import { Line } from 'react-chartjs-2';
+// ==============================
+// 1. Imports
+// ==============================
+import React, { useEffect, useState, useRef } from "react";
+import { useSelector } from "react-redux"; // To access global state (user info)
+import { useNavigate } from "react-router-dom"; // To handle navigation
+import api, { employeeAPI, attendanceAPI } from "../services/api"; // API service calls
+import "bootstrap/dist/css/bootstrap.min.css"; // Bootstrap styling
+
+// Chart.js imports for data visualization
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -19,9 +21,7 @@ import {
   Legend
 } from 'chart.js';
 
-
-
-// ✅ Register Chart.js components
+// Registering Chart.js components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -32,50 +32,18 @@ ChartJS.register(
   Legend
 );
 
-// ---- attendance chart helpers ----
-// Weekly attendance series (you can change the data)
-const ATTENDANCE_WEEKS = ["02", "06", "10", "14", "18", "22", "26", "30"];
+// ==============================
+// 2. Constants & Configuration
+// ==============================
 
-const ATTENDANCE_SERIES = [
-  {
-    key: "fullTime",
-    label: "Full-time Employees",
-    colorClass: "line-blue",
-    data: [92, 88, 95, 90, 96, 93, 94, 92],
-  },
-  {
-    key: "interns",
-    label: "Interns",
-    colorClass: "line-pink",
-    data: [85, 82, 80, 88, 90, 86, 89, 87],
-  },
-  {
-    key: "contract",
-    label: "Contract Staff",
-    colorClass: "line-green",
-    data: [78, 82, 80, 84, 81, 79, 83, 80],
-  },
-];
-
-// const MAX_ATTENDANCE = 100;
-const CHART_WIDTH = 120;
-const CHART_HEIGHT = 60;
-
-
-// Example workforce mix – replace these values with real counts
+// Data for the Ring Chart (Employee Breakdown)
 const EMPLOYMENT_BREAKDOWN = [
   { key: 'employees', label: 'Full-time Employees', value: 88, colorClass: 'seg-blue' },
   { key: 'interns', label: 'Interns', value: 50, colorClass: 'seg-green' },
   { key: 'contract', label: 'Contract Staff', value: 26, colorClass: 'seg-red' },
 ];
 
-const EMPLOYEES_SIDEBAR = [
-  { name: "Anika Rosser", team: "UI/UX Team", rate: "98.7%" },
-  { name: "Roger Dias", team: "Illustrator Team", rate: "97.1%" },
-  { name: "Charlie Korsgaard", team: "Graphic Design Team", rate: "96.8%" },
-];
-
-// Role-wise quick action buttons (HR Features section) – acts as permission matrix
+// Configuration for "Quick Actions" buttons based on User Role
 const QUICK_ACTIONS = {
   admin: [
     { label: "Manage Employees", action: "employees" },
@@ -109,7 +77,7 @@ const QUICK_ACTIONS = {
   ],
 };
 
-// Role-based headings/subtitles (from older version)
+// Titles and Subtitles based on Role
 const ROLE_TITLE_MAP = {
   admin: "Admin Dashboard",
   hr: "HR Manager Dashboard",
@@ -124,130 +92,63 @@ const ROLE_SUBTITLE_MAP = {
   employee: "Personal Information & Self-Service",
 };
 
+// ==============================
+// 3. Main Component: Dashboard
+// ==============================
 const Dashboard = () => {
+  // Access user data from Redux Store
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
-
-  // checkin
-  const [attendance, setAttendance] = useState([]);
-  const [checkedIn, setCheckedIn] = useState(false);
-  useEffect(() => {
-    fetchAttendance();
-  }, []);
-
-  const fetchAttendance = async () => {
-    try {
-      const response = await attendanceAPI.getAttendance({
-        employeeId: user?.id,
-      });
-      setAttendance(response.data);
-      const today = response.data.find(
-        (a) => new Date(a.date).toDateString() === new Date().toDateString()
-      );
-      setCheckedIn(!!today?.checkInTime);
-    } catch (error) {
-      console.error('Error fetching attendance:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCheckIn = async () => {
-    try {
-      await attendanceAPI.checkIn({ employeeId: user?.id });
-      setCheckedIn(true);
-      fetchAttendance();
-    } catch (error) {
-      console.error('Error checking in:', error);
-    }
-  };
-
-  const handleCheckOut = async () => {
-    try {
-      await attendanceAPI.checkOut({ employeeId: user?.id });
-      setCheckedIn(false);
-      fetchAttendance();
-    } catch (error) {
-      console.error('Error checking out:', error);
-    }
-  };
-
-  // ⬇️ Put this inside your component, AFTER attendance is defined in state
-
-  let lastCheckInTime = null;
-
-  if (attendance && attendance.length > 0) {
-    const lastObject = attendance[attendance.length - 1];
-
-    if (lastObject && lastObject.checkInTime) {
-      const date = new Date(lastObject.checkInTime);
-
-      const hours = String(date.getHours()).padStart(2, "0");
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      const seconds = String(date.getSeconds()).padStart(2, "0");
-
-      lastCheckInTime = `${hours}:${minutes}:${seconds}`;
-    }
-  }
-
-
-  // attendance graph
   const lineChartRef = useRef(null);
 
-  useEffect(() => {
-    if (!lineChartRef.current) return;
-
-    const paths = lineChartRef.current.querySelectorAll(".attn-line");
-
-    paths.forEach((path, idx) => {
-      const length = path.getTotalLength();
-
-      // set initial dash so line is hidden
-      path.style.strokeDasharray = length;
-      path.style.strokeDashoffset = length;
-      path.style.transition = "none";
-
-      // double rAF so browser applies the initial state first
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          path.style.transition =
-            "stroke-dashoffset 1.3s cubic-bezier(0.4, 0.0, 0.2, 1)";
-          path.style.transitionDelay = `${idx * 0.25}s`; // stagger each line
-          path.style.strokeDashoffset = "0"; // animate from start → end
-        });
-      });
-    });
-  }, []);
-
-
+  // --- State Management ---
+  const [loading, setLoading] = useState(false); // Page loading state
+  const [attendance, setAttendance] = useState([]); // Stores attendance records
+  const [checkedIn, setCheckedIn] = useState(false); // Tracks if user is currently checked in
+  const [employees, setEmployees] = useState([]); // List of all employees
+  
+  // Dashboard Numerical Statistics
   const [stats, setStats] = useState({
     totalEmployees: 0,
     activeEmployees: 0,
     departments: 0,
   });
-  const [loading, setLoading] = useState(false);
-  const [activeReminderIndex, setActiveReminderIndex] = useState(1);
 
+  // Leave Management State
+  const [leaves, setLeaves] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
+
+  // Determine current user role
   const role = user?.role || "employee";
   const roleTitle = ROLE_TITLE_MAP[role] || "Dashboard";
   const roleSubtitle = ROLE_SUBTITLE_MAP[role] || "";
   const quickActions = QUICK_ACTIONS[role] || QUICK_ACTIONS.employee;
 
-  // ---- fetch dashboard stats from /employees ----
+  // ==============================
+  // 4. Effects (Data Fetching)
+  // ==============================
+
+  // Effect: Fetch Dashboard Statistics (Total Employees, Depts, etc.)
   useEffect(() => {
     if (!user) return;
 
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
+        // Call API to get employee list
         const response = await api.get("/employees");
-        const employees = response.data || [];
+        const allEmp = response.data || [];
 
+        // Calculate stats based on response
         setStats({
-          totalEmployees: employees.length,
-          activeEmployees: employees.filter((e) => e.status === "active").length,
-          departments: [...new Set(employees.map((e) => e.department))].length,
+          totalEmployees: allEmp.length,
+          activeEmployees: allEmp.filter((e) => e.status === "active").length,
+          departments: [...new Set(allEmp.map((e) => e.department))].length,
         });
+        setEmployees(allEmp);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
@@ -258,198 +159,195 @@ const Dashboard = () => {
     fetchDashboardData();
   }, [user]);
 
-  const MAX_ATTENDANCE = 100;
+  // Effect: Fetch Attendance Records
+  useEffect(() => {
+    fetchAttendance();
+  }, []);
 
-  // helper to build a smooth-ish SVG path for attandance
-  const buildAttendancePath = (values, width, height) => {
-    if (!values || values.length === 0) return "";
-    const stepX = width / Math.max(values.length - 1, 1);
-
-    const points = values.map((v, i) => {
-      const x = i * stepX;
-      const y = height - (Math.min(v, MAX_ATTENDANCE) / MAX_ATTENDANCE) * height;
-      return { x, y };
-    });
-
-    if (points.length < 2) {
-      const p = points[0];
-      return `M ${p.x} ${p.y}`;
+  const fetchAttendance = async () => {
+    try {
+      const response = await attendanceAPI.getAttendance({
+        employeeId: user?.id,
+      });
+      setAttendance(response.data);
+      
+      // Check if user has checked in today
+      const today = response.data.find(
+        (a) => new Date(a.date).toDateString() === new Date().toDateString()
+      );
+      setCheckedIn(!!today?.checkInTime);
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
     }
-
-    let d = `M ${points[0].x} ${points[0].y}`;
-    for (let i = 1; i < points.length; i++) {
-      const prev = points[i - 1];
-      const curr = points[i];
-      const midX = (prev.x + curr.x) / 2;
-      d += ` Q ${midX} ${prev.y}, ${curr.x} ${curr.y}`;
-    }
-    return d;
   };
 
-  // ---- routing for quick actions (only actions defined in QUICK_ACTIONS are allowed) ----
+  // Effect: Fetch Leave Requests (Mock Data currently)
+  useEffect(() => {
+    const fetchLeaves = async () => {
+      try {
+        // MOCK DATA: Simulating API response
+        setLeaves([
+          { _id: '1', employee: { firstName: 'John', lastName: 'Doe', email: 'john@test.com' }, leaveType: 'Sick', status: 'pending', numberOfDays: 2},
+          { _id: '2', employee: { firstName: 'Jane', lastName: 'Smith', email: 'jane@test.com' }, leaveType: 'Casual', status: 'pending', numberOfDays: 1},
+          { _id: '3', employee: { firstName: 'Robert', lastName: 'Brown', email: 'rob@test.com' }, leaveType: 'Annual', status: 'approved', numberOfDays: 5},
+          { _id: '4', employee: { firstName: 'Emily', lastName: 'Davis', email: 'emily@test.com' }, leaveType: 'Sick', status: 'pending', numberOfDays: 1},
+        ]);
+      } catch (error) {
+        console.error("Error fetching leaves:", error);
+      }
+    };
+    fetchLeaves();
+  }, []);
+
+  // ==============================
+  // 5. Action Handlers
+  // ==============================
+
+  // Handle Check-In
+  const handleCheckIn = async () => {
+    try {
+      await attendanceAPI.checkIn({ employeeId: user?.id });
+      setCheckedIn(true);
+      fetchAttendance();
+    } catch (error) {
+      console.error('Error checking in:', error);
+    }
+  };
+
+  // Handle Check-Out
+  const handleCheckOut = async () => {
+    try {
+      await attendanceAPI.checkOut({ employeeId: user?.id });
+      setCheckedIn(false);
+      fetchAttendance();
+    } catch (error) {
+      console.error('Error checking out:', error);
+    }
+  };
+
+  // Logic to calculate the formatted string of the last check-in
+  let lastCheckInTime = null;
+  if (attendance && attendance.length > 0) {
+    const lastObject = attendance[attendance.length - 1];
+    if (lastObject && lastObject.checkInTime) {
+      const date = new Date(lastObject.checkInTime);
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      const seconds = String(date.getSeconds()).padStart(2, "0");
+      lastCheckInTime = `${hours}:${minutes}:${seconds}`;
+    }
+  }
+
+  // Filter Leaves Logic (by name, month, year, status)
+  const getFilteredLeaves = () => {
+    let filtered = [...leaves];
+
+    // Search Filter
+    if (searchQuery && (role === 'hr' || role === 'admin')) {
+      filtered = filtered.filter((leave) => {
+        const fullName = `${leave.employee?.firstName} ${leave.employee?.lastName}`.toLowerCase();
+        const email = leave.employee?.email?.toLowerCase() || '';
+        return fullName.includes(searchQuery.toLowerCase()) || 
+               email.includes(searchQuery.toLowerCase());
+      });
+    }
+    // Month Filter
+    if (selectedMonth) {
+      filtered = filtered.filter((leave) => {
+        const leaveDate = new Date(leave.startDate);
+        const leaveMonth = (leaveDate.getMonth() + 1).toString().padStart(2, '0');
+        return leaveMonth === selectedMonth;
+      });
+    }
+    // Year Filter
+    if (selectedYear) {
+      filtered = filtered.filter((leave) => {
+        const leaveDate = new Date(leave.startDate);
+        return leaveDate.getFullYear().toString() === selectedYear;
+      });
+    }
+    // Status Filter
+    if (selectedStatus) {
+      filtered = filtered.filter((leave) => leave.status === selectedStatus);
+    }
+    return filtered;
+  };
+
+  const filteredLeaves = getFilteredLeaves();
+
+  // Helper: Get Badge Color for Status
+  const getStatusBadge = (status) => {
+    switch(status) {
+      case 'approved': return { class: 'bg-success text-white', text: 'Approved' };
+      case 'rejected': return { class: 'bg-danger text-white', text: 'Rejected' };
+      default: return { class: 'bg-warning text-dark', text: 'Pending' };
+    }
+  };
+
+  // Handle Leave Approval
+  const handleApproveLeave = async (id) => {
+    try {
+        // Optimistic UI update
+        setLeaves(prev => prev.map(l => l._id === id ? {...l, status: 'approved'} : l));
+        console.log(`Approved leave ${id}`);
+    } catch (err) {
+        console.error(err);
+    }
+  };
+
+  // Handle Leave Rejection
+  const handleRejectLeave = async (id) => {
+    try {
+        setLeaves(prev => prev.map(l => l._id === id ? {...l, status: 'rejected'} : l));
+        console.log(`Rejected leave ${id}`);
+    } catch (err) {
+        console.error(err);
+    }
+  };
+
+  // Handle Navigation when clicking cards
   const handleCardClick = (action) => {
     const routes = {
       'employees': '/employees',
       'attendance': '/attendance',
-      'allEmployeeAttendance': '/allEmployeeAttendance',
       'leave': '/leave',
       'payroll': '/payroll',
-      'roles': '/roles',
       'reports': '/reports',
-      'settings': '/settings',
       'team': '/team',
       'profile': '/profile',
     };
-
-    if (routes[action]) {
-      navigate(routes[action]);
-    }
+    if (routes[action]) navigate(routes[action]);
   };
 
-  const handleReminderClick = (index) => {
-    setActiveReminderIndex(index);
-  };
-
-
-  // ---Fetch Employee---
-  const [employees, setEmployees] = useState([]);
-
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
-
-  const fetchEmployees = async () => {
-    try {
-      const response = await employeeAPI.getAll();
-      console.log('Fetched employees: ', response.data);
-      setEmployees(response.data);
-    } catch (error) {
-      console.error('Error fetching employees:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  // attendence
-  useEffect(() => {
-    if (!lineChartRef.current) return;
-
-    const svgEl = lineChartRef.current;
-    const paths = svgEl.querySelectorAll(".attn-line");
-
-    paths.forEach((path, idx) => {
-      const length = path.getTotalLength();
-      path.style.strokeDasharray = length;
-      path.style.strokeDashoffset = length;
-      path.style.transition = "none";
-
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          path.style.transition =
-            "stroke-dashoffset 1.3s cubic-bezier(0.4, 0.0, 0.2, 1)";
-          path.style.transitionDelay = `${idx * 0.25}s`;
-          path.style.strokeDashoffset = "0";
-        });
-      });
-    });
-
-    // make whole chart fade in
-    requestAnimationFrame(() => {
-      svgEl.classList.add("ready");
-    });
-  }, []);
-
-
-  // changing number of overview
+  // --- Animation Component Helper ---
+  // Animates numbers from 0 to value
   const AnimatedNumber = ({ value, className = "", duration = 1200 }) => {
     const [display, setDisplay] = React.useState(0);
-
     React.useEffect(() => {
       let startTimestamp = null;
       const startValue = 0;
       const diff = value - startValue;
-
       if (diff === 0) {
         setDisplay(value);
         return;
       }
-
       const step = (timestamp) => {
         if (!startTimestamp) startTimestamp = timestamp;
         const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-
         const current = Math.round(startValue + diff * progress);
         setDisplay(current);
-
-        if (progress < 1) {
-          window.requestAnimationFrame(step);
-        }
+        if (progress < 1) window.requestAnimationFrame(step);
       };
-
       window.requestAnimationFrame(step);
     }, [value, duration]);
-
-    return (
-      <div className={className}>
-        {display.toLocaleString()}
-      </div>
-    );
+    return <div className={className}>{display.toLocaleString()}</div>;
   };
 
+  // ==============================
+  // 6. Render
+  // ==============================
 
-  // NEW: Dummy data for Monthly Chart
-  const monthlyChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        backgroundColor: 'white',
-        titleColor: '#2d3748',
-        bodyColor: '#4a5568',
-        borderColor: '#e2e8f0',
-        borderWidth: 2,
-        padding: 12,
-        displayColors: true,
-        boxWidth: 12,
-        boxHeight: 12,
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: '#f1f5f9',
-          drawBorder: false,
-        },
-        ticks: {
-          color: '#718096',
-          font: {
-            size: 12,
-            weight: 600,
-          },
-        },
-      },
-      x: {
-        grid: {
-          display: false,
-        },
-        ticks: {
-          color: '#718096',
-          font: {
-            size: 12,
-            weight: 600,
-          },
-        },
-      },
-    },
-  };
-
-
-  // ---- loading skeleton ----
+  // Loading Screen
   if (loading) {
     return (
       <div className="hr-page">
@@ -465,32 +363,31 @@ const Dashboard = () => {
     );
   }
 
-  // ---- MAIN LAYOUT (role-aware header + shared layout) ----
   return (
     <div className="hr-page">
       <main className="container-xxl hr-main m-0 p-3">
         <div className="dashboard-shell border">
+          
+          {/* Header Section */}
           <div className="mb-4 d-flex justify-content-between align-items-center">
             <div className="greeting-container">
               <h2 className="page-greeting">
-                {roleTitle}
-                {user?.firstName ? ` – ${user.firstName}` : ""}
+                {roleTitle} {user?.firstName ? ` – ${user.firstName}` : ""}
               </h2>
               {roleSubtitle && (
                 <div className="text-muted small mt-1">{roleSubtitle}</div>
               )}
             </div>
 
+            {/* Check In / Check Out Buttons */}
             <div className="button-container d-flex">
-
-              <div className="mt-2 h5">{checkedIn && lastCheckInTime}</div>
+              <div className="mt-2 h5 me-3">{checkedIn && lastCheckInTime}</div>
               {!checkedIn ? (
-                <button onClick={handleCheckIn} className="check-in-btn">
+                <button onClick={handleCheckIn} className="btn btn-primary">
                   Check In
-                  {/* <div>{lastCheckInTime}</div> */}
                 </button>
               ) : (
-                <button onClick={handleCheckOut} className="add-btn">
+                <button onClick={handleCheckOut} className="btn btn-outline-danger">
                   Check Out
                 </button>
               )}
@@ -498,73 +395,43 @@ const Dashboard = () => {
           </div>
 
           <div className="row g-4">
-
+            
+            {/* --- LEFT COLUMN --- */}
             <div className="col-lg-8 d-flex flex-column gap-4">
-
-              {/*Monthly Overview Chart*/}
+              
+              {/* Card 1: Daily Overview Statistics */}
               <div className="dashboard-chart-card">
                 <div className="chart-header">
                   <h3 className="chart-title">📈 Daily Overview</h3>
                   <div className="chart-legend">
-                    <div className="legend-item">
-                      <span className="legend-dot blue"></span>
-                      <span>Present</span>
-                    </div>
-                    <div className="legend-item">
-                      <span className="legend-dot pink"></span>
-                      <span>Absent</span>
-                    </div>
-                    <div className="legend-item">
-                      <span className="legend-dot green"></span>
-                      <span>Half Day</span>
-                    </div>
+                    <div className="legend-item"><span className="legend-dot blue"></span><span>Present</span></div>
+                    <div className="legend-item"><span className="legend-dot pink"></span><span>Absent</span></div>
+                    <div className="legend-item"><span className="legend-dot green"></span><span>Half Day</span></div>
                   </div>
                 </div>
-
                 <div className="chart-stats">
                   <div className="stat-item">
-                    <AnimatedNumber
-                      value={3442}
-                      className="stat-value blue"
-                      duration={1200}  // 1.2s
-                    />
+                    <AnimatedNumber value={3442} className="stat-value blue" duration={1200} />
                     <div className="stat-label">Total Present</div>
                   </div>
-
                   <div className="stat-item">
-                    <AnimatedNumber
-                      value={1442}
-                      className="stat-value pink"
-                      duration={1200}
-                    />
+                    <AnimatedNumber value={1442} className="stat-value pink" duration={1200} />
                     <div className="stat-label">Total Absent</div>
                   </div>
-
                   <div className="stat-item">
-                    <AnimatedNumber
-                      value={856}
-                      className="stat-value green"
-                      duration={1200}
-                    />
+                    <AnimatedNumber value={856} className="stat-value green" duration={1200} />
                     <div className="stat-label">Half Days</div>
                   </div>
                 </div>
               </div>
 
-              {/* HR / Admin / Manager / Employee Features – role-based quick actions */}
+              {/* Card 2: Quick Links (Buttons) */}
               <div className="dashboard-chart-card">
                 <div className="chart-header">
-                  <h3 className="chart-title"><span>🧑‍💼
-                    {role === "admin"
-                      ? "Admin Features"
-                      : role === "hr"
-                        ? "HR Features"
-                        : role === "manager"
-                          ? "Manager Features"
-                          : "Employee Features"}
-                  </span></h3>
+                  <h3 className="chart-title">
+                    <span>🧑‍💼 {role === "admin" ? "Admin" : role === "hr" ? "HR" : "User"} Quick Links</span>
+                  </h3>
                 </div>
-
                 <div className="card-body">
                   <div className="feature-grid">
                     {quickActions.map((item) => (
@@ -582,132 +449,73 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              {/* Overview */}
+              {/* Card 3: General Stats (Clickable) */}
               <div className="dashboard-chart-card">
-                <div className="chart-header">
-                  <h3 className="chart-title">📋 Overview</h3>
-                </div>
-
+                <div className="chart-header"><h3 className="chart-title">📋 Overview</h3></div>
                 <div className="card-body">
                   <div className="stat-row">
-                    {/* For all roles: show employees stats, but actions differ via handleCardClick */}
-                    <div
-                      className="stat-cards stat-card-purple"
-                      onClick={() => handleCardClick("employees")}
-                    >
+                    <div className="stat-cards stat-card-purple" onClick={() => handleCardClick("employees")}>
                       <div className="stat-icon">👥</div>
-                      <div className="stat-label">
-                        {role === "manager" ? "Team Members" : "Total Employees"}
-                      </div>
-                      <div className="stat-value">
-                        {stats.totalEmployees || 0}
-                      </div>
+                      <div className="stat-label">{role === "manager" ? "Team Members" : "Total Employees"}</div>
+                      <div className="stat-value">{stats.totalEmployees || 0}</div>
                     </div>
-
-                    <div
-                      className="stat-cards stat-card-pink"
-                      onClick={() => handleCardClick("attendance")}
-                    >
+                    <div className="stat-cards stat-card-pink" onClick={() => handleCardClick("attendance")}>
                       <div className="stat-icon">✅</div>
-                      <div className="stat-label">
-                        {role === "employee"
-                          ? "My Attendance"
-                          : "Active Employees"}
-                      </div>
-                      <div className="stat-value">
-                        {stats.activeEmployees || 0}
-                      </div>
+                      <div className="stat-label">{role === "employee" ? "My Attendance" : "Active Employees"}</div>
+                      <div className="stat-value">{stats.activeEmployees || 0}</div>
                     </div>
-
-                    {/* Departments card only makes sense for admin / hr */}
                     {(role === "admin" || role === "hr") && (
-                      <div
-                        className="stat-cards stat-card-gold"
-                        onClick={() => handleCardClick("employees")}
-                      >
+                      <div className="stat-cards stat-card-gold" onClick={() => handleCardClick("employees")}>
                         <div className="stat-icon">🏢</div>
                         <div className="stat-label">Departments</div>
-                        <div className="stat-value">
-                          {stats.departments || 0}
-                        </div>
+                        <div className="stat-value">{stats.departments || 0}</div>
                       </div>
                     )}
                   </div>
                 </div>
               </div>
-
             </div>
 
-            {/* RIGHT COLUMN – reminders + Employee Work Rate (same for all roles for now) */}
+            {/* --- RIGHT COLUMN --- */}
             <div className="col-lg-4 d-flex flex-column gap-4">
-
-              {/* Employee Work Rate */}
+              
+              {/* Card 4: Employee Breakdown Ring Chart */}
               <div className="dashboard-chart-card">
                 <div className="chart-header">
-                  <h3 className="chart-title">📊 Empoloyee Work Rate</h3>
-                  <div className="chart-legend">
-                    <div className="legend-item">
-                      <span className="legend-dot blue"></span>
-                      <span className="legend-dot green"></span>
-                      <span className="legend-dot seg-red"></span>
-                    </div>
-                  </div>
+                  <h3 className="chart-title">📊 Employee Work Rate</h3>
                 </div>
-
                 <div className="card-body access-vertical">
-                  {/* TOP: full-width animated multi-ring chart */}
                   <div className="access-chart-wrap access-chart-full">
+                    {/* SVG Chart Logic */}
                     <svg viewBox="0 0 140 140" className="access-chart-svg">
                       {(() => {
-                        const baseRadius = 62;          // outer ring
-                        const ringGap = 8;              // distance between rings
-                        const total = EMPLOYMENT_BREAKDOWN.reduce(
-                          (sum, item) => sum + item.value,
-                          0
-                        );
-
+                        const baseRadius = 62;
+                        const ringGap = 8;
+                        const total = EMPLOYMENT_BREAKDOWN.reduce((sum, item) => sum + item.value, 0);
                         return EMPLOYMENT_BREAKDOWN.map((item, index) => {
                           const radius = baseRadius - index * ringGap;
                           const circumference = 2 * Math.PI * radius;
                           const fraction = total ? item.value / total : 0;
                           const length = fraction * circumference;
-
                           return (
                             <g key={item.key}>
-                              {/* grey base ring */}
+                              <circle cx="70" cy="70" r={radius} className="access-segment-bg" />
                               <circle
-                                cx="70"
-                                cy="70"
-                                r={radius}
-                                className="access-segment-bg"
-                              />
-                              {/* colored animated ring */}
-                              <circle
-                                cx="70"
-                                cy="70"
-                                r={radius}
+                                cx="70" cy="70" r={radius}
                                 className={`access-segment ${item.colorClass}`}
-                                style={{
-                                  '--dash': length,
-                                  '--gap': circumference - length,
-                                  '--delay': `${index * 0.18}s`,
-                                }}
+                                style={{ '--dash': length, '--gap': circumference - length, '--delay': `${index * 0.18}s` }}
                               />
                             </g>
                           );
                         });
                       })()}
                     </svg>
-
                     <div className="access-chart-center">
-                      <div className="access-center-value">
-                        {EMPLOYMENT_BREAKDOWN.reduce((s, i) => s + i.value, 0)}
-                      </div>
+                      <div className="access-center-value">{EMPLOYMENT_BREAKDOWN.reduce((s, i) => s + i.value, 0)}</div>
                       <div className="access-center-label">Total Staff</div>
                     </div>
                   </div>
-
-                  {/* BOTTOM: Category values + tiny badges */}
+                  {/* Legend for Ring Chart */}
                   <div className="access-legend access-legend-bottom">
                     {EMPLOYMENT_BREAKDOWN.map((item) => (
                       <div className="access-legend-row" key={item.key}>
@@ -717,13 +525,7 @@ const Dashboard = () => {
                         </div>
                         <div className="legend-values">
                           <span className="legend-count">{item.value}</span>
-                          <span
-                            className={
-                              item.colorClass === 'seg-red'
-                                ? 'legend-badge badge-down'
-                                : 'legend-badge badge-up'
-                            }
-                          >
+                          <span className={item.colorClass === 'seg-red' ? 'legend-badge badge-down' : 'legend-badge badge-up'}>
                             {item.colorClass === 'seg-red' ? '-1.2%' : '+3.4%'}
                           </span>
                         </div>
@@ -731,46 +533,77 @@ const Dashboard = () => {
                     ))}
                   </div>
                 </div>
-
               </div>
 
-              {/* All Employees */}
+              {/* Card 5: All Employees / Recent Leaves Table 
+                  MODIFIED: Scrollable area + Redirect Icon */}
               <div className="dashboard-chart-card">
-                <div className="chart-header">
-                  <h3 className="chart-title">🧑‍🤝‍🧑 All Employees</h3>
-                </div>
-                {/*  add employees-scroll to make it scrollable */}
-                <div className="card-body reminders-body employees-scroll">
-                  {employees.map((item, index) => {
-                    const isActive = item.status === "active"; // status-based
-                    return (
-                      <div
-                        key={item._id || item.employeeId || index}
-                        className={
-                          "reminder-item" +
-                          (isActive ? " reminder-item-active" : "")
-                        }
-                        onClick={() => handleReminderClick(index)}
-                      >
-                        <div className="reminder-icon text-center" >{item.firstName.charAt(0)}</div>
-                        <div className="reminder-text">
-                          <div className="reminder-title">
-                            {item.firstName} {item.lastName}
-                          </div>
-                          <div className="reminder-subtitle">
-                            {item.email}
-                          </div>
-                        </div>
-
-                        {/* Tick for active, cross for others */}
-                        <span className="check-badge">
-                          {item.isActive ? "✓" : "❌"}
+                <div className="chart-header d-flex justify-content-between align-items-center">
+                    <h3 className="chart-title">
+                        🧑‍🤝‍🧑 Employees Request
+                        {/* REDIRECT ICON ADDED HERE */}
+                        <span 
+                            title="Go to Employees Page"
+                            style={{ cursor: "pointer", marginLeft: "10px", fontSize: "1.52em", color: "#666" }}
+                            onClick={() => navigate('/leave')}
+                        >
+                            ↗
                         </span>
-                      </div>
-                    );
-                  })}
+                    </h3>
+                </div>
+                
+                {/* SCROLLABLE CONTAINER ADDED HERE 
+                    maxHeight: 180px ensures roughly 2 rows are fully visible, 
+                    indicating to the user they can scroll for more. */}
+                <div 
+                    className="card-body" 
+                    style={{ maxHeight: "180px", overflowY: "auto", padding: "0" }}
+                >
+                    <table className="table table-hover align-middle leaves-table mb-0">
+                        {/* Sticky Header to keep titles visible while scrolling */}
+                        <thead className="table-light" style={{ position: "sticky", top: 0, zIndex: 2 }}>
+                            <tr>
+                                <th>S.no</th>
+                                {(user?.role === 'hr' || user?.role === 'admin') && <th>Employee</th>}
+                                <th>Type</th>
+                                {(user?.role === 'hr' || user?.role === 'admin') && <th>Actions</th>}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredLeaves.map((leave, index) => {
+                                return (
+                                <tr key={leave._id}>
+                                    <td>{index + 1}</td>
+                                    {(user?.role === 'hr' || user?.role === 'admin') && (
+                                    <td>{leave.employee?.firstName} {leave.employee?.lastName}</td>
+                                    )}
+                                    <td>{leave.leaveType}</td>
+                                    {(user?.role === 'hr' || user?.role === 'admin') && (
+                                    <td>
+                                        <button
+                                        className="btn btn-sm btn-success me-2"
+                                        onClick={() => handleApproveLeave(leave._id)}
+                                        disabled={leave.status !== 'pending'}
+                                        >
+                                        ✓
+                                        </button>
+                                        <button
+                                        className="btn btn-sm btn-danger"
+                                        onClick={() => handleRejectLeave(leave._id)}
+                                        disabled={leave.status !== 'pending'}
+                                        >
+                                        ✕
+                                        </button>
+                                    </td>
+                                    )}
+                                </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 </div>
               </div>
+
             </div>
           </div>
         </div>
