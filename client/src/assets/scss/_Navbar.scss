@@ -21,7 +21,7 @@
 .navbar-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 36px;
 }
 
 /* right side: search + icons + profile (desktop) */
@@ -41,20 +41,6 @@
 .navbar-profile-text {
   display: flex;
   flex-direction: column;
-}
-
-/* logo */
-.logo-circle {
-  width: 72px;
-  height: 42px;
-  border-radius: 50%;
-  background: #10b981;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ecfdf5;
-  font-size: 18px;
-  font-weight: 700;
 }
 
 /* hr tabs */
@@ -241,7 +227,7 @@
   }
 
   .navbar-left {
-    gap: 8px;
+    gap: 36px;
   }
 
   .hr-mains {
@@ -249,3 +235,23 @@
   }
 }
 
+/* Logo circle container */
+.logo-circle {
+  width: 58px;
+  height: 42px;
+  border-radius: 50%;
+  // background: #10b981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ecfdf5;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* Image inside the logo circle */
+.logo-img {
+  width: 65px;   /* Adjust width as needed */
+  height: 50px;  /* Maintain aspect ratio */
+  object-fit: contain; /* Ensure the image fits nicely without stretching */
+}
