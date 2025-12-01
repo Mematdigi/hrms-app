@@ -131,10 +131,16 @@ function Attendance() {
       setLocationError('');
       setLoading(true);
       const location = await getCurrentLocation();
+      console.log('Current location for check-in:', location);
+      // // Check if within office premises
+       const locationCheck = isWithinOffice(location.latitude, location.longitude);
       
-      // Check location logic (Currently commented out in source, but structure remains)
-      // const locationCheck = isWithinOffice(location.latitude, location.longitude);
-      // if (!locationCheck.isWithin) { ... }
+      // if (!locationCheck.isWithin) {
+      //   setLocationError(`You are ${distanceKm}km (${distanceM}m) away from office. You must be within ${OFFICE_LOCATION.radiusInMeters}m radius to check in.`);
+      //   alert(`❌ Check-in failed!\n\nYou are ${distanceKm}km away from the office.\nYou must be within ${OFFICE_LOCATION.radiusInMeters}m radius to check in.`);
+      //   setLoading(false);
+      //   return;
+      // }
 
       const response = await attendanceAPI.checkIn({ 
         employeeId: user?.id,
@@ -162,17 +168,17 @@ function Attendance() {
       const location = await getCurrentLocation();
       setCurrentLocation(location);
       
-      // Strict Check-out location check
-      const locationCheck = isWithinOffice(location.latitude, location.longitude);
+      // // Check if within office premises
+      // const locationCheck = isWithinOffice(location.latitude, location.longitude);
       
-      if (!locationCheck.isWithin) {
-        const distKm = (locationCheck.distance / 1000).toFixed(2);
-        const msg = `You are ${distKm}km away. You must be within ${OFFICE_LOCATION.radiusInMeters}m to check out.`;
-        setLocationError(msg);
-        alert(`❌ Check-out failed!\n\n${msg}`);
-        setLoading(false);
-        return;
-      }
+      // if (!locationCheck.isWithin) {
+      //   const distanceKm = (locationCheck.distance / 1000).toFixed(2);
+      //   const distanceM = locationCheck.distance.toFixed(0);
+      //   setLocationError(`You are ${distanceKm}km (${distanceM}m) away from office. You must be within ${OFFICE_LOCATION.radiusInMeters}m radius to check out.`);
+      //   alert(`❌ Check-out failed!\n\nYou are ${distanceKm}km away from the office.\nYou must be within ${OFFICE_LOCATION.radiusInMeters}m radius to check out.`);
+      //   setLoading(false);
+      //   return;
+      // }
 
       const response = await attendanceAPI.checkOut({ 
         employeeId: user?.id,

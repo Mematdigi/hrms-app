@@ -50,7 +50,7 @@ const Navbar = () => {
         ...baseItems,
         { label: 'Employees', path: '/employees' },
         { label: 'My Attendance', path: '/attendance' },
-        { label: 'Leave', path: '/leave' },
+        { label: 'Request', path: '/leave' },
         { label: 'Payroll', path: '/payroll' },
         // { label: 'Performance', path: '/performance' },
         {label:'Employee Attendance',path:'/all_employee_attendance'}

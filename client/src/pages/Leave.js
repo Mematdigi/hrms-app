@@ -274,7 +274,7 @@ function Leave() {
       {errorMessage && <div className="alert alert-error">{errorMessage}</div>}
 
       <div className="leave-header">
-        <h1>Leave Management</h1>
+        <h1>Request Management</h1>
         {user?.role === 'employee' && (
           <button onClick={() => setShowForm(!showForm)} className="apply-btn">
             {showForm ? '✕ Cancel' : '+ Apply Leave'}

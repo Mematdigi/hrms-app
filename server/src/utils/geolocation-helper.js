@@ -54,9 +54,9 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
  * @param {number} allowedRadius - Allowed radius in meters (default: 100)
  * @returns {Object} { withinRadius: boolean, distance: number, allowedRadius: number }
  */
-function isWithinRadius(userLat, userLon, officeLat, officeLon, allowedRadius = 100) {
+function isWithinRadius(userLat, userLon, officeLat, officeLon, allowedRadius) {
     try {
-        const distance = calculateDistance(userLat, userLon, officeLat, officeLon);
+        const distance =  calculateDistance(userLat, userLon, officeLat, officeLon);
         
         return {
             withinRadius: distance <= allowedRadius,
