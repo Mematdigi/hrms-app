@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom'; // Import from here
 import { useSelector } from 'react-redux';
-import { employeeAPI } from '../services/api'; // Ensure this path is correct
+import { employeeAPI } from '../services/api'; 
 
 function Employees() {
+  const navigate = useNavigate();
+  
   // --- State Management ---
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -192,7 +195,7 @@ function Employees() {
         ? (filterStatus === 'active' ? emp.isActive : !emp.isActive)
         : true;
 
-      // 5. Join Date Filter (Compares YYYY-MM-DD string)
+      // 5. Join Date Filter
       const matchesDate = filterJoinDate
         ? (emp.dateOfJoining && emp.dateOfJoining.startsWith(filterJoinDate))
         : true;
@@ -230,7 +233,7 @@ function Employees() {
         )}
       </div>
 
-      {/* --- Controls Section (All in one line) --- */}
+      {/* --- Controls Section --- */}
       <div className="controls-section" style={{ 
         display: 'flex', 
         gap: '10px', 
@@ -250,7 +253,7 @@ function Employees() {
           />
         </div>
         
-        {/* Department Filter */}
+        {/* Filters */}
         <div className="filter-box" style={{ flex: '1', minWidth: '150px' }}>
           <select 
             value={filterDepartment} 
@@ -264,7 +267,6 @@ function Employees() {
           </select>
         </div>
 
-        {/* Designation Filter */}
         <div className="filter-box" style={{ flex: '1', minWidth: '150px' }}>
           <select 
             value={filterDesignation} 
@@ -278,7 +280,6 @@ function Employees() {
           </select>
         </div>
 
-        {/* Status Filter */}
         <div className="filter-box" style={{ flex: '1', minWidth: '120px' }}>
           <select 
             value={filterStatus} 
@@ -291,7 +292,6 @@ function Employees() {
           </select>
         </div>
 
-        {/* Join Date Filter */}
         <div className="filter-box" style={{ flex: '1', minWidth: '130px' }}>
           <input 
             type="date"
@@ -302,7 +302,6 @@ function Employees() {
           />
         </div>
 
-        {/* Reset Button */}
         <button 
           className="reset-btn" 
           onClick={handleResetFilters}
@@ -423,8 +422,6 @@ function Employees() {
               <th>Department</th>
               <th>Designation</th>
               <th>Status</th>
-              <th>Join Date</th>
-              <th>Salary</th>
               {(user?.role === 'admin' || user?.role === 'hr') && <th>Actions</th>}
             </tr>
           </thead>
@@ -443,13 +440,23 @@ function Employees() {
                       {emp.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td>{emp.dateOfJoining ? new Date(emp.dateOfJoining).toLocaleDateString() : '-'}</td>
-                  <td>₹{emp.baseSalary || 0}</td>
                   {(user?.role === 'admin' || user?.role === 'hr') && (
                     <td className="actions-cell">
+                      {/* Edit Button */}
                       <button className="action-btn edit-btn" onClick={() => handleEditClick(emp)} title="Edit">
                         ✏️
                       </button>
+                      
+                      {/* View Detail Button - Updated */}
+                      <button 
+                        className="action-btn view-btn" 
+                        onClick={() => navigate(`/EmployeeDetails/${emp._id}`)} 
+                        title="View Details"
+                      >
+                        👁️
+                      </button>
+
+                      {/* Delete Button */}
                       {user?.role === 'admin' && (
                         <button className="action-btn delete-btn" onClick={() => handleDelete(emp._id, `${emp.firstName} ${emp.lastName}`)} title="Delete">
                           🗑️
