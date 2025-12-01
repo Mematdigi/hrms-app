@@ -1,25 +1,31 @@
 // employees.scss
 
+// ✅ Main Container
 .employees-container {
   padding: 40px 20px;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
+// ✅ Header Section
 .employees-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: 25px;
   padding-bottom: 20px;
   border-bottom: 2px solid #e9ecef;
 
   h1 {
     margin: 0;
-    font-size: 32px;
-    color: #333;
+    font-size: 28px;
+    font-weight: 700;
+    color: #2d3748;
   }
 }
 
-.add-btn {
+// ✅ Buttons (Global Styles)
+.add-btn, .submit-btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
@@ -29,14 +35,109 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(102, 126, 234, 0.25);
+  white-space: nowrap;
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
   }
 
   &:active {
     transform: scale(0.98);
+  }
+}
+
+.cancel-btn, .reset-btn {
+  background: #fff;
+  color: #4a5568;
+  border: 1px solid #e2e8f0;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: #f7fafc;
+    border-color: #cbd5e0;
+    color: #2d3748;
+  }
+}
+
+// ✅ Controls Section (Search & Filters)
+.controls-section {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 25px;
+  flex-wrap: wrap; // Allows wrapping on smaller screens
+  align-items: center;
+  background-color: #fff;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+  border: 1px solid #f1f5f9;
+
+  // Search Box (Takes more space)
+  .search-box {
+    flex: 2; // Grows twice as much as filters
+    min-width: 250px;
+  }
+
+  // Filter Boxes (Equal space)
+  .filter-box {
+    flex: 1;
+    min-width: 140px;
+  }
+
+  // Input & Select Styling
+  input[type="text"],
+  input[type="date"],
+  select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #4a5568;
+    background-color: #fff;
+    transition: all 0.2s ease;
+    height: 42px; // Fixed height for alignment
+
+    &:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    &::placeholder {
+      color: #a0aec0;
+    }
+  }
+
+  // Specific Date Input Styling
+  input[type="date"] {
+    font-family: inherit;
+    color: #4a5568;
+    cursor: pointer;
+  }
+
+  // Reset Button in Controls
+  .reset-btn {
+    height: 42px; // Match input height
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-color: #cbd5e0;
+    
+    &:hover {
+      background-color: #fee2e2; // Light red on hover for reset
+      border-color: #fc8181;
+      color: #c53030;
+    }
   }
 }
 
@@ -46,98 +147,44 @@
   border-radius: 8px;
   margin-bottom: 20px;
   font-weight: 500;
+  display: flex;
+  align-items: center;
   animation: slideDown 0.3s ease;
 }
 
 @keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.alert-success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
+.alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+.alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 
-.alert-error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
-// ✅ Employee Form
+// ✅ Employee Form Container
 .employee-form {
   background: white;
   border-radius: 12px;
   padding: 30px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   margin-bottom: 30px;
   border-left: 4px solid #667eea;
+  animation: fadeIn 0.4s ease;
 
   h2 {
-    margin: 0 10px 25px 0;
+    margin: 0 0 25px 0;
     font-size: 20px;
-    color: #333;
+    color: #2d3748;
+    border-bottom: 1px solid #edf2f7;
+    padding-bottom: 15px;
   }
 }
 
-// ✅ Filter Section
-.filter-section {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 30px;
-
-  input,
-  select {
-    padding: 10px 12px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 14px;
-    font-family: inherit;
-    transition: all 0.3s ease;
-    width: 200px;
-
-    &:focus {
-      outline: none;
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-  }
-
-  button {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-    }
-
-    &:active {
-      transform: scale(0.98);
-    }
-  }
-}
-
-// ✅ Form Grid
+// ✅ Form Grid Layout
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 25px;
+  margin-bottom: 30px;
 }
 
 .form-group {
@@ -147,18 +194,18 @@
   label {
     margin-bottom: 8px;
     font-weight: 600;
-    color: #333;
-    font-size: 14px;
+    color: #4a5568;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
-  input,
-  select {
+  input, select {
     padding: 10px 12px;
-    border: 1px solid #ddd;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
     font-size: 14px;
-    font-family: inherit;
-    transition: all 0.3s ease;
+    transition: all 0.2s;
 
     &:focus {
       outline: none;
@@ -166,15 +213,46 @@
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
   }
+
+  &.checkbox-group {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 25px; // Align with other inputs visually
+    
+    label {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      text-transform: none;
+      font-size: 15px;
+      color: #2d3748;
+
+      input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        margin-right: 10px;
+        cursor: pointer;
+        accent-color: #667eea;
+      }
+    }
+  }
+}
+
+.form-actions {
+  display: flex;
+  gap: 15px;
+  padding-top: 10px;
+  border-top: 1px solid #edf2f7;
 }
 
 // ✅ Employees Table
 .employees-table {
   background: white;
   border-radius: 12px;
-  padding: 30px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
   overflow-x: auto;
+  border: 1px solid #e2e8f0;
 
   table {
     width: 100%;
@@ -182,44 +260,65 @@
     font-size: 14px;
 
     thead {
-      background: #f8f9fa;
-      border-bottom: 2px solid #e9ecef;
+      background: #f8fafc;
+      border-bottom: 2px solid #edf2f7;
 
-      tr {
-        th {
-          padding: 15px;
-          text-align: left;
-          font-weight: 600;
-          color: #333;
-        }
+      tr th {
+        padding: 16px 20px;
+        text-align: left;
+        font-weight: 600;
+        color: #64748b;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
       }
     }
 
     tbody {
       tr {
-        transition: all 0.2s ease;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background-color 0.2s ease;
+
+        &:last-child {
+          border-bottom: none;
+        }
 
         &:hover {
-          background: #f8f9fa;
+          background-color: #f8fafc;
         }
 
         td {
-          padding: 15px;
-          border-bottom: 1px solid #e9ecef;
-          color: #555;
-
-          &.status-active {
-            color: #155724;
-            font-weight: 600;
-          }
-
-          &.status-inactive {
-            color: #721c24;
-            font-weight: 600;
-          }
+          padding: 16px 20px;
+          color: #334155;
+          vertical-align: middle;
         }
       }
     }
+  }
+}
+
+// ✅ Status Badge
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 80px;
+
+  &.active {
+    background-color: #def7ec;
+    color: #03543f;
+    border: 1px solid #bcf0da;
+  }
+
+  &.inactive {
+    background-color: #fde8e8;
+    color: #9b1c1c;
+    border: 1px solid #fbd5d5;
   }
 }
 
@@ -227,78 +326,56 @@
 .actions-cell {
   display: flex;
   gap: 8px;
-  justify-content: center;
-  align-items: center;
 }
 
 .action-btn {
-  background: none;
+  background: transparent;
   border: none;
   font-size: 18px;
   cursor: pointer;
-  padding: 8px 12px;
+  padding: 6px;
   border-radius: 6px;
-  transition: all 0.3s ease;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &.edit-btn {
-    &:hover {
-      background: #e3f2fd;
-      transform: scale(1.1);
-    }
+    color: #3b82f6;
+    &:hover { background-color: #eff6ff; }
   }
 
   &.delete-btn {
-    &:hover {
-      background: #ffebee;
-      transform: scale(1.1);
-    }
+    color: #ef4444;
+    &:hover { background-color: #fef2f2; }
   }
 }
 
 // ✅ Modal Styles
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  animation: fadeIn 0.2s ease;
 }
 
 .modal-content {
   background: white;
   border-radius: 12px;
-  padding: 0;
-  max-width: 800px;
   width: 90%;
+  max-width: 800px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   animation: slideUp 0.3s ease;
-}
 
-@keyframes slideUp {
-  from {
-    transform: translateY(50px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
+  .edit-form {
+    padding: 30px;
   }
 }
 
@@ -307,168 +384,90 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 30px;
-  border-bottom: 2px solid #e9ecef;
-
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  
   h2 {
     margin: 0;
-    font-size: 20px;
-    color: #333;
+    font-size: 18px;
+    color: #1e293b;
+  }
+
+  .close-btn {
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    color: #94a3b8;
+    transition: color 0.2s;
+
+    &:hover { color: #ef4444; }
   }
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #999;
-  transition: all 0.3s ease;
-  padding: 5px 10px;
-
-  &:hover {
-    color: #333;
-    transform: rotate(90deg);
-  }
-}
-
-.edit-form {
-  padding: 30px;
-}
-
-// ✅ Loading
-.loading {
-  text-align: center;
-  padding: 60px 20px;
-  font-size: 18px;
-  color: #999;
-}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 // ✅ Responsive Design
-@media (max-width: 768px) {
-  .employees-container {
-    padding: 20px 15px;
-    margin-top: 60px;
+@media (max-width: 900px) {
+  // Break filters into a grid earlier on medium screens
+  .controls-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    
+    .search-box {
+      grid-column: span 2; // Search bar takes full width
+    }
   }
+}
 
+@media (max-width: 600px) {
+  .employees-container { padding: 15px; }
+
+  // Header Stack
   .employees-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 15px;
+    .add-btn { width: 100%; }
+  }
 
-    h1 {
-      font-size: 24px;
+  // Controls Stack Vertically
+  .controls-section {
+    display: flex;
+    flex-direction: column;
+    
+    .search-box, .filter-box, .reset-btn {
+      width: 100%;
     }
   }
 
-  .add-btn {
-    width: 100%;
+  // Table Scroll
+  .employees-table table {
+    min-width: 900px;
   }
 
-  .modal-content {
-    width: 95%;
-    max-height: 95vh;
-  }
-
-  .modal-header {
-    padding: 15px 20px;
-
-    h2 {
-      font-size: 18px;
-    }
-  }
-
-  .edit-form {
-    padding: 20px;
-  }
-
+  // Form Stack
   .form-grid {
     grid-template-columns: 1fr;
-    gap: 15px;
   }
-
+  
   .form-actions {
-    flex-direction: column;
-
-    .submit-btn,
-    .cancel-btn {
-      width: 100%;
-    }
-  }
-
-  .employees-table {
-    padding: 20px;
-
-    table {
-      font-size: 12px;
-
-      thead tr th,
-      tbody tr td {
-        padding: 10px;
-      }
-    }
-  }
-
-  .actions-cell {
-    flex-direction: column;
-    gap: 5px;
-
-    .action-btn {
-      width: 100%;
-    }
-  }
-}
-
-@media (max-width: 480px) {
-  .employees-container {
-    padding: 15px 10px;
-  }
-
-  .employees-header {
-    h1 {
-      font-size: 20px;
-    }
-  }
-
-  .employee-form,
-  .employees-table {
-    padding: 15px;
-  }
-
-  .form-group {
-    input,
-    select {
-      font-size: 16px;
-    }
-  }
-
-  .employees-table {
-    table {
-      font-size: 11px;
-
-      thead tr th,
-      tbody tr td {
-        padding: 8px;
-      }
-    }
-  }
-
-  .action-btn {
-    font-size: 16px;
-    padding: 6px 10px;
+    flex-direction: column-reverse;
+    button { width: 100%; }
   }
 }
 
 // ✅ Print Styles
 @media print {
-  .employees-header,
-  .add-btn,
-  .actions-cell,
+  .employees-header button, 
+  .controls-section, 
+  .actions-cell, 
   .modal-overlay {
-    display: none;
+    display: none !important;
   }
-
-  .employees-table {
-    box-shadow: none;
-    border: 1px solid #ddd;
-  }
+  
+  .employees-container { padding: 0; width: 100%; }
+  .employees-table { box-shadow: none; border: 1px solid #000; }
 }

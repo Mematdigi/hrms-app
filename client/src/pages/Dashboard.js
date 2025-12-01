@@ -172,23 +172,23 @@ const Dashboard = () => {
     }
   };
 
-// ⬇️ Put this inside your component, AFTER attendance is defined in state
+  // ⬇️ Put this inside your component, AFTER attendance is defined in state
 
-let lastCheckInTime = null;
+  let lastCheckInTime = null;
 
-if (attendance && attendance.length > 0) {
-  const lastObject = attendance[attendance.length - 1];
+  if (attendance && attendance.length > 0) {
+    const lastObject = attendance[attendance.length - 1];
 
-  if (lastObject && lastObject.checkInTime) {
-    const date = new Date(lastObject.checkInTime);
+    if (lastObject && lastObject.checkInTime) {
+      const date = new Date(lastObject.checkInTime);
 
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const seconds = String(date.getSeconds()).padStart(2, "0");
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      const seconds = String(date.getSeconds()).padStart(2, "0");
 
-    lastCheckInTime = `${hours}:${minutes}:${seconds}`;
+      lastCheckInTime = `${hours}:${minutes}:${seconds}`;
+    }
   }
-}
 
 
   // attendance graph
@@ -482,12 +482,12 @@ if (attendance && attendance.length > 0) {
             </div>
 
             <div className="button-container d-flex">
-              
-                  <div className="mt-2 h5">{lastCheckInTime}</div>
+
+              <div className="mt-2 h5">{checkedIn && lastCheckInTime}</div>
               {!checkedIn ? (
                 <button onClick={handleCheckIn} className="check-in-btn">
                   Check In
-                  <div>{lastCheckInTime}</div>
+                  {/* <div>{lastCheckInTime}</div> */}
                 </button>
               ) : (
                 <button onClick={handleCheckOut} className="add-btn">

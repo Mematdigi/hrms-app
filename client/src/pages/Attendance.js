@@ -61,7 +61,7 @@ function Attendance() {
             Check In
           </button>
         ) : (
-          <button onClick={handleCheckOut} className="check-out-btn">
+          <button onClick={handleCheckOut} className="add-btn">
             Check Out
           </button>
         )}
