@@ -673,14 +673,7 @@ function Payroll() {
             Next →
           </button>
 
-          <div style={{
-            marginLeft: 'auto',
-            padding: '8px 15px',
-            backgroundColor: '#2196F3',
-            color: 'white',
-            borderRadius: '5px',
-            fontWeight: 'bold'
-          }}>
+          <div className='add-btn'>
             {getMonthName(filterMonth)} {filterYear}
           </div>
         </div>

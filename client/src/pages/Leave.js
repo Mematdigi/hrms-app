@@ -507,7 +507,7 @@ function Leave() {
               {/* Reset Button */}
               <div className="filter-group">
                 <label>&nbsp;</label>
-                <button onClick={handleResetFilters} className="reset-btn">
+                <button onClick={handleResetFilters} className="add-btn">
                   🔄 Reset Filters
                 </button>
               </div>

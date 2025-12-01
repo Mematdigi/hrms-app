@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, Link, useLocation } from "react-router-dom";
+import logo from '../assets/scss/mematdigi-logo.jpg';
 
 
 const Navbar = () => {
@@ -86,10 +87,11 @@ const Navbar = () => {
         {/* LEFT: Logo + desktop menu */}
         <div className="navbar-left">
           <Link to="/dashboard" className="text-decoration-none">
-            <div className="logo-circle p-2">
-              <span className="logo-icon">HRMS</span>
-            </div>
-          </Link>
+  <div className="logo-circle p-2">
+    <img src={logo} alt="HRMS Logo" className="logo-img" />
+  </div>
+</Link>
+
 
           {/* Desktop menu (HR tabs style) */}
           <ul className="nav nav-pills hr-tabs d-none d-lg-flex">
