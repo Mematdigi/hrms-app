@@ -14,6 +14,7 @@ import Navbar from './components/Navbar';
 import AllEmployeesAttendance from './pages/AllEmployeeAttendance';
 import './assets/scss/main.scss'
 import Notfound from './pages/Notfound';
+import EmployeeDetails from './pages/EmployeeDetails';
 
 function App() {
   const { token } = useSelector((state) => state.auth);
@@ -33,6 +34,7 @@ function App() {
         <Route path="/roles" element={token ? <RoleManagement /> : <Navigate to="/login" />} />
         <Route path="/all_employee_attendance" element={token ? <AllEmployeesAttendance /> : <Navigate to="/login" />} />
         <Route path="/" element={<Navigate to={"/login"} />} />
+        <Route path="/EmployeeDetails/:id" element={<EmployeeDetails />} />
         <Route path="*" element={<Notfound/>}/>
       </Routes>
     </Router>

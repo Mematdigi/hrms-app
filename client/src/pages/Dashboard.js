@@ -114,6 +114,13 @@ const Dashboard = () => {
     departments: 0,
   });
 
+  // ✅ Daily Overview Stats (Present/HalfDay)
+  const [dailyStats, setDailyStats] = useState({
+    present: 0,
+    absent: 0,
+    halfDay: 0
+  });
+
   // Leave Management State
   const [leaves, setLeaves] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -159,7 +166,7 @@ const Dashboard = () => {
     fetchDashboardData();
   }, [user]);
 
-  // Effect: Fetch Attendance Records
+  // Effect: Fetch Attendance Records (For Current User & Check-In Status)
   useEffect(() => {
     fetchAttendance();
   }, []);
@@ -180,6 +187,28 @@ const Dashboard = () => {
       console.error('Error fetching attendance:', error);
     }
   };
+
+  // ✅ Effect: Fetch Daily Overview Stats
+  useEffect(() => {
+    const fetchDailyOverview = async () => {
+      try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        // Fetch attendance for today (or all if filter not supported directly, then filter in JS)
+        const response = await attendanceAPI.getAllAttendance({ from: todayStr, to: todayStr });
+        const data = response.data.data || [];
+
+        setDailyStats({
+            present: data.filter(r => r.status === 'present').length,
+            absent: data.filter(r => r.status === 'absent').length,
+            halfDay: data.filter(r => r.status === 'half-day').length,
+        });
+
+      } catch (error) {
+        console.error("Error fetching daily overview:", error);
+      }
+    };
+    fetchDailyOverview();
+  }, []);
 
   // Effect: Fetch Leave Requests (Mock Data currently)
   useEffect(() => {
@@ -203,7 +232,6 @@ const Dashboard = () => {
   // 5. Action Handlers
   // ==============================
 
-  // Handle Check-In
   const handleCheckIn = async () => {
     try {
       await attendanceAPI.checkIn({ employeeId: user?.id });
@@ -214,7 +242,6 @@ const Dashboard = () => {
     }
   };
 
-  // Handle Check-Out
   const handleCheckOut = async () => {
     try {
       await attendanceAPI.checkOut({ employeeId: user?.id });
@@ -225,7 +252,6 @@ const Dashboard = () => {
     }
   };
 
-  // Logic to calculate the formatted string of the last check-in
   let lastCheckInTime = null;
   if (attendance && attendance.length > 0) {
     const lastObject = attendance[attendance.length - 1];
@@ -238,11 +264,9 @@ const Dashboard = () => {
     }
   }
 
-  // Filter Leaves Logic (by name, month, year, status)
+  // Filter Leaves Logic
   const getFilteredLeaves = () => {
     let filtered = [...leaves];
-
-    // Search Filter
     if (searchQuery && (role === 'hr' || role === 'admin')) {
       filtered = filtered.filter((leave) => {
         const fullName = `${leave.employee?.firstName} ${leave.employee?.lastName}`.toLowerCase();
@@ -251,28 +275,8 @@ const Dashboard = () => {
                email.includes(searchQuery.toLowerCase());
       });
     }
-    // Month Filter
-    if (selectedMonth) {
-      filtered = filtered.filter((leave) => {
-        const leaveDate = new Date(leave.startDate);
-        const leaveMonth = (leaveDate.getMonth() + 1).toString().padStart(2, '0');
-        return leaveMonth === selectedMonth;
-      });
-    }
-    // Year Filter
-    if (selectedYear) {
-      filtered = filtered.filter((leave) => {
-        const leaveDate = new Date(leave.startDate);
-        return leaveDate.getFullYear().toString() === selectedYear;
-      });
-    }
-    // Status Filter
-    if (selectedStatus) {
-      filtered = filtered.filter((leave) => leave.status === selectedStatus);
-    }
     return filtered;
   };
-
   const filteredLeaves = getFilteredLeaves();
 
   // Helper: Get Badge Color for Status
@@ -284,28 +288,18 @@ const Dashboard = () => {
     }
   };
 
-  // Handle Leave Approval
   const handleApproveLeave = async (id) => {
     try {
-        // Optimistic UI update
         setLeaves(prev => prev.map(l => l._id === id ? {...l, status: 'approved'} : l));
-        console.log(`Approved leave ${id}`);
-    } catch (err) {
-        console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
-  // Handle Leave Rejection
   const handleRejectLeave = async (id) => {
     try {
         setLeaves(prev => prev.map(l => l._id === id ? {...l, status: 'rejected'} : l));
-        console.log(`Rejected leave ${id}`);
-    } catch (err) {
-        console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
-  // Handle Navigation when clicking cards
   const handleCardClick = (action) => {
     const routes = {
       'employees': '/employees',
@@ -320,17 +314,13 @@ const Dashboard = () => {
   };
 
   // --- Animation Component Helper ---
-  // Animates numbers from 0 to value
   const AnimatedNumber = ({ value, className = "", duration = 1200 }) => {
     const [display, setDisplay] = React.useState(0);
     React.useEffect(() => {
       let startTimestamp = null;
       const startValue = 0;
       const diff = value - startValue;
-      if (diff === 0) {
-        setDisplay(value);
-        return;
-      }
+      if (diff === 0) { setDisplay(value); return; }
       const step = (timestamp) => {
         if (!startTimestamp) startTimestamp = timestamp;
         const progress = Math.min((timestamp - startTimestamp) / duration, 1);
@@ -347,18 +337,13 @@ const Dashboard = () => {
   // 6. Render
   // ==============================
 
-  // Loading Screen
   if (loading) {
     return (
       <div className="hr-page">
-        <main className="container-xxl hr-main m-0 p-3">
-          <div className="dashboard-shell loading-shell">
-            <div className="dashboard-loader text-center py-5">
-              <div className="spinner-border" role="status" />
-              <p className="mt-3 mb-0">Loading Dashboard...</p>
-            </div>
-          </div>
-        </main>
+        <div className="dashboard-loader text-center py-5">
+          <div className="spinner-border" role="status" />
+          <p className="mt-3 mb-0">Loading Dashboard...</p>
+        </div>
       </div>
     );
   }
@@ -379,17 +364,12 @@ const Dashboard = () => {
               )}
             </div>
 
-            {/* Check In / Check Out Buttons */}
             <div className="button-container d-flex">
               <div className="mt-2 h5 me-3">{checkedIn && lastCheckInTime}</div>
               {!checkedIn ? (
-                <button onClick={handleCheckIn} className="btn btn-primary">
-                  Check In
-                </button>
+                <button onClick={handleCheckIn} className="btn btn-primary">Check In</button>
               ) : (
-                <button onClick={handleCheckOut} className="btn btn-outline-danger">
-                  Check Out
-                </button>
+                <button onClick={handleCheckOut} className="btn btn-outline-danger">Check Out</button>
               )}
             </div>
           </div>
@@ -399,33 +379,38 @@ const Dashboard = () => {
             {/* --- LEFT COLUMN --- */}
             <div className="col-lg-8 d-flex flex-column gap-4">
               
-              {/* Card 1: Daily Overview Statistics */}
+              {/* Card 1: Daily Overview Statistics (UPDATED) */}
               <div className="dashboard-chart-card">
                 <div className="chart-header">
                   <h3 className="chart-title">📈 Daily Overview</h3>
+                  {/* Updated Legend to match new metrics */}
                   <div className="chart-legend">
-                    <div className="legend-item"><span className="legend-dot blue"></span><span>Present</span></div>
-                    <div className="legend-item"><span className="legend-dot pink"></span><span>Absent</span></div>
-                    <div className="legend-item"><span className="legend-dot green"></span><span>Half Day</span></div>
+                    <div className="legend-item"><span className="legend-dot blue"></span><span>Total Employees</span></div>
+                    <div className="legend-item"><span className="legend-dot green"></span><span>Present</span></div>
+                    <div className="legend-item"><span className="legend-dot pink"></span><span>Half Day</span></div>
                   </div>
                 </div>
+                {/* ✅ UPDATED Stats: Total Employee, Total Present, Half Day */}
                 <div className="chart-stats">
                   <div className="stat-item">
-                    <AnimatedNumber value={3442} className="stat-value blue" duration={1200} />
+                    {/* Using 'stats.totalEmployees' */}
+                    <AnimatedNumber value={stats.totalEmployees} className="stat-value blue" duration={1200} />
+                    <div className="stat-label">Total Employees</div>
+                  </div>
+                  <div className="stat-item">
+                     {/* Using 'dailyStats.present' */}
+                    <AnimatedNumber value={dailyStats.present} className="stat-value green" duration={1200} />
                     <div className="stat-label">Total Present</div>
                   </div>
                   <div className="stat-item">
-                    <AnimatedNumber value={1442} className="stat-value pink" duration={1200} />
-                    <div className="stat-label">Total Absent</div>
-                  </div>
-                  <div className="stat-item">
-                    <AnimatedNumber value={856} className="stat-value green" duration={1200} />
+                    {/* Using 'dailyStats.halfDay' */}
+                    <AnimatedNumber value={dailyStats.halfDay} className="stat-value pink" duration={1200} />
                     <div className="stat-label">Half Days</div>
                   </div>
                 </div>
               </div>
 
-              {/* Card 2: Quick Links (Buttons) */}
+              {/* Card 2: Quick Links */}
               <div className="dashboard-chart-card">
                 <div className="chart-header">
                   <h3 className="chart-title">
@@ -435,12 +420,7 @@ const Dashboard = () => {
                 <div className="card-body">
                   <div className="feature-grid">
                     {quickActions.map((item) => (
-                      <button
-                        key={item.label}
-                        type="button"
-                        className="feature-pill"
-                        onClick={() => handleCardClick(item.action)}
-                      >
+                      <button key={item.label} type="button" className="feature-pill" onClick={() => handleCardClick(item.action)}>
                         <span className="feature-dot" />
                         <span>{item.label}</span>
                       </button>
@@ -449,7 +429,7 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              {/* Card 3: General Stats (Clickable) */}
+              {/* Card 3: General Stats */}
               <div className="dashboard-chart-card">
                 <div className="chart-header"><h3 className="chart-title">📋 Overview</h3></div>
                 <div className="card-body">
@@ -486,11 +466,9 @@ const Dashboard = () => {
                 </div>
                 <div className="card-body access-vertical">
                   <div className="access-chart-wrap access-chart-full">
-                    {/* SVG Chart Logic */}
                     <svg viewBox="0 0 140 140" className="access-chart-svg">
                       {(() => {
-                        const baseRadius = 62;
-                        const ringGap = 8;
+                        const baseRadius = 62; const ringGap = 8;
                         const total = EMPLOYMENT_BREAKDOWN.reduce((sum, item) => sum + item.value, 0);
                         return EMPLOYMENT_BREAKDOWN.map((item, index) => {
                           const radius = baseRadius - index * ringGap;
@@ -500,11 +478,7 @@ const Dashboard = () => {
                           return (
                             <g key={item.key}>
                               <circle cx="70" cy="70" r={radius} className="access-segment-bg" />
-                              <circle
-                                cx="70" cy="70" r={radius}
-                                className={`access-segment ${item.colorClass}`}
-                                style={{ '--dash': length, '--gap': circumference - length, '--delay': `${index * 0.18}s` }}
-                              />
+                              <circle cx="70" cy="70" r={radius} className={`access-segment ${item.colorClass}`} style={{ '--dash': length, '--gap': circumference - length, '--delay': `${index * 0.18}s` }} />
                             </g>
                           );
                         });
@@ -515,35 +489,24 @@ const Dashboard = () => {
                       <div className="access-center-label">Total Staff</div>
                     </div>
                   </div>
-                  {/* Legend for Ring Chart */}
                   <div className="access-legend access-legend-bottom">
                     {EMPLOYMENT_BREAKDOWN.map((item) => (
                       <div className="access-legend-row" key={item.key}>
-                        <div className="legend-label-wrap">
-                          <span className={`legend-dot ${item.colorClass}`} />
-                          <span className="legend-label">{item.label}</span>
-                        </div>
-                        <div className="legend-values">
-                          <span className="legend-count">{item.value}</span>
-                          <span className={item.colorClass === 'seg-red' ? 'legend-badge badge-down' : 'legend-badge badge-up'}>
-                            {item.colorClass === 'seg-red' ? '-1.2%' : '+3.4%'}
-                          </span>
-                        </div>
+                        <div className="legend-label-wrap"><span className={`legend-dot ${item.colorClass}`} /><span className="legend-label">{item.label}</span></div>
+                        <div className="legend-values"><span className="legend-count">{item.value}</span></div>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
 
-              {/* Card 5: All Employees / Recent Leaves Table 
-                  MODIFIED: Scrollable area + Redirect Icon */}
+              {/* Card 5: All Employees / Recent Leaves Table */}
               <div className="dashboard-chart-card">
                 <div className="chart-header d-flex justify-content-between align-items-center">
                     <h3 className="chart-title">
                         🧑‍🤝‍🧑 Employees Request
-                        {/* REDIRECT ICON ADDED HERE */}
                         <span 
-                            title="Go to Employees Page"
+                            title="Go to Leaves Page"
                             style={{ cursor: "pointer", marginLeft: "10px", fontSize: "1.52em", color: "#666" }}
                             onClick={() => navigate('/leave')}
                         >
@@ -552,15 +515,11 @@ const Dashboard = () => {
                     </h3>
                 </div>
                 
-                {/* SCROLLABLE CONTAINER ADDED HERE 
-                    maxHeight: 180px ensures roughly 2 rows are fully visible, 
-                    indicating to the user they can scroll for more. */}
                 <div 
                     className="card-body" 
                     style={{ maxHeight: "180px", overflowY: "auto", padding: "0" }}
                 >
                     <table className="table table-hover align-middle leaves-table mb-0">
-                        {/* Sticky Header to keep titles visible while scrolling */}
                         <thead className="table-light" style={{ position: "sticky", top: 0, zIndex: 2 }}>
                             <tr>
                                 <th>S.no</th>
@@ -580,20 +539,8 @@ const Dashboard = () => {
                                     <td>{leave.leaveType}</td>
                                     {(user?.role === 'hr' || user?.role === 'admin') && (
                                     <td>
-                                        <button
-                                        className="btn btn-sm btn-success me-2"
-                                        onClick={() => handleApproveLeave(leave._id)}
-                                        disabled={leave.status !== 'pending'}
-                                        >
-                                        ✓
-                                        </button>
-                                        <button
-                                        className="btn btn-sm btn-danger"
-                                        onClick={() => handleRejectLeave(leave._id)}
-                                        disabled={leave.status !== 'pending'}
-                                        >
-                                        ✕
-                                        </button>
+                                        <button className="btn btn-sm btn-success me-2" onClick={() => handleApproveLeave(leave._id)} disabled={leave.status !== 'pending'}>✓</button>
+                                        <button className="btn btn-sm btn-danger" onClick={() => handleRejectLeave(leave._id)} disabled={leave.status !== 'pending'}>✕</button>
                                     </td>
                                     )}
                                 </tr>
@@ -612,4 +559,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard; 
+export default Dashboard;
