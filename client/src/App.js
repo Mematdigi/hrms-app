@@ -15,6 +15,7 @@ import AllEmployeesAttendance from './pages/AllEmployeeAttendance';
 import './assets/scss/main.scss'
 import Notfound from './pages/Notfound';
 import EmployeeDetails from './pages/EmployeeDetails';
+import 'bootstrap-icons/font/bootstrap-icons.css';
 
 function App() {
   const { token } = useSelector((state) => state.auth);

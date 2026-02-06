@@ -1,257 +1,312 @@
 /* src/components/DashboardNavbar.scss */
 
+$primary-blue: #0d3a98;
+$bg-light-blue: #eef2ff;
+$text-dark: #111827;
+$text-gray: #6b7280;
+$border-color: #e5e7eb;
+$font-family: 'Inter', sans-serif;
+
 .hr-mains {
   background-color: #ffffff;
-  border: 1px solid #f0f1f3;
-  border-radius: 20px;
-  // width: 100%;
-  box-sizing: border-box;
+  padding: 0 20px;
+  border-bottom: 1px solid $border-color; 
+  font-family: $font-family;
+  position: relative; /* Ensure dropdowns position correctly relative to nav */
 }
 
-/* layout for top row */
 .navbar-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  height: 70px;
 }
 
-/* left side: logo + tabs */
-.navbar-left {
+/* --- LEFT SECTION: LOGO & NAV --- */
+.navbar-left-section {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.logo-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: 20px;
+  
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    background-color: $primary-blue;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    overflow: hidden; /* Ensures image stays inside rounded corners */
+  }
+
+  .logo-img-inner {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* or 'contain' depending on your logo file */
+  }
+
+  .logo-text {
+    font-size: 20px;
+    font-weight: 700;
+    color: $text-dark;
+    letter-spacing: 0.5px;
+  }
+}
+
+.nav-divider {
+  width: 1px;
+  height: 32px;
+  background-color: $border-color;
+  margin: 0 15px;
+}
+
+.nav-custom {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 8px;
+}
+
+.nav-link-custom {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: $text-gray;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+
+  i {
+    font-size: 16px;
+  }
+
+  &:hover {
+    color: $primary-blue;
+    background-color: rgba($primary-blue, 0.05);
+  }
+
+  &.active {
+    color: $primary-blue;
+    font-weight: 600;
+  }
+
+  &.dashboard-tab.active {
+    background-color: $bg-light-blue;
+    color: $primary-blue;
+  }
+}
+
+/* --- RIGHT SECTION: ICONS & PROFILE --- */
+.navbar-right-section {
   display: flex;
   align-items: center;
   gap: 15px;
 }
 
-/* right side: search + icons + profile (desktop) */
-.navbar-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.icon-btn-wrapper {
+  position: relative;
 }
 
-/* profile chunk */
-.navbar-profile {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.navbar-profile-text {
-  display: flex;
-  flex-direction: column;
-}
-
-/* hr tabs */
-.hr-tabs .nav-link {
-  border-radius: 999px;
-  padding: 7px 16px;
-  font-size: 14px;
-  color: #6b7280;
-  background: transparent;
-  cursor: pointer;
-}
-
-.hr-tabs .nav-link.active {
-  background: #111827;
-  color: #f9fafb;
-}
-
-/* search */
-.search-boxes {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #f3f4f6;
-  border-radius: 999px;
-  padding: 4px 12px;
-}
-
-.search-input {
-  border: 0;
-  background: transparent;
-  font-size: 14px;
-  padding: 4px 0;
-  box-shadow: none;
-}
-
-.search-input:focus {
-  outline: none;
-  box-shadow: none;
-}
-
-/* icon buttons (bell, gear) */
 .icon-btn {
-  border: 0;
-  background: #f3f4f6;
-  width: 36px;
-  height: 36px;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 17px;
-  color: #4b5563;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: $text-dark;
   cursor: pointer;
+  position: relative;
+  padding: 5px;
+  
+  .badge-notification {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: #ef4444;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
+  }
 }
 
-/* avatar */
-.avatar-circle {
-  width: 38px;
-  height: 38px;
-  border-radius: 999px;
-  background: #f97316;
+/* --- PROFILE DROPDOWN LOGIC --- */
+.profile-wrapper {
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: #fff7ed;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-/* ---------- MOBILE NAV ---------- */
-
-.menu-icon {
-  border: 0;
-  background: transparent;
+  gap: 10px;
+  cursor: pointer;
   padding: 4px;
-  display: inline-flex;
+  border-radius: 8px;
+  position: relative; /* Anchor for the absolute dropdown */
+  
+  &:hover {
+    background-color: #f9fafb;
+  }
+}
+
+.profile-avatar {
+  width: 40px;
+  height: 40px;
+  background-color: $bg-light-blue;
+  color: $primary-blue;
+  font-weight: 600;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.profile-info {
+  display: flex;
   flex-direction: column;
-  gap: 4px;
-  cursor: pointer;
+  line-height: 1.2;
+
+  .profile-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: $text-dark;
+  }
+
+  .profile-role {
+    font-size: 12px;
+    color: $text-gray;
+  }
 }
 
-.menu-icon .bar {
-  width: 22px;
-  height: 2px;
-  border-radius: 999px;
-  background: #111827;
-  transition: transform 0.15s ease, opacity 0.15s ease, width 0.15s ease;
-}
-
-/* simple burger transform when open */
-.menu-icon.open .bar:nth-child(1) {
-  transform: translateY(4px) rotate(45deg);
-}
-
-.menu-icon.open .bar:nth-child(2) {
+/* The Dropdown Box */
+.profile-dropdown {
+  position: absolute;
+  top: 120%; /* Pushes it slightly below the profile bar */
+  right: 0;
+  width: 200px;
+  background: white;
+  border: 1px solid $border-color;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  padding: 8px;
+  z-index: 1000;
+  
+  /* Animation setup */
+  visibility: hidden;
   opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.2s ease;
+
+  &.show {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .dropdown-header {
+    padding: 8px 12px;
+    color: $text-gray;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .dropdown-divider {
+    height: 1px;
+    background-color: $border-color;
+    margin: 6px 0;
+  }
+
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: $text-dark;
+    text-decoration: none;
+    border-radius: 6px;
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      background-color: $bg-light-blue;
+      color: $primary-blue;
+    }
+    
+    &.text-danger:hover {
+        background-color: #fef2f2;
+        color: #ef4444;
+    }
+  }
 }
 
-.menu-icon.open .bar:nth-child(3) {
-  transform: translateY(-4px) rotate(-45deg);
+/* --- MOBILE NAV --- */
+.menu-icon {
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  
+  .bar {
+    width: 24px;
+    height: 2px;
+    background-color: $text-dark;
+    transition: 0.3s;
+  }
+
+  &.open {
+    .bar:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+    .bar:nth-child(2) { opacity: 0; }
+    .bar:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+  }
 }
 
-/* mobile dropdown container */
 .nav-menu-mobile {
-  margin-top: 10px;
-  border-radius: 14px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  padding: 10px 12px;
+  background: white;
+  border-top: 1px solid $border-color;
+  padding: 15px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  border-radius: 0 0 12px 12px;
+  
   max-height: 0;
   opacity: 0;
   overflow: hidden;
-  transform: translateY(-6px);
-  transition:
-    max-height 0.22s ease,
-    opacity 0.18s ease,
-    transform 0.18s ease;
+  transition: all 0.3s ease-in-out;
+
+  &.active {
+    max-height: 500px;
+    opacity: 1;
+    margin-top: 10px;
+  }
 }
 
-.nav-item:hover{
-  background-color: #f0eeee;
-  border-radius: 25px;
-}
-
-.nav-menu-mobile.active {
-  max-height: 420px; /* enough for links + footer */
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* mobile nav links */
 .nav-link-mobile {
-  font-size: 14px;
-  color: #4b5563;
-  background: transparent;
-}
-
-.nav-link-mobile.active {
-  background: #111827;
-  color: #f9fafb !important;
-}
-
-/* mobile footer: profile + logout */
-.navbar-mobile-footer {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed #e5e7eb;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.navbar-mobile-profile {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* ---------- RESPONSIVE ---------- */
-
-@media (min-width: 992px) {
-  .hr-tabs {
-    display: none;
+  padding: 10px;
+  text-decoration: none;
+  color: $text-dark;
+  border-radius: 8px;
+  
+  &.active {
+    background-color: $bg-light-blue;
+    color: $primary-blue;
   }
-
-  .search-box {
-    max-width: 100%;
-  }
-
-  .navbar-row {
-    align-items: center;
-  }
-
-  .hr-mains {
-    padding: 12px 12px;
-    border-radius: 16px;
-  }
-}
-
-@media (min-width: 576px) {
-  .navbar-row {
-    gap: 8px;
-  }
-
-  .navbar-left {
-    gap: 15px;
-  }
-
-  .hr-mains {
-    margin: 8px;
-  }
-}
-
-/* Logo circle container */
-.logo-circle {
-  width: 58px;
-  height: 42px;
-  border-radius: 50%;
-  // background: #10b981;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ecfdf5;
-  font-size: 18px;
-  font-weight: 700;
-}
-
-/* Image inside the logo circle */
-.logo-img {
-  width: 65px;   /* Adjust width as needed */
-  height: 50px;  /* Maintain aspect ratio */
-  object-fit: contain; /* Ensure the image fits nicely without stretching */
 }
