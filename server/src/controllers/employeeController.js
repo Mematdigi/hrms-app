@@ -9,7 +9,7 @@ class EmployeeController {
 
   getAllEmployees = async (req, res) => {
     try {
-      const employees = await User.find({ role: 'employee' }).select('-password');
+      const employees = await Employee.find().select('-password');
       res.json(employees);
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -80,16 +80,35 @@ class EmployeeController {
 
       // 5. Create Leave
       const defaultLeave = await Defaults.findOne({});
-      const joinMonth = new Date(dateOfJoining).getMonth();
-      const casualLeave = Math.ceil((defaultLeave ? defaultLeave.casualDefault : 8) * (12 - joinMonth) / 12);
-      const sickLeave = Math.ceil((defaultLeave ? defaultLeave.sickDefault : 6) * (12 - joinMonth) / 12);
+      const defaultCasual = defaultLeave ? defaultLeave.casualDefault : 12;
+      const defaultSick = defaultLeave ? defaultLeave.sickDefault : 10;
+
+      // Validate dateOfJoining and calculate prorated leaves
+      let casualLeave = defaultCasual;
+      let sickLeave = defaultSick;
+
+      if (dateOfJoining) {
+        const joinDate = new Date(dateOfJoining);
+        if (!isNaN(joinDate.getTime())) {
+          const joinMonth = joinDate.getMonth(); // 0-11
+          const remainingMonths = 12 - joinMonth;
+          casualLeave = Math.ceil(defaultCasual * remainingMonths / 12);
+          sickLeave = Math.ceil(defaultSick * remainingMonths / 12);
+        }
+      }
+
+      // Ensure we have valid numbers
+      casualLeave = isNaN(casualLeave) ? defaultCasual : Math.max(0, casualLeave);
+      sickLeave = isNaN(sickLeave) ? defaultSick : Math.max(0, sickLeave);
 
       leave = new Leave({
         employee: user._id,
         leaveType: 'Initial Allocation',
         numberOfDays: 0,
         status: 'approved',
-        casualLeave, sickLeave, earnedLeave: 0
+        casualLeave,
+        sickLeave,
+        earnedLeave: 0
       });
       await leave.save();
 

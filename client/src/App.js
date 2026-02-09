@@ -22,7 +22,7 @@ function App() {
 
   return (
     <Router>
-      {token && <Navbar />}z
+      {token && <Navbar />}
       <Routes>
         <Route path="/login" element={!token ? <Login /> : <Navigate to="/dashboard" />} />
         <Route path="/register" element={!token ? <Register /> : <Navigate to="/dashboard" />} />
