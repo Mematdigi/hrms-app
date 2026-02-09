@@ -40,7 +40,7 @@ router.post('/',
   employeeController.createEmployee
 );
 
-router.put('/:id', authMiddleware, roleMiddleware(['admin', 'hr']), employeeController.updateEmployee);
+router.put('/:id', authMiddleware, roleMiddleware(['admin', 'hr']), uploadFields, employeeController.updateEmployee);
 router.delete('/:id', authMiddleware, roleMiddleware(['admin']), employeeController.deleteEmployee);
 router.get('/all/payrolls', authMiddleware, roleMiddleware(['admin','hr']), employeeController.getEmployeePayrolls);
 

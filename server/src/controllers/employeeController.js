@@ -1,7 +1,8 @@
 const User = require('../models/User');
-const Employee = require('../models/Employee'); 
+const Employee = require('../models/Employee');
 const Leave = require('../models/Leave');
 const Defaults = require('../models/LeaveDefaults');
+const Documents = require('../models/Documents');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 
@@ -47,7 +48,7 @@ class EmployeeController {
 
       // 2. Helper for File Paths
       const getFilePath = (fieldName) => {
-        return req.files && req.files[fieldName] ? req.files[fieldName][0].path : null;
+        return req.files && req.files[fieldName] ? req.files[fieldName][0].path.replace('uploads\\', '').replace('uploads/', '') : null;
       };
 
       // 3. Create USER (Auth)
@@ -61,7 +62,7 @@ class EmployeeController {
       // 4. Create EMPLOYEE (Details & Docs)
       // We use the same _id as User to link them easily
       employee = new Employee({
-        _id: user._id, 
+        _id: user._id,
         employeeId, firstName, lastName, email, password,
         contact, address, department, designation, dateOfJoining, baseSalary,
         status: status || 'Full Time',
@@ -77,6 +78,23 @@ class EmployeeController {
         }
       });
       await employee.save();
+
+      // 5. Save Documents to Documents table
+      const documentTypes = ['profilePhoto', 'adharCard', 'panCard', 'salarySlip', 'relievingLetter', 'experienceLetter', 'offerLetter'];
+      for (const docType of documentTypes) {
+        if (req.files && req.files[docType]) {
+          const file = req.files[docType][0];
+          const document = new Documents({
+            employee: employee._id,
+            documentType: docType,
+            filePath: getFilePath(docType),
+            originalName: file.originalname,
+            mimeType: file.mimetype,
+            size: file.size
+          });
+          await document.save();
+        }
+      }
 
       // 5. Create Leave
       const defaultLeave = await Defaults.findOne({});
@@ -120,7 +138,9 @@ class EmployeeController {
       if(user) await User.deleteOne({ _id: user._id });
       if(employee) await Employee.deleteOne({ _id: employee._id });
       if(leave) await Leave.deleteOne({ _id: leave._id });
-      
+      // Also delete any documents that were created
+      if(employee) await Documents.deleteMany({ employee: employee._id });
+
       res.status(500).json({ message: error.message });
     }
   });
@@ -128,12 +148,115 @@ class EmployeeController {
   // ... (Keep updateEmployee, deleteEmployee, getEmployeePayrolls as they were) ...
   updateEmployee = async (req, res) => {
     try {
-        const employee = await Employee.findByIdAndUpdate(req.params.id, req.body, { new: true });
-        if(employee) await User.findOneAndUpdate({ email: employee.email }, req.body);
-        if (!employee) return res.status(404).json({ message: 'Employee not found' });
-        res.json({ message: 'Updated', employee });
-    } catch (err) { res.status(500).json({ message: err.message }); }
-  };
+        // Get existing employee data
+        const existingEmployee = await Employee.findById(req.params.id);
+        if (!existingEmployee) {
+            return res.status(404).json({ message: 'Employee not found' });
+        }
+
+        // Check for duplicate email in Employee
+        if (req.body.email && req.body.email !== existingEmployee.email) {
+            const existingEmail = await Employee.findOne({ email: req.body.email });
+            if (existingEmail) {
+                return res.status(400).json({ message: 'Email already exists' });
+            }
+        }
+
+        // Check for duplicate employeeId in Employee
+        if (req.body.employeeId && req.body.employeeId !== existingEmployee.employeeId) {
+            const existingEmpId = await Employee.findOne({ employeeId: req.body.employeeId });
+            if (existingEmpId) {
+                return res.status(400).json({ message: 'Employee ID already exists' });
+            }
+        }
+
+        // Check for duplicate email in User
+        if (req.body.email && req.body.email !== existingEmployee.email) {
+            const existingUserEmail = await User.findOne({ email: req.body.email });
+            if (existingUserEmail) {
+                return res.status(400).json({ message: 'Email already exists in system' });
+            }
+        }
+
+        // Helper for File Paths
+        const getFilePath = (fieldName) => {
+            return req.files && req.files[fieldName] ? req.files[fieldName][0].path.replace('uploads\\', '').replace('uploads/', '') : null;
+        };
+
+        // Prepare update data
+        const updateData = {
+            employeeId: req.body.employeeId || existingEmployee.employeeId,
+            firstName: req.body.firstName || existingEmployee.firstName,
+            lastName: req.body.lastName || existingEmployee.lastName,
+            email: req.body.email || existingEmployee.email,
+            contact: req.body.contact || existingEmployee.contact,
+            address: req.body.address || existingEmployee.address,
+            department: req.body.department || existingEmployee.department,
+            designation: req.body.designation || existingEmployee.designation,
+            dateOfJoining: req.body.dateOfJoining || existingEmployee.dateOfJoining,
+            baseSalary: req.body.baseSalary ? parseFloat(req.body.baseSalary) : existingEmployee.baseSalary,
+            status: req.body.status || existingEmployee.status,
+            isActive: req.body.isActive !== undefined ? (req.body.isActive === 'true' || req.body.isActive === true) : existingEmployee.isActive,
+            // Update file paths only if new files are uploaded
+            profilePhoto: getFilePath('profilePhoto') || existingEmployee.profilePhoto,
+            documents: {
+                adharCard: getFilePath('adharCard') || existingEmployee.documents?.adharCard,
+                panCard: getFilePath('panCard') || existingEmployee.documents?.panCard,
+                salarySlip: getFilePath('salarySlip') || existingEmployee.documents?.salarySlip,
+                relievingLetter: getFilePath('relievingLetter') || existingEmployee.documents?.relievingLetter,
+                experienceLetter: getFilePath('experienceLetter') || existingEmployee.documents?.experienceLetter,
+                offerLetter: getFilePath('offerLetter') || existingEmployee.documents?.offerLetter
+            }
+        };
+
+        // Update employee
+        const employee = await Employee.findByIdAndUpdate(req.params.id, updateData, { new: true });
+
+        // Save new documents to Documents table if uploaded
+        const documentTypes = ['profilePhoto', 'adharCard', 'panCard', 'salarySlip', 'relievingLetter', 'experienceLetter', 'offerLetter'];
+        for (const docType of documentTypes) {
+            if (req.files && req.files[docType]) {
+                const file = req.files[docType][0];
+                const document = new Documents({
+                    employee: req.params.id,
+                    documentType: docType,
+                    filePath: getFilePath(docType),
+                    originalName: file.originalname,
+                    mimeType: file.mimetype,
+                    size: file.size
+                });
+                await document.save();
+            }
+        }
+
+        // Also update User table if email changed
+        if (req.body.email && req.body.email !== existingEmployee.email) {
+            await User.findByIdAndUpdate(req.params.id, {
+                email: req.body.email,
+                firstName: req.body.firstName || existingEmployee.firstName,
+                lastName: req.body.lastName || existingEmployee.lastName,
+                department: req.body.department || existingEmployee.department,
+                designation: req.body.designation || existingEmployee.designation,
+                dateOfJoining: req.body.dateOfJoining || existingEmployee.dateOfJoining,
+                baseSalary: req.body.baseSalary ? parseFloat(req.body.baseSalary) : existingEmployee.baseSalary
+            });
+        }
+
+        // Update User password if provided
+        if (req.body.password) {
+            const user = await User.findById(req.params.id);
+            if (user) {
+                user.password = req.body.password;
+                await user.save();
+            }
+        }
+
+        res.json({ message: 'Updated successfully', employee });
+    } catch (err) {
+        console.error('Update error:', err);
+        res.status(500).json({ message: err.message });
+    }
+  }
 
   deleteEmployee = async (req, res) => {
     try {
@@ -141,6 +264,8 @@ class EmployeeController {
         if (!emp) return res.status(404).json({ message: 'Not found' });
         await User.findOneAndDelete({ email: emp.email });
         await Employee.findByIdAndDelete(req.params.id);
+        // Also delete all documents for this employee
+        await Documents.deleteMany({ employee: req.params.id });
         res.json({ message: 'Deleted' });
     } catch (err) { res.status(500).json({ message: err.message }); }
   };
