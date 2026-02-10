@@ -30,3 +30,7 @@ logs/
 
 # Misc
 .cache/
+
+
+uploads/
+!uploads/.gitkeep

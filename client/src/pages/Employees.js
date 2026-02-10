@@ -93,7 +93,7 @@ function Employees() {
 
     // Handle Photo Preview
     if (employee.profilePhoto) {
-        setPhotoPreview(`http://localhost:5000/${employee.profilePhoto}`); 
+        setPhotoPreview(`http://localhost:5000/uploads/${employee.profilePhoto}`);
     } else {
         setPhotoPreview(null);
     }
@@ -131,16 +131,27 @@ function Employees() {
 
     try {
       const data = new FormData();
+
+      // Add all form data
       Object.keys(formData).forEach((key) => {
-        // Files
+        // Handle files
         if (['adharCard', 'panCard', 'salarySlip', 'relievingLetter', 'experienceLetter', 'offerLetter', 'profilePhoto'].includes(key)) {
-            if (formData[key]) data.append(key, formData[key]);
+            if (formData[key]) {
+                data.append(key, formData[key]);
+            }
         } else {
-            // Text (Skip password if empty in Edit mode)
-            if (key === 'password' && viewMode === 'edit' && !formData[key]) return;
-            data.append(key, formData[key]);
+            // Handle text fields (skip password if empty in edit mode)
+            if (key === 'password' && viewMode === 'edit' && !formData[key]) {
+                return; // Don't append empty password in edit mode
+            }
+            if (formData[key] !== null && formData[key] !== undefined) {
+                data.append(key, formData[key]);
+            }
         }
       });
+
+      // Add isActive as string since FormData converts everything to string
+      data.append('isActive', formData.isActive.toString());
 
       if (viewMode === 'add') {
           await employeeAPI.create(data);
@@ -149,12 +160,12 @@ function Employees() {
           await employeeAPI.update(editingId, data);
           setSuccessMessage('✅ Employee updated successfully!');
       }
-      
+
       resetForm();
       fetchEmployees();
-    } catch (error) { 
-        console.error(error);
-        setErrorMessage(error?.response?.data?.message || 'Error saving details.'); 
+    } catch (error) {
+        console.error('Submit error:', error);
+        setErrorMessage(error?.response?.data?.message || 'Error saving details.');
     }
   };
 
@@ -222,11 +233,30 @@ function Employees() {
           <h1>{viewMode === 'add' ? 'Add New Employee' : viewMode === 'edit' ? 'Edit Details' : 'Employees'}</h1>
           <p>{viewMode === 'grid' || viewMode === 'list' ? 'Manage your team members.' : 'Manage employee information and documents.'}</p>
         </div>
-        {(user?.role === 'admin' || user?.role === 'hr') && (viewMode === 'grid' || viewMode === 'list') && (
-          <button className="btn-primary-add" onClick={() => { resetForm(); setViewMode('add'); }}>
-            + Add Employee
-          </button>
-        )}
+                        {/* Show Add button only in Grid/List mode */}
+                {(user?.role === 'admin' || user?.role === 'hr') && (
+                    viewMode === 'grid' || viewMode === 'list' ? (
+                        <button
+                            className="btn-primary-add"
+                            onClick={() => {
+                                resetForm();
+                                setViewMode('add');
+                            }}
+                        >
+                            + Add Employee
+                        </button>
+                    ) : (
+                        <div className="form-footer-actions">
+                            <button
+                                type="button"
+                                className="btn-primary-add"
+                                onClick={resetForm}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    )
+                )}
       </div>
 
       {/* --- ADD / EDIT FORM VIEW (FULL PAGE) --- */}
@@ -319,7 +349,6 @@ function Employees() {
                 </div>
 
                 <div className="form-footer-actions">
-                    <button type="button" className="btn-secondary" onClick={resetForm}>Cancel</button>
                     <button type="submit" className="btn-primary-add">{viewMode === 'add' ? 'Save Employee' : 'Update Changes'}</button>
                 </div>
             </div>
@@ -354,7 +383,7 @@ function Employees() {
                                 <div className="contact-row"><i className="bi bi-telephone"></i> <span>{emp.contact || '-'}</span></div>
                             </div>
                             <div className="card-footer-part">
-                                <span className={`status-badge ${emp.isActive ? 'confirmed' : 'inactive'}`}>{emp.isActive ? 'Active' : 'Inactive'}</span>
+                                <span className={`status-badge ${emp.isActive ? 'confirmed' : 'inactive'}`}>{emp.status}</span>
                                 <button className="view-profile-link" onClick={() => navigate(`/EmployeeDetails/${emp._id}`)}>View Profile <i className="bi bi-arrow-up-right"></i></button>
                             </div>
                         </div>
@@ -374,7 +403,7 @@ function Employees() {
                                         </div>
                                     </td>
                                     <td className="text-secondary">{emp.department || '-'}</td>
-                                    <td><span className={`status-pill ${emp.isActive ? 'active' : 'inactive'}`}>{emp.isActive ? 'Active' : 'Inactive'}</span></td>
+                                    <td><span className={`status-pill ${emp.isActive ? 'active' : 'inactive'}`}>{emp.status}</span></td>
                                     <td className="text-secondary">{emp.dateOfJoining ? new Date(emp.dateOfJoining).toLocaleDateString('en-GB') : '-'}</td>
                                     <td className="text-end action-cell-flex">
                                         <button className="btn-link-action me-3" onClick={() => navigate(`/EmployeeDetails/${emp._id}`)}>View <i className="bi bi-arrow-up-right ms-1"></i></button>

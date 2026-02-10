@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ['admin', 'hr', 'manager', 'employee'], default: 'employee' },
   department: { type: String },
   designation: { type: String },
-  employeeId: { type: Number, unique: true },
+  employeeId: { type: String, unique: true },
   dateOfJoining: { type: Date },
   dateOfBirth: { type: Date },
   gender: { type: String, enum: ['male', 'female', 'other'] },

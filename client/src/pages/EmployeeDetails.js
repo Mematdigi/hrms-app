@@ -42,7 +42,7 @@ const EmployeeDetails = () => {
         {/* Header with Title and Back Button */}
         <div className="details-header">
           <h1>Employee Profile</h1>
-          <button className="add-btn" onClick={() => navigate(-1)}>
+          <button className="btn-primary-add" onClick={() => navigate(-1)}>
             ⬅ Back to List
           </button>
         </div>
