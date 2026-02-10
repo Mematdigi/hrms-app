@@ -1,298 +1,309 @@
-// --- Variables ---
-$primary: #4f46e5; // Modern Indigo
-$primary-hover: #4338ca;
-$secondary: #64748b;
-$success: #10b981;
-$danger: #ef4444;
-$warning: #f59e0b;
-$bg-body: #f3f4f6;
-$bg-card: #ffffff;
-$text-main: #1f2937;
-$text-light: #6b7280;
-$radius: 12px;
-$shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+/* Attendance.scss */
 
-// --- Layout & Global ---
-.attendance-dashboard {
-  // max-width: 1200px;
-  margin: 0 auto;
+$primary: #4f46e5;
+$bg-light: #f8f9fd;
+$text-dark: #1f2937;
+$text-grey: #6b7280;
+$border: #e5e7eb;
+
+.attendance-page {
   padding: 24px;
-  background-color: $bg-body;
-  color: $text-main;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: $bg-light;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-
-  h1, h2, h3 { margin: 0; }
+  font-family: 'Inter', sans-serif;
 }
 
-// --- 1. Header ---
-.dash-header {
+// Header
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  
-  .header-title {
-    h1 { font-size: 28px; font-weight: 700; color: #111; }
-    p { color: $text-light; font-size: 14px; margin-top: 4px; }
+  margin-bottom: 24px;
+
+  h1 { font-size: 22px; font-weight: 700; color: $text-dark; margin: 0; }
+  p { margin: 4px 0 0; color: $text-grey; font-size: 13px; }
+
+  .header-controls {
+    display: flex; gap: 12px; align-items: center;
+    
+    .badge-role { background: #e0e7ff; color: $primary; font-size: 11px; padding: 4px 8px; border-radius: 6px; font-weight: 600; }
+    
+    
   }
+}
+.date-nav {
+      background: white; border: 1px solid $border; border-radius: 8px; display: flex; align-items: center;
+      button { background: none; border: none; padding: 8px 12px; cursor: pointer; color: $text-grey; &:hover { background: #f3f4f6; } }
+      span { font-size: 13px; font-weight: 600; padding: 0 12px; min-width: 120px; text-align: center; }
+    }
+// --- Punch Widget (Employee) ---
+.punch-widget-bar {
+  background: white; border-radius: 12px; padding: 20px; margin-bottom: 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 
-  // Small, compact buttons as requested
-  .btn-action {
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    border: none;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-
-    &:active { transform: scale(0.98); }
-    &:disabled { opacity: 0.7; cursor: not-allowed; }
-
-    &.check-in {
-      background: $primary;
-      color: white;
-      &:hover:not(:disabled) { background: $primary-hover; }
+  .punch-btn-area {
+    width: 200px;
+    
+    .btn-main-punch {
+      width: 100%; padding: 14px; border-radius: 8px; border: none;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: white; font-weight: 600; font-size: 15px; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+      transition: transform 0.2s;
+      &:hover { transform: translateY(-2px); }
     }
 
-    &.check-out {
-      background: white;
-      border: 1px solid $danger;
-      color: $danger;
-      &:hover:not(:disabled) { background: $danger; color: white; }
+    &.checked-in .btn-main-punch {
+      background: #93c5fd; // Lighter blue for active state
+      color: #1e3a8a;
+      content: "Checked Out"; // Text logic handled in JS, but style changes here
+    }
+  }
+
+  .punch-info {
+    display: flex; gap: 40px; text-align: center;
+    
+    .info-item {
+      display: flex; flex-direction: column; gap: 4px;
+      small { font-size: 11px; color: $text-grey; text-transform: uppercase; }
+      strong { font-size: 18px; color: $text-dark; }
+      
+      &.highlight strong { color: $primary; }
     }
   }
 }
 
-// --- 2. Stats Grid ---
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
+// --- Stats Row ---
+.stats-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px;
 
-  .stat-card {
-    background: $bg-card;
-    padding: 16px;
-    border-radius: $radius;
-    box-shadow: $shadow;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    border-left: 4px solid transparent;
-
-    .icon-box {
-      width: 40px; height: 40px;
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: bold; font-size: 18px;
-    }
-
-    .info {
-      h3 { font-size: 24px; font-weight: 700; }
-      span { font-size: 13px; color: $text-light; text-transform: uppercase; letter-spacing: 0.5px; }
-    }
-
-    // Color variants
-    &.present { border-color: $success; .icon-box { background: rgba($success, 0.1); color: $success; } }
-    &.absent { border-color: $danger; .icon-box { background: rgba($danger, 0.1); color: $danger; } }
-    &.half { border-color: $warning; .icon-box { background: rgba($warning, 0.1); color: $warning; } }
-    &.hours { border-color: $primary; .icon-box { background: rgba($primary, 0.1); color: $primary; } }
+  .stat-box {
+    background: white; padding: 16px; border-radius: 12px; border: 1px solid $border;
+    position: relative; overflow: hidden;
+    
+    small { color: $text-grey; font-size: 12px; display: block; margin-bottom: 8px; }
+    h3 { margin: 0; font-size: 24px; font-weight: 700; color: $text-dark; }
+    
+    i { position: absolute; top: 16px; right: 16px; font-size: 18px; color: #e5e7eb; }
+    
+    // Icon colors
+    .text-success { color: #10b981 !important; }
+    .text-danger { color: #ef4444 !important; }
+    .text-warning { color: #f59e0b !important; }
+    .text-info { color: #0ea5e9 !important; }
+    .text-primary { color: #6366f1 !important; }
   }
 }
 
-// --- 3. Split Content ---
+// --- Main Split Content ---
 .content-split {
-  display: grid;
-  grid-template-columns: 2fr 2fr;
-  gap: 24px;
-  
+  display: grid; grid-template-columns: 2fr 1fr; gap: 24px;
+
   @media (max-width: 900px) { grid-template-columns: 1fr; }
 }
 
-.card {
-  background: $bg-card;
-  border-radius: $radius;
-  box-shadow: $shadow;
-  padding: 20px;
+// Table
+.table-section {
+  background: white; border-radius: 12px; border: 1px solid $border; padding: 0; overflow: hidden;
   
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    h3 { font-size: 18px; font-weight: 600; }
+  &.full-width { width: 100%; }
+
+  .modern-table {
+    width: 100%; border-collapse: collapse;
+    th { text-align: left; padding: 16px; font-size: 12px; font-weight: 600; color: $text-grey; background: #f9fafb; border-bottom: 1px solid $border; }
+    td { padding: 16px; font-size: 14px; border-bottom: 1px solid #f3f4f6; color: $text-dark; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+
+    .status-pill {
+      padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+      &.present { background: #dcfce7; color: #166534; }
+      &.absent { background: #fee2e2; color: #991b1b; }
+      &.late { background: #ffedd5; color: #9a3412; }
+      &.half-day { background: #f3e8ff; color: #6b21a8; }
+      &.short-leave { background: #e0f2fe; color: #075985; }
+    }
+
+    .emp-cell { display: flex; align-items: center; gap: 10px; .avatar { width: 32px; height: 32px; background: #e0e7ff; color: $primary; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; } }
   }
 }
 
-// Calendar Specifics
-.calendar-card {
-  .cal-nav {
-    display: flex; align-items: center; gap: 10px;
-    button { 
-      background: none; border: 1px solid #ddd; border-radius: 4px; 
-      cursor: pointer; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
-      &:hover { background: #eee; }
-    }
-    span { font-weight: 600; font-size: 14px; min-width: 100px; text-align: center; }
+// Calendar Side Widget
+.calendar-section {
+  background: white; border-radius: 12px; border: 1px solid $border; padding: 20px;
+  
+  h5 { margin: 0 0 20px; font-size: 15px; font-weight: 700; }
+
+  .cal-header-row {
+    display: grid; grid-template-columns: repeat(7, 1fr); text-align: center;
+    font-size: 12px; color: $text-grey; margin-bottom: 8px;
   }
 
-  .cal-grid-header {
-    display: grid; grid-template-columns: repeat(7, 1fr);
-    text-align: center; font-size: 12px; color: $text-light; font-weight: 600; margin-bottom: 8px;
-  }
-
-  .cal-grid-body {
-    display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
-     margin-right:-10px;
+  .cal-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; row-gap: 12px;
     
     .cal-day {
-      aspect-ratio: 1;
-      border-radius: 8px;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 500;
-      height: 55px;
-      background: #f8fafc; cursor: default;
-      position: relative;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      font-size: 13px; color: $text-dark; min-height: 30px;
       
-      &.empty { background: transparent; }
-      &.today { border: 2px solid $primary; }
-      
-      // Status Colors
-      &.status-present { background: rgba($success, 0.1); color: darken($success, 20%); }
-      &.status-absent { background: rgba($danger, 0.1); color: darken($danger, 20%); }
-      &.status-half-day { background: rgba($warning, 0.1); color: darken($warning, 20%); }
-      
-      .day-dot {
-        width: 4px; height: 4px; border-radius: 50%; background: currentColor; margin-top: 2px;
+      &.empty { pointer-events: none; }
+
+      .status-dot {
+        width: 5px; height: 5px; border-radius: 50%;
+        &.dot-present { background: #10b981; }
+        &.dot-absent { background: #ef4444; }
+        &.dot-late { background: #f59e0b; }
+        &.dot-short { background: #0ea5e9; }
+        &.dot-half { background: #8b5cf6; }
       }
     }
   }
 
   .cal-legend {
-    margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;
-    .badge { font-size: 11px; padding: 4px 8px; border-radius: 12px; background: #eee; }
-    .present { background: rgba($success, 0.1); color: darken($success, 10%); }
-    .absent { background: rgba($danger, 0.1); color: darken($danger, 10%); }
+    margin-top: 24px; border-top: 1px solid #f3f4f6; padding-top: 16px;
+    display: flex; flex-wrap: wrap; gap: 12px;
+    span { font-size: 11px; color: $text-grey; display: flex; align-items: center; gap: 6px; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+    .dot-present { background: #10b981; }
+    .dot-absent { background: #ef4444; }
+    // ... repeat for others
   }
 }
+.download-btn {
+            background: #eef2ff; // Light Indigo
+            color: #4f46e5;
+            border: 1px solid #e0e7ff;
+            &:hover { background: #e0e7ff; }
+        }
 
-// Location Card Styling
-.location-card {
-  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
-  color: white;
-  
-  .map-placeholder {
-    height: 258px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 8px;
-    margin-bottom: 16px;
-    position: relative;
-    display: flex; justify-content: center; align-items: center;
-    overflow: hidden;
-
-    .radar-circle {
-      width: 80px; height: 80px; border: 2px solid rgba(255,255,255,0.3);
-      border-radius: 50%; animation: pulse 2s infinite;
-    }
-    .pin { position: absolute; font-size: 24px; }
-  }
-
-  .loc-details {
-    h4 { margin: 0 0 5px; font-size: 16px; }
-    p { font-size: 13px; opacity: 0.9; margin-bottom: 12px; line-height: 1.4; }
-    .loc-meta {
-      display: flex; gap: 10px; font-size: 12px; background: rgba(0,0,0,0.1);
-      padding: 8px; border-radius: 6px;
-    }
-  }
-}
-
-@keyframes pulse {
-  0% { transform: scale(0.5); opacity: 1; }
-  100% { transform: scale(1.5); opacity: 0; }
-}
-
-// --- 4. Table ---
-.table-responsive {
-  overflow-x: auto;
-  
-  table {
-    width: 100%; border-collapse: collapse; min-width: 600px;
-    th { text-align: left; padding: 12px; font-size: 12px; text-transform: uppercase; color: $text-light; border-bottom: 1px solid #eee; }
-    td { padding: 14px 12px; font-size: 14px; border-bottom: 1px solid #f3f4f6; color: $text-main; }
-    tr:last-child td { border-bottom: none; }
+.filter-card-clean {
+    background: transparent;
+    padding: 0;
+    margin-bottom: 20px;
     
-    .status-pill {
-      padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
-      text-transform: capitalize;
-      &.present, &.Present { background: rgba($success, 0.1); color: darken($success, 10%); }
-      &.absent, &.Absent { background: rgba($danger, 0.1); color: darken($danger, 10%); }
-      &.half-day { background: rgba($warning, 0.1); color: darken($warning, 15%); }
-      &.checked-out { background: #e0e7ff; color: $primary; }
+    .filter-header {
+        font-size: 14px; font-weight: 600; color: #4b5563; margin-bottom: 10px;
+        display: flex; align-items: center; gap: 8px;
     }
-    .text-warning { color: $warning; font-size: 12px; }
-  }
+
+    .filter-input-group {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        background: white;
+        padding: 10px 16px;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        
+        .search-box {
+            flex: 1;
+            display: flex; align-items: center; gap: 10px;
+            i { color: #9ca3af; }
+            input { border: none; outline: none; width: 100%; font-size: 14px; }
+        }
+
+        .filter-select {
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 13px;
+            color: #374151;
+            background: #f9fafb;
+            cursor: pointer;
+            min-width: 140px;
+            &:focus { border-color: #4f46e5; }
+        }
+    }
 }
 
-// --- 5. Modal ---
-.modal-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100;
-  display: flex; align-items: center; justify-content: center;
-  backdrop-filter: blur(2px);
+// HR Filters
 
-  .modal-box {
-    background: white; width: 90%; max-width: 400px;
-    border-radius: $radius; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-    animation: slideUp 0.3s ease-out;
 
-    .modal-header {
-      padding: 16px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;
-      h2 { font-size: 18px; }
-      button { background: none; border: none; font-size: 24px; cursor: pointer; color: $text-light; }
+/* Add to Attendance.scss */
+
+// Header Updates
+.header-right {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+
+    .btn-action {
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        display: flex;
+        align-items: center;
+
+        &.download-btn {
+            background: #eef2ff; // Light Indigo
+            color: #4f46e5;
+            border: 1px solid #e0e7ff;
+            &:hover { background: #e0e7ff; }
+        }
+
+        &.punch-btn {
+            &.check-in { background: #4f46e5; color: white; }
+            &.check-out { background: #ef4444; color: white; }
+        }
     }
+}
+
+// Clean Stats Cards (HR)
+.stat-box.clean {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     
-    .modal-body {
-      padding: 20px;
-      p { font-size: 14px; color: $text-light; margin-bottom: 10px; }
-      textarea {
-        width: 100%; height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 8px;
-        font-family: inherit; resize: none;
-        &:focus { outline: none; border-color: $primary; ring: 2px rgba($primary, 0.2); }
-      }
+    .top {
+        display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+        span { color: #6b7280; font-size: 13px; font-weight: 500; }
+        i { font-size: 18px; }
     }
-
-    .modal-footer {
-      padding: 16px 20px; background: #f9fafb; border-radius: 0 0 $radius $radius;
-      display: flex; justify-content: flex-end; gap: 10px;
-      
-      button {
-        padding: 8px 16px; border-radius: 6px; font-size: 14px; cursor: pointer; border: none;
-        &.btn-secondary { background: white; border: 1px solid #ddd; color: $text-main; &:hover { background: #f3f4f6; } }
-        &.btn-primary { background: $primary; color: white; &:hover { background: $primary-hover; } }
-      }
-    }
-  }
+    h3 { font-size: 28px; font-weight: 700; color: #111; margin: 0; }
 }
 
-.error-banner {
-  background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c;
-  padding: 12px; border-radius: 8px; font-size: 14px; display: flex; align-items: center; gap: 8px;
-}
+// Clean Filter Bar (Matches Image 3)
+.filter-card-clean {
+    background: transparent;
+    padding: 0;
+    margin-bottom: 20px;
+    
+    .filter-header {
+        font-size: 14px; font-weight: 600; color: #4b5563; margin-bottom: 10px;
+        display: flex; align-items: center; gap: 8px;
+    }
 
-.page-loader { display: flex; height: 300px; align-items: center; justify-content: center; color: $text-light; gap: 10px; }
+    .filter-input-group {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        background: white;
+        padding: 10px 16px;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        
+        .search-box {
+            flex: 1;
+            display: flex; align-items: center; gap: 10px;
+            i { color: #9ca3af; }
+            input { border: none; outline: none; width: 100%; font-size: 14px; }
+        }
 
-@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-// --- Mobile Optimizations ---
-@media (max-width: 600px) {
-  .attendance-dashboard { padding: 16px; }
-  .dash-header { 
-    flex-direction: column; align-items: flex-start; gap: 12px; 
-    .header-action { width: 100%; .btn-action { width: 100%; } }
-  }
-  .cal-grid-body .cal-day { font-size: 11px; }
+        .filter-select {
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 13px;
+            color: #374151;
+            background: #f9fafb;
+            cursor: pointer;
+            min-width: 140px;
+            &:focus { border-color: #4f46e5; }
+        }
+    }
 }

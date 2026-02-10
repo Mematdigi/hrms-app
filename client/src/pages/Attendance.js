@@ -1,480 +1,367 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { attendanceAPI } from '../services/api';
-// import './Attendance.scss'; // Assuming you link the SCSS here
+import { useNavigate } from 'react-router-dom';
 
 function Attendance() {
-  // --- CONFIGURATION ---
-  const OFFICE_LOCATION = {
-    name: 'Main Office',
-    latitude: 28.570419,
-    longitude: 77.453722,
-    radiusInMeters: 100,
-    address: 'N 28° 34\' 13.509\'\' E 77° 27\' 13.397\'\''
-  };
-
-  // --- STATE MANAGEMENT ---
-  const [attendance, setAttendance] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [checkedIn, setCheckedIn] = useState(false);
-  const [locationError, setLocationError] = useState('');
-  const [showEarlyCheckoutModal, setShowEarlyCheckoutModal] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState(null);
-  const [calendarData, setCalendarData] = useState([]);
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [earlyCheckoutReason, setEarlyCheckoutReason] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [attendanceSummary, setAttendanceSummary] = useState(null);
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
+  const isHR = user?.role === 'admin' || user?.role === 'hr';
+
+  // --- STATE ---
+  const [loading, setLoading] = useState(true);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // Employee Data
+  const [attendance, setAttendance] = useState([]);
+  const [checkedIn, setCheckedIn] = useState(false);
+  const [punchTime, setPunchTime] = useState(null);
+  const [attendanceSummary, setAttendanceSummary] = useState({
+    workingDays: 0, present: 0, absent: 0, late: 0, shortLeaves: 0, halfDays: 0, totalHours: 0
+  });
+  const [calendarData, setCalendarData] = useState([]);
+
+  // HR Data
+  const [allAttendance, setAllAttendance] = useState([]); // Default to empty array
+  const [hrSummary, setHrSummary] = useState({ total: 0, present: 0, absent: 0, late: 0, short: 0, half: 0 });
+  const [filters, setFilters] = useState({ name: '', status: '', dept: '' });
 
   // --- EFFECTS ---
   useEffect(() => {
-    fetchAttendance();
-    fetchAttendanceSummary();
-    fetchCalendarData();
-  }, []);
-
-  useEffect(() => {
-    fetchCalendarData();
-  }, [currentDate]);
+    if (isHR) {
+      fetchHRData();
+    } else {
+      fetchEmployeeData();
+    }
+  }, [isHR, currentDate, filters.status, filters.dept]); // Re-fetch on filter change
 
   // --- API CALLS ---
-  const fetchAttendance = async () => {
+
+  // 1. Employee Fetch
+  const fetchEmployeeData = async () => {
+    setLoading(true);
     try {
       const response = await attendanceAPI.getAttendance({ employeeId: user?.id });
-      setAttendance(response.data);
-      const today = response.data.find(
-        (a) => new Date(a.date).toDateString() === new Date().toDateString()
-      );
-      setCheckedIn(!!today?.checkInTime && !today?.checkOutTime);
-    } catch (error) {
-      console.error('Error fetching attendance:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAttendanceSummary = async () => {
-    try {
-      const curDate = new Date();
-      const response = await attendanceAPI.getAttendanceSummary({
-        employeeId: user?.id,
-        month: curDate.getMonth() + 1,
-        year: curDate.getFullYear()
-      });
-      setAttendanceSummary(response.data.data);
-    } catch (error) {
-      console.error('Error fetching summary:', error);
-    }
-  };
-
-  const fetchCalendarData = async () => {
-    try {
-      const year = currentDate.getFullYear();
-      const month = currentDate.getMonth() + 1;
-      const response = await attendanceAPI.getCalendarData({
-        employeeId: user?.id,
-        year,
-        month
-      });
-      setCalendarData(response.data.data || response.data);
-    } catch (error) {
-      console.error('Error fetching calendar:', error);
-      setCalendarData(attendance || []);
-    }
-  };
-
-  // --- GEOLOCATION LOGIC ---
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371e3;
-    const φ1 = lat1 * Math.PI / 180;
-    const φ2 = lat2 * Math.PI / 180;
-    const Δφ = (lat2 - lat1) * Math.PI / 180;
-    const Δλ = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
-  const isWithinOffice = (latitude, longitude) => {
-    const distance = calculateDistance(
-      OFFICE_LOCATION.latitude,
-      OFFICE_LOCATION.longitude,
-      latitude,
-      longitude
-    );
-    return {
-      isWithin: distance <= OFFICE_LOCATION.radiusInMeters,
-      distance: distance
-    };
-  };
-
-  const getCurrentLocation = () => {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error('Geolocation not supported'));
+      // Safely access array
+      const logs = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+      setAttendance(logs);
+      
+      const today = new Date().toDateString();
+      const todayRecord = logs.find(a => new Date(a.date).toDateString() === today);
+      
+      if (todayRecord?.checkInTime && !todayRecord?.checkOutTime) {
+        setCheckedIn(true);
+        setPunchTime(new Date(todayRecord.checkInTime));
       } else {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-          (err) => reject(err),
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
+        setCheckedIn(false);
+        setPunchTime(null);
       }
-    });
+
+      const currentMonthLogs = logs.filter(a => new Date(a.date).getMonth() === currentDate.getMonth());
+      setAttendanceSummary({
+        workingDays: 22, 
+        present: currentMonthLogs.filter(a => a.status === 'Present').length,
+        absent: 0, 
+        late: currentMonthLogs.filter(a => a.status === 'Late').length,
+        shortLeaves: currentMonthLogs.filter(a => a.status === 'Short Leave').length,
+        halfDays: currentMonthLogs.filter(a => a.status === 'Half Day').length,
+        totalHours: currentMonthLogs.reduce((acc, curr) => acc + (parseFloat(curr.workingHours) || 0), 0).toFixed(2)
+      });
+
+      setCalendarData(currentMonthLogs);
+
+    } catch (error) {
+      console.error('Error fetching employee data:', error);
+      setAttendance([]); // Fallback
+    } finally { setLoading(false); }
+  };
+
+  // 2. HR Fetch (FIXED)
+  const fetchHRData = async () => {
+    setLoading(true);
+    try {
+      const response = await attendanceAPI.getAllAttendance({
+        month: currentDate.getMonth() + 1,
+        year: currentDate.getFullYear(),
+        ...filters
+      }); 
+      
+      // ✅ FIX: Robust check for array structure
+      let data = [];
+      if (Array.isArray(response.data)) {
+          data = response.data;
+      } else if (response.data && Array.isArray(response.data.data)) {
+          data = response.data.data;
+      }
+
+      setAllAttendance(data);
+
+      // Calc HR Summary dynamically from fetched data
+      setHrSummary({
+        total: data.length, // Or unique employees if multiple logs per person
+        present: data.filter(r => r.status === 'Present').length,
+        absent: data.filter(r => r.status === 'Absent').length,
+        late: data.filter(r => r.status === 'Late').length,
+        short: data.filter(r => r.status === 'Short Leave').length,
+        half: data.filter(r => r.status === 'Half Day').length
+      });
+
+    } catch (error) { 
+        console.error("HR Fetch Error", error);
+        setAllAttendance([]); // Prevent map error
+    } finally { setLoading(false); }
   };
 
   // --- HANDLERS ---
-  const handleCheckIn = async () => {
+  const handlePunch = async () => {
+    setLoading(true);
     try {
-      setLocationError('');
-      setLoading(true);
-      const location = await getCurrentLocation();
-      console.log('Current location for check-in:', location);
-      // // Check if within office premises
-       const locationCheck = isWithinOffice(location.latitude, location.longitude);
-      
-      // if (!locationCheck.isWithin) {
-      //   setLocationError(`You are ${distanceKm}km (${distanceM}m) away from office. You must be within ${OFFICE_LOCATION.radiusInMeters}m radius to check in.`);
-      //   alert(`❌ Check-in failed!\n\nYou are ${distanceKm}km away from the office.\nYou must be within ${OFFICE_LOCATION.radiusInMeters}m radius to check in.`);
-      //   setLoading(false);
-      //   return;
-      // }
-
-      const response = await attendanceAPI.checkIn({ 
-        employeeId: user?.id,
-        latitude: location.latitude,
-        longitude: location.longitude
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject);
       });
+      const { latitude, longitude } = position.coords;
 
-      if (response.data.success || response.data.attendance) {
-        setCheckedIn(true);
-        refreshAllData();
-        const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-        alert(`✅ Check-in successful at ${time}`);
-      }
-    } catch (error) {
-      handleError(error, 'Check-in');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCheckOut = async () => {
-    try {
-      setLocationError('');
-      setLoading(true);
-      const location = await getCurrentLocation();
-      setCurrentLocation(location);
-      
-      // // Check if within office premises
-      // const locationCheck = isWithinOffice(location.latitude, location.longitude);
-      
-      // if (!locationCheck.isWithin) {
-      //   const distanceKm = (locationCheck.distance / 1000).toFixed(2);
-      //   const distanceM = locationCheck.distance.toFixed(0);
-      //   setLocationError(`You are ${distanceKm}km (${distanceM}m) away from office. You must be within ${OFFICE_LOCATION.radiusInMeters}m radius to check out.`);
-      //   alert(`❌ Check-out failed!\n\nYou are ${distanceKm}km away from the office.\nYou must be within ${OFFICE_LOCATION.radiusInMeters}m radius to check out.`);
-      //   setLoading(false);
-      //   return;
-      // }
-
-      const response = await attendanceAPI.checkOut({ 
-        employeeId: user?.id,
-        latitude: location.latitude,
-        longitude: location.longitude
-      });
-      
-      if (response.data.success || response.data.attendance) {
-        setCheckedIn(false);
-        setCurrentLocation(null);
-        refreshAllData();
-        alert(`✅ Check-out successful!`);
-      }
-    } catch (error) {
-      if (error.response?.data?.requiresApproval) {
-        setShowEarlyCheckoutModal(true);
+      if (!checkedIn) {
+        await attendanceAPI.checkIn({ employeeId: user?.id, latitude, longitude });
+        alert('✅ Checked In Successfully');
       } else {
-        handleError(error, 'Check-out');
+        await attendanceAPI.checkOut({ employeeId: user?.id, latitude, longitude });
+        alert('✅ Checked Out Successfully');
       }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEarlyCheckoutSubmit = async (e) => {
-    e.preventDefault();
-    if (!earlyCheckoutReason.trim()) return alert('Reason required');
-
-    setIsSubmitting(true);
-    try {
-      const response = await attendanceAPI.requestEarlyCheckout({
-        employeeId: user?.id,
-        reason: earlyCheckoutReason,
-        latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude
-      });
-      
-      if (response.data.success) {
-        handleModalCancel();
-        refreshAllData();
-        alert('✅ Early checkout requested successfully.');
-      }
+      fetchEmployeeData();
     } catch (error) {
-      handleError(error, 'Request');
-    } finally {
-      setIsSubmitting(false);
-    }
+      alert('❌ Punch failed. Ensure location access is allowed.');
+    } finally { setLoading(false); }
   };
 
-  // Helper to refresh everything
-  const refreshAllData = () => {
-    fetchAttendance();
-    fetchAttendanceSummary();
-    fetchCalendarData();
-  };
-
-  // Centralized Error Handling
-  const handleError = (error, action) => {
-    console.error(`Error ${action}:`, error);
-    let msg = 'An unexpected error occurred.';
-    if (error.response?.status === 403) msg = error.response.data.message;
-    else if (error.response?.data?.message) msg = error.response.data.message;
-    else if (error.message) msg = error.message;
-    
-    setLocationError(msg);
-    alert(`❌ ${action} failed: ${msg}`);
-  };
-
-  const handleModalCancel = () => {
-    setShowEarlyCheckoutModal(false);
-    setEarlyCheckoutReason('');
-    setCurrentLocation(null);
-  };
-
-  // --- CALENDAR RENDERING ---
-  const getDaysInMonth = (date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    return { daysInMonth: lastDay.getDate(), startingDayOfWeek: firstDay.getDay() };
-  };
-
-  const getStatusForDate = (day) => {
-    const dateToCheck = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-    dateToCheck.setHours(0, 0, 0, 0);
-    const record = calendarData.find(item => {
-      const itemDate = new Date(item.date);
-      itemDate.setHours(0, 0, 0, 0);
-      return itemDate.getTime() === dateToCheck.getTime();
+  const handleDownload = () => {
+    // Simple CSV export logic
+    const headers = ["Employee,Date,Punch In,Punch Out,Total Hours,Status\n"];
+    const csvRows = allAttendance.map(row => {
+        return `${row.employeeName},${new Date(row.date).toLocaleDateString()},${row.checkInTime || '-'},${row.checkOutTime || '-'},${row.workingHours || '-'},${row.status}`;
     });
-    return record?.status || null;
+    const csvContent = "data:text/csv;charset=utf-8," + headers + csvRows.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `attendance_report_${currentDate.getMonth()+1}_${currentDate.getFullYear()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
+  // --- RENDER HELPERS ---
   const renderCalendar = () => {
-    const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
     const days = [];
-    for (let i = 0; i < startingDayOfWeek; i++) days.push(<div key={`empty-${i}`} className="cal-day empty"></div>);
+
+    for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="cal-day empty"></div>);
     
     for (let day = 1; day <= daysInMonth; day++) {
-      const status = getStatusForDate(day);
-      const isToday = day === new Date().getDate() && currentDate.getMonth() === new Date().getMonth();
+      const dateStr = new Date(year, month, day).toDateString();
+      const record = calendarData.find(d => new Date(d.date).toDateString() === dateStr);
+      
+      let statusClass = '';
+      if (record) {
+          if(record.status === 'Present') statusClass = 'dot-present';
+          else if(record.status === 'Absent') statusClass = 'dot-absent';
+          else if(record.status === 'Late') statusClass = 'dot-late';
+          else if(record.status === 'Half Day') statusClass = 'dot-half';
+          else if(record.status === 'Short Leave') statusClass = 'dot-short';
+      }
+
       days.push(
-        <div key={day} className={`cal-day ${status ? `status-${status}` : ''} ${isToday ? 'today' : ''}`}>
+        <div key={day} className="cal-day">
           <span className="day-num">{day}</span>
-          {status && <span className="day-dot"></span>}
+          {statusClass && <span className={`status-dot ${statusClass}`}></span>}
         </div>
       );
     }
     return days;
   };
 
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-  if (loading && attendance.length === 0) return <div className="page-loader"><div className="spinner"></div> Loading Attendance...</div>;
-
   return (
-    <div className="attendance-dashboard">
-      {/* 1. Header Section: Title & Actions */}
-      <header className="dash-header">
-        <div className="header-title">
-          <h1>Attendance</h1>
-          <p>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+    <div className="attendance-page">
+      
+      {/* HEADER SECTION */}
+      <header className="page-header">
+        <div className="header-left">
+            <h1>Attendance</h1>
+            <p>Track your {isHR ? 'employee' : 'monthly'} attendance records</p>
         </div>
         
-        <div className="header-action">
-          {!checkedIn ? (
-            <button onClick={handleCheckIn} className="btn-action check-in" disabled={loading}>
-              {loading ? 'Processing...' : '📍 Check In Now'}
-            </button>
-          ) : (
-            <button onClick={handleCheckOut} className="btn-action check-out" disabled={loading}>
-              {loading ? 'Processing...' : '👋 Check Out'}
-            </button>
-          )}
+        <div className="header-right">
+            
+            {/* 1. Employee Action: Apply Leave (Visible only to Employees) */}
+            {!isHR && (
+                <button 
+                    className="btn-action btn-gradient-blue" 
+                    onClick={() => navigate('/leave')}
+                >
+                    <i className="bi bi-calendar-plus me-2"></i> Apply Leave
+                </button>
+            )}
+
+            {/* 4. HR Punch Button (Optional: if HR wants to punch from header) */}
+            {isHR && (
+              <button 
+                  className={`btn-action punch-btn ${checkedIn ? 'check-out' : 'check-in'}`} 
+                  onClick={handlePunch} 
+                  disabled={loading}
+              >
+                  {loading ? '...' : (checkedIn ? 'Check Out' : 'Check In')}
+              </button>
+            )}
+
+            {/* 2. HR Action: Download Report (Visible only to HR) */}
+            {isHR && (
+                <button className="btn-action download-btn" onClick={handleDownload}>
+                    <i className="bi bi-cloud-download me-2"></i> Download Report
+                </button>
+            )}
+
+            {/* 3. Date Navigator */}
+           <div className="date-nav">
+                <button onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() - 1)))}>‹</button>
+                <span>{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+                <button onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)))}>›</button>
+            </div>
         </div>
       </header>
 
-      {/* 2. Error Banner */}
-      {locationError && (
-        <div className="error-banner">
-          <i className="icon">⚠️</i> {locationError}
-        </div>
-      )}
-
-      {/* 3. Summary Stats Grid */}
-      <section className="stats-grid">
-        <div className="stat-card present">
-          <div className="icon-box">✓</div>
-          <div className="info">
-            <h3>{attendanceSummary?.present || 0}</h3>
-            <span>Present</span>
-          </div>
-        </div>
-        <div className="stat-card absent">
-          <div className="icon-box">✗</div>
-          <div className="info">
-            <h3>{attendanceSummary?.absent || 0}</h3>
-            <span>Absent</span>
-          </div>
-        </div>
-        <div className="stat-card half">
-          <div className="icon-box">½</div>
-          <div className="info">
-            <h3>{attendanceSummary?.halfDay || 0}</h3>
-            <span>Half Day</span>
-          </div>
-        </div>
-        <div className="stat-card hours">
-          <div className="icon-box">⏰</div>
-          <div className="info">
-            <h3>{attendanceSummary?.totalWorkingHours || 0}</h3>
-            <span>Hours</span>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. Main Content: Split View (Calendar & Location) */}
-      <div className="content-split">
-        {/* Calendar Card */}
-        <div className="card calendar-card">
-          <div className="card-header">
-            <h3>Monthly Overview</h3>
-            <div className="cal-nav">
-              <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}>‹</button>
-              <span>{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</span>
-              <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}>›</button>
+      {/* --- EMPLOYEE VIEW --- */}
+      {!isHR ? (
+        <div className="employee-layout fade-in">
+            <div className="punch-widget-bar">
+                <div className={`punch-btn-area ${checkedIn ? 'checked-in' : ''}`}>
+                    <button className="btn-main-punch" onClick={handlePunch} disabled={loading}>
+                        {loading ? 'Processing...' : (checkedIn ? 'Check Out' : 'Punch In')}
+                    </button>
+                </div>
+                <div className="punch-info">
+                    <div className="info-item">
+                        <small>Punch In</small>
+                        <strong>{punchTime ? punchTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--'}</strong>
+                    </div>
+                    <div className="info-item">
+                        <small>Punch Out</small>
+                        <strong>--:--</strong>
+                    </div>
+                    <div className="info-item highlight">
+                        <small>Total Hours</small>
+                        <strong>{attendanceSummary.totalHours} hrs</strong>
+                    </div>
+                </div>
             </div>
-          </div>
-          <div className="cal-grid-header">
-            {['S','M','T','W','T','F','S'].map(d => <span key={d}>{d}</span>)}
-          </div>
-          <div className="cal-grid-body">
-            {renderCalendar()}
-          </div>
-          <div className="cal-legend">
-            <span className="badge present">Present</span>
-            <span className="badge absent">Absent</span>
-            <span className="badge half">Half</span>
-            <span className="badge leave">Leave</span>
-          </div>
-        </div>
 
-        {/* Location & Info Card */}
-        <div className="side-panel">
-          <div className="card location-card">
-            <div className="card-header">
-              <h3>Office Location</h3>
-            </div>
-            <div className="map-placeholder">
-              {/* Abstract Map visual representation */}
-              <div className="radar-circle"></div>
-              <div className="pin">📍</div>
-            </div>
-            <div className="loc-details">
-              <h4>{OFFICE_LOCATION.name}</h4>
-              <p>{OFFICE_LOCATION.address}</p>
-              <div className="loc-meta">
-                <span><strong>Radius:</strong> {OFFICE_LOCATION.radiusInMeters}m</span>
-                <span><strong>Lat:</strong> {OFFICE_LOCATION.latitude.toFixed(4)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* 5. Detailed Table */}
-      <section className="card table-card">
-        <div className="card-header">
-          <h3>Recent Logs</h3>
-        </div>
-        <div className="table-responsive">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Check In</th>
-                <th>Check Out</th>
-                <th>Hours</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {attendance.length === 0 ? (
-                <tr><td colSpan="5" className="empty-state">No records found</td></tr>
-              ) : (
-                attendance.slice(0, 10).map((record) => ( // Showing last 10 for cleaner UI
-                  <tr key={record._id}>
-                    <td>{new Date(record.date).toLocaleDateString()}</td>
-                    <td>{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-'}</td>
-                    <td>
-                      {record.checkOutTime 
-                        ? new Date(record.checkOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
-                        : record.earlyCheckoutRequest?.requested ? <span className="text-warning">Pending Approval</span> : '-'}
-                    </td>
-                    <td>{record.workingHours || '-'}</td>
-                    <td><span className={`status-pill ${record.status}`}>{record.status}</span></td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+            <div className="content-split">
+                <div className="table-section">
+                    <table className="modern-table">
+                        <thead><tr><th>Date</th><th>Punch In</th><th>Punch Out</th><th>Total Hours</th><th>Status</th></tr></thead>
+                        <tbody>
+                            {/* ✅ FIX: Check if attendance is array before mapping */}
+                            {Array.isArray(attendance) && attendance.length > 0 ? attendance.slice(0, 8).map(record => (
+                                <tr key={record._id}>
+                                    <td>{new Date(record.date).toLocaleDateString()}</td>
+                                    <td>{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--'}</td>
+                                    <td>{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--'}</td>
+                                    <td>{record.workingHours ? `${record.workingHours} hrs` : '--'}</td>
+                                    <td><span className={`status-pill ${record.status?.toLowerCase().replace(' ', '-')}`}>{record.status}</span></td>
+                                </tr>
+                            )) : <tr><td colSpan="5" className="text-center p-4">No records yet.</td></tr>}
+                        </tbody>
+                    </table>
+                </div>
 
-      {/* 6. Modal */}
-      {showEarlyCheckoutModal && (
-        <div className="modal-backdrop" onClick={() => !isSubmitting && handleModalCancel()}>
-          <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Early Checkout</h2>
-              <button onClick={handleModalCancel}>×</button>
+                <div className="calendar-section">
+                    <h5>Attendance Calendar</h5>
+                    <div className="cal-header-row">
+                        {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => <span key={d}>{d}</span>)}
+                    </div>
+                    <div className="cal-grid">
+                        {renderCalendar()}
+                    </div>
+                </div>
             </div>
-            <form onSubmit={handleEarlyCheckoutSubmit}>
-              <div className="modal-body">
-                <p>You are leaving before 6:30 PM. Please state your reason for approval.</p>
-                <textarea
-                  value={earlyCheckoutReason}
-                  onChange={(e) => setEarlyCheckoutReason(e.target.value)}
-                  placeholder="E.g., Doctor appointment..."
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={handleModalCancel}>Cancel</button>
-                <button type="submit" className="btn-primary" disabled={isSubmitting}>
-                  {isSubmitting ? 'Sending...' : 'Submit Request'}
-                </button>
-              </div>
-            </form>
-          </div>
+        </div>
+      ) : (
+        // --- HR VIEW ---
+        <div className="hr-layout fade-in">
+            {/* 1. HR Stats */}
+            <div className="stats-row hr">
+                <div className="stat-box"><small>Total Employees</small><h3>{hrSummary.total}</h3><i className="bi bi-people"></i></div>
+                <div className="stat-box"><small>Present Today</small><h3>{hrSummary.present}</h3><i className="bi bi-person-check text-success"></i></div>
+                <div className="stat-box"><small>Absent Today</small><h3>{hrSummary.absent}</h3><i className="bi bi-person-x text-danger"></i></div>
+                <div className="stat-box"><small>Late</small><h3>{hrSummary.late}</h3><i className="bi bi-clock-history text-warning"></i></div>
+                <div className="stat-box"><small>Short Leave</small><h3>{hrSummary.short}</h3><i className="bi bi-box-arrow-right text-info"></i></div>
+                <div className="stat-box"><small>Half Day</small><h3>{hrSummary.half}</h3><i className="bi bi-pie-chart text-purple"></i></div>
+            </div>
+
+            {/* 2. Filters */}
+            <div className="filter-card-clean">
+                <div className="filter-header">
+                    <i className="bi bi-funnel"></i> Filters
+                </div>
+                <div className="filter-input-group">
+                    <div className="search-box">
+                        <i className="bi bi-search"></i>
+                        <input type="text" placeholder="Search employee..." value={filters.name} onChange={(e) => setFilters({...filters, name: e.target.value})} />
+                    </div>
+                    
+                    <select className="filter-select" value={filters.status} onChange={(e) => setFilters({...filters, status: e.target.value})}>
+                        <option value="">All Status</option>
+                        <option value="Present">Present</option>
+                        <option value="Absent">Absent</option>
+                        <option value="Late">Late</option>
+                        <option value="Half Day">Half Day</option>
+                    </select>
+
+                    <select className="filter-select" value={filters.dept} onChange={(e) => setFilters({...filters, dept: e.target.value})}>
+                        <option value="">All Departments</option>
+                        <option value="IT">IT</option>
+                        <option value="HR">HR</option>
+                        <option value="Sales">Sales</option>
+                    </select>
+                </div>
+            </div>
+
+
+            {/* 3. HR Table */}
+            <div className="table-section full-width">
+                <table className="modern-table">
+                    <thead><tr><th>Employee</th><th>Date</th><th>Punch In</th><th>Punch Out</th><th>Total Hours</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {/* ✅ FIX: Add Safety check before mapping */}
+                        {Array.isArray(allAttendance) && allAttendance.length > 0 ? (
+                            allAttendance.map(record => (
+                            <tr key={record._id}>
+                                <td>
+                                    <div className="emp-cell">
+                                        <div className="avatar">{record.employeeName ? record.employeeName[0] : 'U'}</div>
+                                        <span>{record.employeeName || 'Unknown'}</span>
+                                    </div>
+                                </td>
+                                <td>{new Date(record.date).toLocaleDateString()}</td>
+                                <td>{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '--'}</td>
+                                <td>{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '--'}</td>
+                                <td>{record.workingHours ? `${record.workingHours} hrs` : '--'}</td>
+                                <td><span className={`status-pill ${record.status?.toLowerCase().replace(' ', '-')}`}>{record.status}</span></td>
+                            </tr>
+                        ))
+                        ) : (
+                            <tr><td colSpan="6" className="text-center p-4">No records found matching filters.</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
         </div>
       )}
     </div>
   );
 }
 
-export default Attendance;
+export default Attendance; 
