@@ -28,23 +28,32 @@ class AuthController {
     }
 
     // const hashedPassword = await bcrypt.hash(password, 10);
+      let lastEmployee = await User.findOne().sort({ employeeId: -1 })
+      
+      if(lastEmployee == null){
+        lastEmployee = 1;
+      }else 
+      {
+       lastEmployee = lastEmployee.employeeId
+      }
 
-  const employeeId = await User.findOne().sort({ employeeId: -1 })
 
-  console.log("employeeId",employeeId)
-  console.log("EmployeeId new",employeeId.employeeId)
+    const nextEmployeeId = lastEmployee  ? parseInt(lastEmployee, 10) + 1 : 1; // Increment by 1 or start from 1
+const employeeId = nextEmployeeId
+console.log("employeeId",employeeId)
+  console.log("lastEmployee",lastEmployee)
     const user = await User.create({
       firstName,
       lastName,
       email,
       password,
       role: role || 'employee',
-      employeeId: employeeId.employeeId+1
+      employeeId
     });
 
     const token = tokenService.generateToken(user);
 
-    return res.status(201).json(apiResponse("User registered successfully", {
+    return res.status(200).json(apiResponse("User registered successfully", {
       token,
       user: {
         id: user._id,

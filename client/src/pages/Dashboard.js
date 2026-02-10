@@ -3,159 +3,113 @@
 // ==============================
 // 1. Imports
 // ==============================
-import React, { useEffect, useState, useRef } from "react";
-import { useSelector } from "react-redux"; // To access global state (user info)
-import { useNavigate } from "react-router-dom"; // To handle navigation
-import api, { employeeAPI, attendanceAPI } from "../services/api"; // API service calls
-import "bootstrap/dist/css/bootstrap.min.css"; // Bootstrap styling
-
-// Chart.js imports for data visualization
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-} from 'chart.js';
-
-// Registering Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-);
+import React, { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import api, { attendanceAPI } from "../services/api";
+import "bootstrap/dist/css/bootstrap.min.css"; 
+import { Modal, Button, Form } from "react-bootstrap"; 
 
 // ==============================
-// 2. Constants & Configuration
-// ==============================
-
-// Data for the Ring Chart (Employee Breakdown)
-const EMPLOYMENT_BREAKDOWN = [
-  { key: 'employees', label: 'Full-time Employees', value: 88, colorClass: 'seg-blue' },
-  { key: 'interns', label: 'Interns', value: 50, colorClass: 'seg-green' },
-  { key: 'contract', label: 'Contract Staff', value: 26, colorClass: 'seg-red' },
-];
-
-// Configuration for "Quick Actions" buttons based on User Role
-const QUICK_ACTIONS = {
-  admin: [
-    { label: "Manage Employees", action: "employees" },
-    { label: "Manage Attendance", action: "attendance" },
-    { label: "Approve Leave Requests", action: "leave" },
-    { label: "Manage Payroll", action: "payroll" },
-    { label: "View HR Reports", action: "reports" },
-    { label: "My Profile", action: "profile" },
-  ],
-  hr: [
-    { label: "Manage Employees", action: "employees" },
-    { label: "Manage Attendance", action: "attendance" },
-    { label: "Approve Leave Requests", action: "leave" },
-    { label: "Manage Payroll", action: "payroll" },
-    { label: "View HR Reports", action: "reports" },
-    { label: "My Profile", action: "profile" },
-  ],
-  manager: [
-    { label: "View Team", action: "team" },
-    { label: "Review Attendance", action: "attendance" },
-    { label: "Approve Leave", action: "leave" },
-    { label: "Performance", action: "performance" },
-    { label: "My Profile", action: "profile" },
-  ],
-  employee: [
-    { label: "My Attendance", action: "attendance" },
-    { label: "Apply Leave", action: "leave" },
-    { label: "View Payroll", action: "payroll" },
-    { label: "Performance", action: "performance" },
-    { label: "My Profile", action: "profile" },
-  ],
-};
-
-// Titles and Subtitles based on Role
-const ROLE_TITLE_MAP = {
-  admin: "Admin Dashboard",
-  hr: "HR Manager Dashboard",
-  manager: "Manager Dashboard",
-  employee: "Employee Dashboard",
-};
-
-const ROLE_SUBTITLE_MAP = {
-  admin: "Full System Access & Control",
-  hr: "Human Resources Operations",
-  manager: "Team Management & Oversight",
-  employee: "Personal Information & Self-Service",
-};
-
-// ==============================
-// 3. Main Component: Dashboard
+// 2. Main Component: Dashboard
 // ==============================
 const Dashboard = () => {
-  // Access user data from Redux Store
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
-  const lineChartRef = useRef(null);
 
   // --- State Management ---
-  const [loading, setLoading] = useState(false); // Page loading state
-  const [attendance, setAttendance] = useState([]); // Stores attendance records
-  const [checkedIn, setCheckedIn] = useState(false); // Tracks if user is currently checked in
-  const [employees, setEmployees] = useState([]); // List of all employees
+  const [loading, setLoading] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
   
-  // Dashboard Numerical Statistics
+  // Attendance State
+  const [attendance, setAttendance] = useState([]);
+  const [checkedIn, setCheckedIn] = useState(false);
+  const [punchTime, setPunchTime] = useState(null);
+
+  // Leave Modal State
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaveType, setLeaveType] = useState("full"); // 'short' or 'full'
+  const [shortLeavesTaken, setShortLeavesTaken] = useState(1); // Mock: User taken 1/3
+  const [leaveFormData, setLeaveFormData] = useState({
+     date: new Date().toISOString().split('T')[0],
+     fromTime: "",
+     toTime: "",
+     reason: ""
+  });
+
+  // HR Stats Data
   const [stats, setStats] = useState({
     totalEmployees: 0,
-    activeEmployees: 0,
-    departments: 0,
+    presentToday: 0,
+    pendingLeaves: 0,
+    payrollStatus: "Processed"
   });
 
-  // ✅ Daily Overview Stats (Present/HalfDay)
-  const [dailyStats, setDailyStats] = useState({
-    present: 0,
-    absent: 0,
-    halfDay: 0
-  });
+  const [recentLeaves, setRecentLeaves] = useState([]);
 
-  // Leave Management State
-  const [leaves, setLeaves] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState("");
-  const [selectedYear, setSelectedYear] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("");
-
-  // Determine current user role
+  // Determine Role
   const role = user?.role || "employee";
-  const roleTitle = ROLE_TITLE_MAP[role] || "Dashboard";
-  const roleSubtitle = ROLE_SUBTITLE_MAP[role] || "";
-  const quickActions = QUICK_ACTIONS[role] || QUICK_ACTIONS.employee;
+  const isHR = role === 'admin' || role === 'hr';
 
   // ==============================
-  // 4. Effects (Data Fetching)
+  // 3. Effects
   // ==============================
 
-  // Effect: Fetch Dashboard Statistics (Total Employees, Depts, etc.)
+  // Live Clock
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Fetch Data based on Role
   useEffect(() => {
     if (!user) return;
 
-    const fetchDashboardData = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        // Call API to get employee list
-        const response = await api.get("/employees");
-        const allEmp = response.data || [];
 
-        // Calculate stats based on response
-        setStats({
-          totalEmployees: allEmp.length,
-          activeEmployees: allEmp.filter((e) => e.status === "active").length,
-          departments: [...new Set(allEmp.map((e) => e.department))].length,
-        });
-        setEmployees(allEmp);
+        // 1. ALWAYS Fetch Personal Attendance (For both HR and Employee to support Punching)
+        try {
+            const attRes = await attendanceAPI.getAttendance({ employeeId: user?.id });
+            setAttendance(attRes.data);
+            
+            // Check today's status to set CheckedIn State
+            const today = attRes.data.find(
+              (a) => new Date(a.date).toDateString() === new Date().toDateString()
+            );
+            
+            if (today?.checkInTime && !today?.checkOutTime) {
+                setCheckedIn(true);
+                // Format the time for display
+                const pTime = new Date(today.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                setPunchTime(pTime);
+            }
+        } catch (err) {
+            console.error("Personal attendance fetch failed", err);
+        }
+
+        // 2. HR Specific Data Fetching
+        if (isHR) {
+          const empRes = await api.get("/employees");
+          const allEmp = empRes.data || [];
+          
+          // Mocking Leave Data for UI
+          const mockLeaves = [
+             { id: 1, name: "Sarah Wilson", type: "Sick Leave", days: 2, status: "Pending", avatar: "SW" },
+             { id: 2, name: "Mike Johnson", type: "Annual Leave", days: 5, status: "Approved", avatar: "MJ" },
+             { id: 3, name: "Emily Chen", type: "Personal Leave", days: 1, status: "Pending", avatar: "EC" },
+          ];
+          setRecentLeaves(mockLeaves);
+
+          setStats({
+            totalEmployees: allEmp.length,
+            presentToday: Math.floor(allEmp.length * 0.93), // Mock calc
+            pendingLeaves: 12,
+            payrollStatus: "Processed"
+          });
+        } 
+        
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
@@ -163,398 +117,479 @@ const Dashboard = () => {
       }
     };
 
-    fetchDashboardData();
-  }, [user]);
-
-  // Effect: Fetch Attendance Records (For Current User & Check-In Status)
-  useEffect(() => {
-    fetchAttendance();
-  }, []);
-
-  const fetchAttendance = async () => {
-    try {
-      const response = await attendanceAPI.getAttendance({
-        employeeId: user?.id,
-      });
-      setAttendance(response.data);
-      
-      // Check if user has checked in today
-      const today = response.data.find(
-        (a) => new Date(a.date).toDateString() === new Date().toDateString()
-      );
-      setCheckedIn(!!today?.checkInTime);
-    } catch (error) {
-      console.error('Error fetching attendance:', error);
-    }
-  };
-
-  // ✅ Effect: Fetch Daily Overview Stats
-  useEffect(() => {
-    const fetchDailyOverview = async () => {
-      try {
-        const todayStr = new Date().toISOString().split('T')[0];
-        // Fetch attendance for today (or all if filter not supported directly, then filter in JS)
-        const response = await attendanceAPI.getAllAttendance({ from: todayStr, to: todayStr });
-        const data = response.data.data || [];
-
-        setDailyStats({
-            present: data.filter(r => r.status === 'present').length,
-            absent: data.filter(r => r.status === 'absent').length,
-            halfDay: data.filter(r => r.status === 'half-day').length,
-        });
-
-      } catch (error) {
-        console.error("Error fetching daily overview:", error);
-      }
-    };
-    fetchDailyOverview();
-  }, []);
-
-  // Effect: Fetch Leave Requests (Mock Data currently)
-  useEffect(() => {
-    const fetchLeaves = async () => {
-      try {
-        // MOCK DATA: Simulating API response
-        setLeaves([
-          { _id: '1', employee: { firstName: 'John', lastName: 'Doe', email: 'john@test.com' }, leaveType: 'Sick', status: 'pending', numberOfDays: 2},
-          { _id: '2', employee: { firstName: 'Jane', lastName: 'Smith', email: 'jane@test.com' }, leaveType: 'Casual', status: 'pending', numberOfDays: 1},
-          { _id: '3', employee: { firstName: 'Robert', lastName: 'Brown', email: 'rob@test.com' }, leaveType: 'Annual', status: 'approved', numberOfDays: 5},
-          { _id: '4', employee: { firstName: 'Emily', lastName: 'Davis', email: 'emily@test.com' }, leaveType: 'Sick', status: 'pending', numberOfDays: 1},
-        ]);
-      } catch (error) {
-        console.error("Error fetching leaves:", error);
-      }
-    };
-    fetchLeaves();
-  }, []);
+    fetchData();
+  }, [user, isHR]);
 
   // ==============================
-  // 5. Action Handlers
+  // 4. Action Handlers
   // ==============================
-
   const handleCheckIn = async () => {
     try {
       await attendanceAPI.checkIn({ employeeId: user?.id });
       setCheckedIn(true);
-      fetchAttendance();
-    } catch (error) {
-      console.error('Error checking in:', error);
-    }
+      setPunchTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    } catch (error) { console.error(error); }
   };
 
   const handleCheckOut = async () => {
     try {
       await attendanceAPI.checkOut({ employeeId: user?.id });
       setCheckedIn(false);
-      fetchAttendance();
-    } catch (error) {
-      console.error('Error checking out:', error);
-    }
+      setPunchTime(null);
+    } catch (error) { console.error(error); }
   };
 
-  let lastCheckInTime = null;
-  if (attendance && attendance.length > 0) {
-    const lastObject = attendance[attendance.length - 1];
-    if (lastObject && lastObject.checkInTime) {
-      const date = new Date(lastObject.checkInTime);
-      const hours = String(date.getHours()).padStart(2, "0");
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      const seconds = String(date.getSeconds()).padStart(2, "0");
-      lastCheckInTime = `${hours}:${minutes}:${seconds}`;
-    }
-  }
-
-  // Filter Leaves Logic
-  const getFilteredLeaves = () => {
-    let filtered = [...leaves];
-    if (searchQuery && (role === 'hr' || role === 'admin')) {
-      filtered = filtered.filter((leave) => {
-        const fullName = `${leave.employee?.firstName} ${leave.employee?.lastName}`.toLowerCase();
-        const email = leave.employee?.email?.toLowerCase() || '';
-        return fullName.includes(searchQuery.toLowerCase()) || 
-               email.includes(searchQuery.toLowerCase());
-      });
-    }
-    return filtered;
-  };
-  const filteredLeaves = getFilteredLeaves();
-
-  // Helper: Get Badge Color for Status
-  const getStatusBadge = (status) => {
-    switch(status) {
-      case 'approved': return { class: 'bg-success text-white', text: 'Approved' };
-      case 'rejected': return { class: 'bg-danger text-white', text: 'Rejected' };
-      default: return { class: 'bg-warning text-dark', text: 'Pending' };
-    }
+  // --- Leave Modal Handlers ---
+  const handleOpenLeaveModal = () => {
+      setShowLeaveModal(true);
+      setLeaveType("full"); // Default to full
   };
 
-  const handleApproveLeave = async (id) => {
-    try {
-        setLeaves(prev => prev.map(l => l._id === id ? {...l, status: 'approved'} : l));
-    } catch (err) { console.error(err); }
+  const handleSelectLeaveType = (type) => {
+      // Prevent selecting short leave if limit reached
+      if (type === 'short' && shortLeavesTaken >= 3) return;
+      setLeaveType(type);
   };
 
-  const handleRejectLeave = async (id) => {
-    try {
-        setLeaves(prev => prev.map(l => l._id === id ? {...l, status: 'rejected'} : l));
-    } catch (err) { console.error(err); }
+  const handleSubmitLeave = () => {
+      console.log("Submitting Leave:", { type: leaveType, ...leaveFormData });
+      setShowLeaveModal(false);
+      // API call would go here
   };
 
-  const handleCardClick = (action) => {
-    const routes = {
-      'employees': '/employees',
-      'attendance': '/attendance',
-      'leave': '/leave',
-      'payroll': '/payroll',
-      'reports': '/reports',
-      'team': '/team',
-      'profile': '/profile',
-    };
-    if (routes[action]) navigate(routes[action]);
-  };
-
-  // --- Animation Component Helper ---
-  const AnimatedNumber = ({ value, className = "", duration = 1200 }) => {
-    const [display, setDisplay] = React.useState(0);
-    React.useEffect(() => {
-      let startTimestamp = null;
-      const startValue = 0;
-      const diff = value - startValue;
-      if (diff === 0) { setDisplay(value); return; }
-      const step = (timestamp) => {
-        if (!startTimestamp) startTimestamp = timestamp;
-        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-        const current = Math.round(startValue + diff * progress);
-        setDisplay(current);
-        if (progress < 1) window.requestAnimationFrame(step);
-      };
-      window.requestAnimationFrame(step);
-    }, [value, duration]);
-    return <div className={className}>{display.toLocaleString()}</div>;
+  // Helper for Animation
+  const AnimatedNumber = ({ value }) => {
+    return <span>{value}</span>; 
   };
 
   // ==============================
-  // 6. Render
+  // 5. Render Helpers (Components)
   // ==============================
 
-  if (loading) {
+  // --- HEADER ACTION BUTTONS (Used in both dashboards) ---
+  const HeaderActionButtons = () => (
+    <div className="d-flex gap-3">
+        {/* Punch Button */}
+        <button 
+            className={`btn-header-custom ${checkedIn ? 'btn-red' : 'btn-gradient-blue'}`} 
+            onClick={checkedIn ? handleCheckOut : handleCheckIn}
+        >
+            {checkedIn ? <i className="bi bi-stop-circle me-2"></i> : <i className="bi bi-box-arrow-in-right me-2"></i>}
+            {checkedIn ? 'Punch Out' : 'Punch In'}
+        </button>
+
+        {/* Apply Leave Button */}
+        <button className="btn-header-custom btn-gradient-blue" onClick={handleOpenLeaveModal}>
+            <i className="bi bi-calendar-plus me-2"></i> Apply Leave
+        </button>
+    </div>
+  );
+
+  const generateCalendar = () => {
+      const days = [];
+      const daysInMonth = new Date(currentTime.getFullYear(), currentTime.getMonth() + 1, 0).getDate();
+      const firstDay = new Date(currentTime.getFullYear(), currentTime.getMonth(), 1).getDay();
+      
+      for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="calendar-day empty"></div>);
+      
+      for (let i = 1; i <= daysInMonth; i++) {
+        const isToday = i === currentTime.getDate();
+        const isWeekend = new Date(currentTime.getFullYear(), currentTime.getMonth(), i).getDay() % 6 === 0;
+        let statusClass = isWeekend ? 'weekend' : 'absent';
+        if (isToday) statusClass = 'today';
+        if (i < currentTime.getDate() && !isWeekend) statusClass = i % 2 === 0 ? 'present' : 'short-leave';
+
+        days.push(
+          <div key={i} className={`calendar-day ${statusClass} ${isToday ? 'active' : ''}`}>
+            <span>{i}</span>
+            {!isWeekend && <span className="status-dot"></span>}
+          </div>
+        );
+      }
+      return days;
+  };
+
+  // ==============================
+  // 6. Render Views
+  // ==============================
+
+  // --- EMPLOYEE DASHBOARD ---
+  const renderEmployeeDashboard = () => {
     return (
-      <div className="hr-page">
-        <div className="dashboard-loader text-center py-5">
-          <div className="spinner-border" role="status" />
-          <p className="mt-3 mb-0">Loading Dashboard...</p>
+      <div className="employee-dashboard fade-in">
+        {/* Header with Buttons */}
+        <div className="d-flex justify-content-between align-items-end mb-4">
+          <div>
+             <h2 className="fw-bold text-dark mb-1">Welcome back, {user?.firstName}</h2>
+             <p className="text-muted small mb-0">Here's what's happening with your work today.</p>
+          </div>
+          {/* Header Buttons inserted here */}
+          <HeaderActionButtons />
+        </div>
+
+        {/* Quick Pills */}
+        <div className="d-flex gap-3 mb-4 flex-wrap">
+          {['My Attendance', 'View Payroll', 'Performance', 'My Profile'].map((item, idx) => (
+             <button key={idx} className="btn-pill-nav" onClick={() => navigate('#')}>
+                {idx === 0 && <i className="bi bi-clock me-2"></i>}
+                {idx === 1 && <i className="bi bi-cash-stack me-2"></i>}
+                {item}
+             </button>
+          ))}
+        </div>
+
+        <div className="row g-4">
+          {/* Punch Card (Display Only - Buttons Moved to Header) */}
+          <div className="col-lg-6">
+            <div className="dashboard-card punch-card h-100">
+               <div className="d-flex justify-content-between mb-3">
+                 <span className="fw-bold">Attendance</span>
+                 <span className={`badge-status ${checkedIn ? 'active' : 'inactive'}`}>
+                   {checkedIn ? 'PUNCHED IN' : 'NOT PUNCHED IN'}
+                 </span>
+               </div>
+               
+               <div className="text-center my-4">
+                 <h1 className="display-4 fw-bold mb-0">{currentTime.toLocaleTimeString([], { hour12: false })}</h1>
+                 <p className="text-muted">{currentTime.toDateString()}</p>
+               </div>
+
+               <div className="punch-stats row mt-4 text-center">
+                 <div className="col-4">
+                   <div className="small text-muted mb-1"><i className="bi bi-clock"></i> Punch In</div>
+                   <div className="fw-bold">{checkedIn ? punchTime : "--:--"}</div>
+                 </div>
+                 <div className="col-4 border-start border-end">
+                    <div className="small text-muted mb-1"><i className="bi bi-clock-history"></i> Punch Out</div>
+                    <div className="fw-bold">--:--</div>
+                 </div>
+                 <div className="col-4">
+                    <div className="small text-muted mb-1"><i className="bi bi-hourglass-split"></i> Worked</div>
+                    <div className="fw-bold text-success">0h 0m</div>
+                 </div>
+               </div>
+            </div>
+          </div>
+
+          {/* Leave Balance */}
+          <div className="col-lg-6">
+            <div className="dashboard-card h-100">
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                 <span className="fw-bold">Leave Balance</span>
+              </div>
+              <div className="leave-item mb-4">
+                <div className="d-flex justify-content-between mb-1">
+                  <span className="small fw-semibold">Annual Leave</span>
+                  <span className="small text-muted">8/24 days used</span>
+                </div>
+                <div className="progress rounded-pill" style={{height: '8px'}}>
+                  <div className="progress-bar bg-primary" role="progressbar" style={{width: '33%'}}></div>
+                </div>
+                <div className="mt-1 small">
+                  <span className="text-primary">● Used: 8</span> <span className="text-muted ms-2">● Remaining: 16</span>
+                </div>
+              </div>
+              <div className="leave-item p-3 rounded bg-light-purple">
+                 <div className="d-flex justify-content-between align-items-center mb-2">
+                   <span className="fw-semibold text-purple"><i className="bi bi-clock-history me-2"></i> Short Leave (This Month)</span>
+                   <span className="small text-muted">{shortLeavesTaken}/3 used</span>
+                 </div>
+                 <div className="progress rounded-pill bg-white" style={{height: '6px'}}>
+                   <div className="progress-bar bg-purple" role="progressbar" style={{width: `${(shortLeavesTaken/3)*100}%`}}></div>
+                 </div>
+                 <p className="small text-muted mt-2 mb-0">{3 - shortLeavesTaken} short leaves remaining this month</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="col-lg-7">
+             <div className="dashboard-card h-100">
+               <div className="d-flex justify-content-between align-items-center mb-3">
+                  <span className="fw-bold">Attendance Calendar</span>
+                  <div className="text-muted small">February 2026 <i className="bi bi-chevron-right ms-1"></i></div>
+               </div>
+               <div className="calendar-grid">
+                  <div className="cal-head">S</div><div className="cal-head">M</div><div className="cal-head">T</div><div className="cal-head">W</div><div className="cal-head">T</div><div className="cal-head">F</div><div className="cal-head">S</div>
+                  {generateCalendar()}
+               </div>
+               <div className="d-flex gap-3 mt-3 justify-content-center">
+                  <span className="small"><span className="legend-dot green"></span> Present</span>
+                  <span className="small"><span className="legend-dot yellow"></span> Short Leave</span>
+                  <span className="small"><span className="legend-dot red"></span> Absent</span>
+                  <span className="small"><span className="legend-dot gray"></span> Weekend</span>
+               </div>
+             </div>
+          </div>
         </div>
       </div>
     );
-  }
+  };
+
+  // --- HR DASHBOARD ---
+  const renderHRDashboard = () => {
+    return (
+      <div className="hr-dashboard fade-in">
+        {/* Header with Buttons */}
+        <div className="d-flex justify-content-between align-items-end mb-4">
+             <div>
+                <h2 className="fw-bold text-dark mb-1">Good morning, {user?.firstName || 'Admin'}</h2>
+                <p className="text-muted small mb-0">Here's what's happening with your team today.</p>
+             </div>
+             {/* Header Buttons inserted here for HR as well */}
+             <HeaderActionButtons />
+        </div>
+
+        {/* Top Stats Cards */}
+        <div className="row g-4 mb-4">
+           {/* Card 1: Total Employees (Blue) */}
+           <div className="col-xl-3 col-md-6">
+              <div className="stat-card-modern bg-deep-blue text-white">
+                 <div className="d-flex justify-content-between align-items-start">
+                    <div>
+                       <div className="small opacity-75 mb-1">Total Employees</div>
+                       <h2 className="fw-bold mb-0">{stats.totalEmployees}</h2>
+                       <div className="small mt-2 badge bg-white-20">12 new this month</div>
+                       <div className="extra-small text-green-light mt-1">+8.2% vs last month</div>
+                    </div>
+                    <div className="icon-box bg-white-20"><i className="bi bi-people"></i></div>
+                 </div>
+              </div>
+           </div>
+
+           {/* Card 2: Present Today */}
+           <div className="col-xl-3 col-md-6">
+              <div className="stat-card-modern bg-white border">
+                 <div className="d-flex justify-content-between align-items-start">
+                    <div>
+                       <div className="small text-muted mb-1">Present Today</div>
+                       <h2 className="fw-bold mb-0 text-dark">{stats.presentToday}</h2>
+                       <div className="small text-muted mt-2">93% attendance</div>
+                    </div>
+                    <div className="icon-box bg-green-light text-green"><i className="bi bi-person-check"></i></div>
+                 </div>
+              </div>
+           </div>
+
+           {/* Card 3: Pending Leaves */}
+           <div className="col-xl-3 col-md-6">
+              <div className="stat-card-modern bg-white border">
+                 <div className="d-flex justify-content-between align-items-start">
+                    <div>
+                       <div className="small text-muted mb-1">Pending Leaves</div>
+                       <h2 className="fw-bold mb-0 text-dark">{stats.pendingLeaves}</h2>
+                       <div className="small text-muted mt-2">Requires attention</div>
+                    </div>
+                    <div className="icon-box bg-orange-light text-orange"><i className="bi bi-calendar-event"></i></div>
+                 </div>
+              </div>
+           </div>
+
+           {/* Card 4: Payroll Status */}
+           <div className="col-xl-3 col-md-6">
+              <div className="stat-card-modern bg-white border">
+                 <div className="d-flex justify-content-between align-items-start">
+                    <div>
+                       <div className="small text-muted mb-1">Payroll Status</div>
+                       <h2 className="fw-bold mb-0 text-dark">{stats.payrollStatus}</h2>
+                       <div className="small text-muted mt-2">Feb 2026</div>
+                    </div>
+                    <div className="icon-box bg-blue-light text-blue"><i className="bi bi-currency-dollar"></i></div>
+                 </div>
+              </div>
+           </div>
+        </div>
+
+        <div className="row g-4">
+           {/* Left: Quick Actions (Cleaned up for HR) */}
+           <div className="col-lg-4">
+              <h5 className="fw-bold mb-3">Quick Actions</h5>
+              <div className="dashboard-card p-3">
+                 <button className="btn-quick-action" onClick={() => navigate('/employees')}>
+                    <span className="icon-wrapper dark"><i className="bi bi-person-plus"></i></span>
+                    <span className="fw-semibold">Add Employee</span>
+                 </button>
+                 <button className="btn-quick-action" onClick={() => navigate('/leave')}>
+                    <span className="icon-wrapper purple"><i className="bi bi-check2-circle"></i></span>
+                    <span className="fw-semibold">Approve Staff Leave</span>
+                 </button>
+                 <button className="btn-quick-action" onClick={() => navigate('/payroll')}>
+                    <span className="icon-wrapper dark"><i className="bi bi-file-earmark-text"></i></span>
+                    <span className="fw-semibold">Generate Payslip</span>
+                 </button>
+              </div>
+           </div>
+
+           {/* Right: Recent Leaves */}
+           <div className="col-lg-8">
+              <div className="dashboard-card p-0 overflow-hidden">
+                 <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
+                    <h6 className="fw-bold mb-0">Recent Staff Requests</h6>
+                    <span className="text-primary small cursor-pointer" onClick={() => navigate('/leave')}>View all →</span>
+                 </div>
+                 {recentLeaves.map((leave, idx) => (
+                    <div key={leave.id} className={`leave-request-row ${idx !== recentLeaves.length-1 ? 'border-bottom' : ''}`}>
+                       <div className="d-flex align-items-center gap-3">
+                          <div className="avatar-circle-sm bg-blue-light text-blue fw-bold">{leave.avatar}</div>
+                          <div>
+                             <div className="fw-bold text-dark">{leave.name}</div>
+                             <div className="small text-muted">{leave.type} • {leave.days} days</div>
+                          </div>
+                       </div>
+                       <span className={`badge-status-pill ${leave.status.toLowerCase()}`}>{leave.status}</span>
+                    </div>
+                 ))}
+              </div>
+           </div>
+        </div>
+
+        {/* Bottom: Top Performers */}
+        <div className="mt-4">
+           <div className="d-flex justify-content-between align-items-center mb-3">
+              <h5 className="fw-bold mb-0">📈 Top Performers</h5>
+              <span className="text-primary small cursor-pointer" onClick={() => navigate('/performance')}>View all →</span>
+           </div>
+           <div className="dashboard-card p-3">
+              <div className="row g-3">
+                 <div className="col-md-4">
+                    <div className="performer-card bg-light">
+                       <div className="rank-badge bg-primary">1</div>
+                       <div>
+                          <div className="fw-bold">Alex Thompson</div>
+                          <div className="small text-muted">Senior Developer</div>
+                       </div>
+                       <div className="ms-auto text-end">
+                          <div className="fw-bold text-success">98%</div>
+                          <div className="extra-small text-muted">Attendance</div>
+                       </div>
+                    </div>
+                 </div>
+                 <div className="col-md-4">
+                    <div className="performer-card bg-light">
+                       <div className="rank-badge bg-deep-blue">2</div>
+                       <div>
+                          <div className="fw-bold">Jessica Lee</div>
+                          <div className="small text-muted">Product Manager</div>
+                       </div>
+                       <div className="ms-auto text-end">
+                          <div className="fw-bold text-success">96%</div>
+                          <div className="extra-small text-muted">Attendance</div>
+                       </div>
+                    </div>
+                 </div>
+                 <div className="col-md-4">
+                    <div className="performer-card bg-light">
+                       <div className="rank-badge bg-dark">3</div>
+                       <div>
+                          <div className="fw-bold">David Kim</div>
+                          <div className="small text-muted">UX Designer</div>
+                       </div>
+                       <div className="ms-auto text-end">
+                          <div className="fw-bold text-success">95%</div>
+                          <div className="extra-small text-muted">Attendance</div>
+                       </div>
+                    </div>
+                 </div>
+              </div>
+           </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) return <div className="p-5 text-center">Loading Dashboard...</div>;
 
   return (
     <div className="hr-page">
-      <main className="container-xxl hr-main m-0 p-3">
-        <div className="dashboard-shell border">
-          
-          {/* Header Section */}
-          <div className="mb-4 d-flex justify-content-between align-items-center">
-            <div className="greeting-container">
-              <h2 className="page-greeting">
-                {roleTitle} {user?.firstName ? ` – ${user.firstName}` : ""}
-              </h2>
-              {roleSubtitle && (
-                <div className="text-muted small mt-1">{roleSubtitle}</div>
-              )}
-            </div>
+       <main className="container-fluid p-4">
+          {isHR ? renderHRDashboard() : renderEmployeeDashboard()}
+       </main>
 
-            <div className="button-container d-flex">
-              <div className="mt-2 h5 me-3">{checkedIn && lastCheckInTime}</div>
-              {!checkedIn ? (
-                <button onClick={handleCheckIn} className="btn btn-primary">Check In</button>
-              ) : (
-                <button onClick={handleCheckOut} className="btn btn-outline-danger">Check Out</button>
-              )}
-            </div>
-          </div>
-
-          <div className="row g-4">
-            
-            {/* --- LEFT COLUMN --- */}
-            <div className="col-lg-8 d-flex flex-column gap-4">
-              
-              {/* Card 1: Daily Overview Statistics (UPDATED) */}
-              <div className="dashboard-chart-card">
-                <div className="chart-header">
-                  <h3 className="chart-title">📈 Daily Overview</h3>
-                  {/* Updated Legend to match new metrics */}
-                  <div className="chart-legend">
-                    <div className="legend-item"><span className="legend-dot blue"></span><span>Total Employees</span></div>
-                    <div className="legend-item"><span className="legend-dot green"></span><span>Present</span></div>
-                    <div className="legend-item"><span className="legend-dot pink"></span><span>Half Day</span></div>
-                  </div>
-                </div>
-                {/* ✅ UPDATED Stats: Total Employee, Total Present, Half Day */}
-                <div className="chart-stats">
-                  <div className="stat-item">
-                    {/* Using 'stats.totalEmployees' */}
-                    <AnimatedNumber value={stats.totalEmployees} className="stat-value blue" duration={1200} />
-                    <div className="stat-label">Total Employees</div>
-                  </div>
-                  <div className="stat-item">
-                     {/* Using 'dailyStats.present' */}
-                    <AnimatedNumber value={dailyStats.present} className="stat-value green" duration={1200} />
-                    <div className="stat-label">Total Present</div>
-                  </div>
-                  <div className="stat-item">
-                    {/* Using 'dailyStats.halfDay' */}
-                    <AnimatedNumber value={dailyStats.halfDay} className="stat-value pink" duration={1200} />
-                    <div className="stat-label">Half Days</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 2: Quick Links */}
-              <div className="dashboard-chart-card">
-                <div className="chart-header">
-                  <h3 className="chart-title">
-                    <span>🧑‍💼 {role === "admin" ? "Admin" : role === "hr" ? "HR" : "User"} Quick Links</span>
-                  </h3>
-                </div>
-                <div className="card-body">
-                  <div className="feature-grid">
-                    {quickActions.map((item) => (
-                      <button key={item.label} type="button" className="feature-pill" onClick={() => handleCardClick(item.action)}>
-                        <span className="feature-dot" />
-                        <span>{item.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 3: General Stats */}
-              <div className="dashboard-chart-card">
-                <div className="chart-header"><h3 className="chart-title">📋 Overview</h3></div>
-                <div className="card-body">
-                  <div className="stat-row">
-                    <div className="stat-cards stat-card-purple" onClick={() => handleCardClick("employees")}>
-                      <div className="stat-icon">👥</div>
-                      <div className="stat-label">{role === "manager" ? "Team Members" : "Total Employees"}</div>
-                      <div className="stat-value">{stats.totalEmployees || 0}</div>
-                    </div>
-                    <div className="stat-cards stat-card-pink" onClick={() => handleCardClick("attendance")}>
-                      <div className="stat-icon">✅</div>
-                      <div className="stat-label">{role === "employee" ? "My Attendance" : "Active Employees"}</div>
-                      <div className="stat-value">{stats.activeEmployees || 0}</div>
-                    </div>
-                    {(role === "admin" || role === "hr") && (
-                      <div className="stat-cards stat-card-gold" onClick={() => handleCardClick("employees")}>
-                        <div className="stat-icon">🏢</div>
-                        <div className="stat-label">Departments</div>
-                        <div className="stat-value">{stats.departments || 0}</div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* --- RIGHT COLUMN --- */}
-            <div className="col-lg-4 d-flex flex-column gap-4">
-              
-              {/* Card 4: Employee Breakdown Ring Chart */}
-              <div className="dashboard-chart-card">
-                <div className="chart-header">
-                  <h3 className="chart-title">📊 Employee Work Rate</h3>
-                </div>
-                <div className="card-body access-vertical">
-                  <div className="access-chart-wrap access-chart-full">
-                    <svg viewBox="0 0 140 140" className="access-chart-svg">
-                      {(() => {
-                        const baseRadius = 62; const ringGap = 8;
-                        const total = EMPLOYMENT_BREAKDOWN.reduce((sum, item) => sum + item.value, 0);
-                        return EMPLOYMENT_BREAKDOWN.map((item, index) => {
-                          const radius = baseRadius - index * ringGap;
-                          const circumference = 2 * Math.PI * radius;
-                          const fraction = total ? item.value / total : 0;
-                          const length = fraction * circumference;
-                          return (
-                            <g key={item.key}>
-                              <circle cx="70" cy="70" r={radius} className="access-segment-bg" />
-                              <circle cx="70" cy="70" r={radius} className={`access-segment ${item.colorClass}`} style={{ '--dash': length, '--gap': circumference - length, '--delay': `${index * 0.18}s` }} />
-                            </g>
-                          );
-                        });
-                      })()}
-                    </svg>
-                    <div className="access-chart-center">
-                      <div className="access-center-value">{EMPLOYMENT_BREAKDOWN.reduce((s, i) => s + i.value, 0)}</div>
-                      <div className="access-center-label">Total Staff</div>
-                    </div>
-                  </div>
-                  <div className="access-legend access-legend-bottom">
-                    {EMPLOYMENT_BREAKDOWN.map((item) => (
-                      <div className="access-legend-row" key={item.key}>
-                        <div className="legend-label-wrap"><span className={`legend-dot ${item.colorClass}`} /><span className="legend-label">{item.label}</span></div>
-                        <div className="legend-values"><span className="legend-count">{item.value}</span></div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 5: All Employees / Recent Leaves Table */}
-              <div className="dashboard-chart-card">
-                <div className="chart-header d-flex justify-content-between align-items-center">
-                    <h3 className="chart-title">
-                        🧑‍🤝‍🧑 Employees Request
-                        <span 
-                            title="Go to Leaves Page"
-                            style={{ cursor: "pointer", marginLeft: "10px", fontSize: "1.52em", color: "#666" }}
-                            onClick={() => navigate('/leave')}
-                        >
-                            ↗
-                        </span>
-                    </h3>
-                </div>
-                
+       {/* ======================= */}
+       {/* APPLY LEAVE MODAL       */}
+       {/* ======================= */}
+       <Modal show={showLeaveModal} onHide={() => setShowLeaveModal(false)} centered className="leave-modal">
+          <Modal.Header closeButton className="border-0 pb-0">
+             <Modal.Title className="fw-bold fs-5">Apply for Leave</Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="pt-2">
+             
+             {/* Step 1: Selection (Always visible at top for context) */}
+             <div className="d-flex gap-3 mb-3">
                 <div 
-                    className="card-body" 
-                    style={{ maxHeight: "180px", overflowY: "auto", padding: "0" }}
+                   className={`leave-type-card ${leaveType === 'short' ? 'active' : ''} ${shortLeavesTaken >= 3 ? 'disabled' : ''}`}
+                   onClick={() => handleSelectLeaveType('short')}
                 >
-                    <table className="table table-hover align-middle leaves-table mb-0">
-                        <thead className="table-light" style={{ position: "sticky", top: 0, zIndex: 2 }}>
-                            <tr>
-                                <th>S.no</th>
-                                {(user?.role === 'hr' || user?.role === 'admin') && <th>Employee</th>}
-                                <th>Type</th>
-                                {(user?.role === 'hr' || user?.role === 'admin') && <th>Actions</th>}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredLeaves.map((leave, index) => {
-                                return (
-                                <tr key={leave._id}>
-                                    <td>{index + 1}</td>
-                                    {(user?.role === 'hr' || user?.role === 'admin') && (
-                                    <td>{leave.employee?.firstName} {leave.employee?.lastName}</td>
-                                    )}
-                                    <td>{leave.leaveType}</td>
-                                    {(user?.role === 'hr' || user?.role === 'admin') && (
-                                    <td>
-                                        <button className="btn btn-sm btn-success me-2" onClick={() => handleApproveLeave(leave._id)} disabled={leave.status !== 'pending'}>✓</button>
-                                        <button className="btn btn-sm btn-danger" onClick={() => handleRejectLeave(leave._id)} disabled={leave.status !== 'pending'}>✕</button>
-                                    </td>
-                                    )}
-                                </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                   <div className="icon"><i className="bi bi-clock"></i></div>
+                   <div className="fw-bold">Short Leave</div>
+                   <div className="small text-muted">Hour-based</div>
                 </div>
-              </div>
 
-            </div>
-          </div>
-        </div>
-      </main>
+                <div 
+                   className={`leave-type-card ${leaveType === 'full' ? 'active' : ''}`}
+                   onClick={() => handleSelectLeaveType('full')}
+                >
+                   <div className="icon"><i className="bi bi-calendar-event"></i></div>
+                   <div className="fw-bold">Full Day Leave</div>
+                   <div className="small text-muted">Day-based</div>
+                </div>
+             </div>
+
+             {/* Short Leave Warning/Info */}
+             {leaveType === 'short' && (
+                 <div className="alert alert-soft-purple mb-3 py-2 small">
+                    <i className="bi bi-info-circle me-2"></i>
+                    {3 - shortLeavesTaken} short leaves remaining this month
+                 </div>
+             )}
+             {shortLeavesTaken >= 3 && (
+                 <div className="alert alert-soft-red mb-3 py-2 small">
+                    <i className="bi bi-exclamation-circle me-2"></i>
+                    You have exceeded the Short Leave limit (3/month). Please apply for Full Day Leave.
+                 </div>
+             )}
+
+             {/* Step 2: Form */}
+             <div className="leave-form">
+                <Form.Group className="mb-3">
+                   <Form.Label className="small fw-semibold">Date</Form.Label>
+                   <Form.Control type="date" value={leaveFormData.date} onChange={(e) => setLeaveFormData({...leaveFormData, date: e.target.value})} />
+                </Form.Group>
+
+                {leaveType === 'short' && (
+                   <div className="row g-2 mb-3">
+                      <div className="col-6">
+                         <Form.Label className="small fw-semibold">From Time</Form.Label>
+                         <Form.Control type="time" onChange={(e) => setLeaveFormData({...leaveFormData, fromTime: e.target.value})} />
+                      </div>
+                      <div className="col-6">
+                         <Form.Label className="small fw-semibold">To Time</Form.Label>
+                         <Form.Control type="time" onChange={(e) => setLeaveFormData({...leaveFormData, toTime: e.target.value})} />
+                      </div>
+                   </div>
+                )}
+
+                <Form.Group className="mb-3">
+                   <Form.Label className="small fw-semibold">Reason</Form.Label>
+                   <Form.Control 
+                      as="textarea" 
+                      rows={3} 
+                      placeholder="Please provide a reason for your leave..."
+                      onChange={(e) => setLeaveFormData({...leaveFormData, reason: e.target.value})}
+                   />
+                </Form.Group>
+             </div>
+          </Modal.Body>
+          <Modal.Footer className="border-0 pt-0">
+             <Button variant="light" className="w-100 rounded-pill mb-2" onClick={() => setShowLeaveModal(false)}>Cancel</Button>
+             <Button 
+                className="w-100 rounded-pill btn-deep-blue" 
+                onClick={handleSubmitLeave}
+                disabled={leaveType === 'short' && shortLeavesTaken >= 3}
+             >
+                Submit Application
+             </Button>
+          </Modal.Footer>
+       </Modal>
     </div>
   );
 };
