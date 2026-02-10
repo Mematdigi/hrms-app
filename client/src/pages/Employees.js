@@ -22,14 +22,14 @@ function Employees() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterJoinDate, setFilterJoinDate] = useState('');
 
-  // --- Form Data ---
+  // --- Main Form Data (Used for BOTH Add and Edit) ---
   const [formData, setFormData] = useState({
     employeeId: '',
     firstName: '', 
     lastName: '', 
     email: '', 
-    contact: '',
-    address: '',
+    contact: '', // ✅ Added
+    address: '', // ✅ Added
     password: '',
     department: '', 
     designation: '', 
@@ -47,19 +47,15 @@ function Employees() {
     profilePhoto: null
   });
 
-  // Track ID for Editing
+  // Edit State
   const [editingId, setEditingId] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
-  
-  // To show existing document names in Edit Mode
-  const [existingDocs, setExistingDocs] = useState({});
+  const [existingDocs, setExistingDocs] = useState({}); // To show "File Uploaded" text
 
   const { user } = useSelector((state) => state.auth);
 
-  // --- Effects ---
   useEffect(() => { fetchEmployees(); }, []);
 
-  // --- API Functions ---
   const fetchEmployees = async () => {
     try {
       setLoading(true);
@@ -72,7 +68,7 @@ function Employees() {
 
   // --- Handlers ---
 
-  // ✅ FIXED: Populate Contact, Address and Documents correctly
+  // ✅ FIXED: Populate ALL fields including Contact/Address for Editing
   const handleEditClick = (employee) => {
     setEditingId(employee._id);
     
@@ -81,33 +77,31 @@ function Employees() {
       firstName: employee.firstName || '',
       lastName: employee.lastName || '',
       email: employee.email || '',
-      contact: employee.contact || '', // ✅ Fix: Explicitly map contact
-      address: employee.address || '', // ✅ Fix: Explicitly map address
-      password: '', // Keep empty for security, only send if changing
+      contact: employee.contact || '', // ✅ Map Contact
+      address: employee.address || '', // ✅ Map Address
+      password: '', // Leave empty unless changing
       department: employee.department || '',
       designation: employee.designation || '',
       dateOfJoining: employee.dateOfJoining ? new Date(employee.dateOfJoining).toISOString().split('T')[0] : '',
       baseSalary: employee.baseSalary || '',
       status: employee.status || 'Full Time',
       isActive: employee.isActive,
-      // Reset file inputs (user must re-upload to change)
+      // Reset files (user must re-upload to change them)
       adharCard: null, panCard: null, salarySlip: null,
       relievingLetter: null, experienceLetter: null, offerLetter: null, profilePhoto: null
     });
 
     // Handle Photo Preview
     if (employee.profilePhoto) {
-        // Assuming backend serves uploads at root or via a specific path
-        // Replace with your actual backend URL structure
         setPhotoPreview(`http://localhost:5000/${employee.profilePhoto}`); 
     } else {
         setPhotoPreview(null);
     }
 
-    // Store existing document paths to show "File Uploaded" status
+    // Set existing documents to show status
     setExistingDocs(employee.documents || {});
 
-    setViewMode('edit'); // Switch to Full Page Edit
+    setViewMode('edit'); // Switch to Full Page
   };
 
   const handleChange = (e) => {
@@ -129,6 +123,7 @@ function Employees() {
     }
   };
 
+  // ✅ Unified Submit for Add and Update
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
@@ -137,11 +132,11 @@ function Employees() {
     try {
       const data = new FormData();
       Object.keys(formData).forEach((key) => {
-        // Append files only if selected
+        // Files
         if (['adharCard', 'panCard', 'salarySlip', 'relievingLetter', 'experienceLetter', 'offerLetter', 'profilePhoto'].includes(key)) {
             if (formData[key]) data.append(key, formData[key]);
         } else {
-            // Append text data (skip password if empty in edit mode)
+            // Text (Skip password if empty in Edit mode)
             if (key === 'password' && viewMode === 'edit' && !formData[key]) return;
             data.append(key, formData[key]);
         }
@@ -151,7 +146,6 @@ function Employees() {
           await employeeAPI.create(data);
           setSuccessMessage('✅ Employee created successfully!');
       } else {
-          // ✅ Edit Mode: Call Update API
           await employeeAPI.update(editingId, data);
           setSuccessMessage('✅ Employee updated successfully!');
       }
@@ -204,7 +198,6 @@ function Employees() {
       const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
       const matchesSearch = fullName.includes(searchLower) || emp.email.toLowerCase().includes(searchLower);
       return matchesSearch; 
-      // (Add other filters back if needed)
     });
   }, [employees, searchQuery]);
 
@@ -219,22 +212,18 @@ function Employees() {
 
   return (
     <div className="employees-page">
-      {/* Alerts */}
       {successMessage && <div className="alert-toast success">{successMessage}</div>}
       {errorMessage && <div className="alert-toast error">{errorMessage}</div>}
 
       {/* Header */}
       <div className="page-header">
+        
         <div>
           <h1>{viewMode === 'add' ? 'Add New Employee' : viewMode === 'edit' ? 'Edit Details' : 'Employees'}</h1>
           <p>{viewMode === 'grid' || viewMode === 'list' ? 'Manage your team members.' : 'Manage employee information and documents.'}</p>
         </div>
-        {/* Show Add button only in Grid/List mode */}
         {(user?.role === 'admin' || user?.role === 'hr') && (viewMode === 'grid' || viewMode === 'list') && (
-          <button 
-            className="btn-primary-add" 
-            onClick={() => { resetForm(); setViewMode('add'); }}
-          >
+          <button className="btn-primary-add" onClick={() => { resetForm(); setViewMode('add'); }}>
             + Add Employee
           </button>
         )}
@@ -281,24 +270,20 @@ function Employees() {
             {/* Right Side: Form Sections */}
             <div className="right-form-area">
                 
-                {/* Section 1: Personal Information */}
                 <div className="form-section-card">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h4>Personal Information</h4>
-                        {viewMode === 'edit' && <i className="bi bi-pencil text-muted" style={{fontSize:'12px'}}> Editing</i>}
+                        {viewMode === 'edit' && <span className="text-muted small"><i className="bi bi-pencil"></i> Editing Mode</span>}
                     </div>
                     <div className="form-row-grid">
                         <div className="input-group"><label>First Name <span className="req">*</span></label><input type="text" name="firstName" value={formData.firstName} onChange={handleChange} required /></div>
                         <div className="input-group"><label>Last Name <span className="req">*</span></label><input type="text" name="lastName" value={formData.lastName} onChange={handleChange} required /></div>
                         <div className="input-group"><label>Email Address <span className="req">*</span></label><input type="email" name="email" value={formData.email} onChange={handleChange} required disabled={viewMode === 'edit'} /></div>
-                        {/* ✅ Contact Field */}
                         <div className="input-group"><label>Contact Number <span className="req">*</span></label><input type="tel" name="contact" value={formData.contact} onChange={handleChange} required /></div>
-                        {/* ✅ Address Field */}
                         <div className="input-group full-width"><label>Address</label><input type="text" name="address" value={formData.address} onChange={handleChange} /></div>
                     </div>
                 </div>
 
-                {/* Section 2: Employment Details */}
                 <div className="form-section-card">
                     <h4>Employment Details</h4>
                     <div className="form-row-grid">
@@ -308,23 +293,14 @@ function Employees() {
                         <div className="input-group"><label>Joining Date</label><input type="date" name="dateOfJoining" value={formData.dateOfJoining} onChange={handleChange} /></div>
                         <div className="input-group"><label>Status</label><select name="status" value={formData.status} onChange={handleChange}><option value="Full Time">Full Time</option><option value="Probation">Probation</option><option value="Internship">Internship</option></select></div>
                         <div className="input-group"><label>Base Salary</label><input type="number" name="baseSalary" value={formData.baseSalary} onChange={handleChange} /></div>
-                        {/* Password field only shown for Add, or can be left blank in Edit */}
                         <div className="input-group"><label>Password {viewMode === 'add' && <span className="req">*</span>}</label><input type="password" name="password" value={formData.password} onChange={handleChange} required={viewMode === 'add'} placeholder={viewMode === 'edit' ? "Leave empty to keep current" : ""} /></div>
                     </div>
                 </div>
 
-                {/* Section 3: Documents */}
                 <div className="form-section-card">
                     <h4>Documents Upload</h4>
                     <div className="documents-grid">
-                        {[
-                            { label: "Aadhar Card", name: "adharCard" },
-                            { label: "PAN Card", name: "panCard" },
-                            { label: "Salary Slip", name: "salarySlip" },
-                            { label: "Relieving Letter", name: "relievingLetter" },
-                            { label: "Experience Letter", name: "experienceLetter" },
-                            { label: "Offer Letter", name: "offerLetter" }
-                        ].map((doc) => (
+                        {[{ label: "Aadhar Card", name: "adharCard" }, { label: "PAN Card", name: "panCard" }, { label: "Salary Slip", name: "salarySlip" }, { label: "Relieving Letter", name: "relievingLetter" }, { label: "Experience Letter", name: "experienceLetter" }, { label: "Offer Letter", name: "offerLetter" }].map((doc) => (
                             <div className="file-upload-box" key={doc.name}>
                                 <label>{doc.label}</label>
                                 <div className={`file-input-wrapper ${existingDocs[doc.name] ? 'has-file' : ''}`}>
@@ -342,7 +318,6 @@ function Employees() {
                     </div>
                 </div>
 
-                {/* Actions */}
                 <div className="form-footer-actions">
                     <button type="button" className="btn-secondary" onClick={resetForm}>Cancel</button>
                     <button type="submit" className="btn-primary-add">{viewMode === 'add' ? 'Save Employee' : 'Update Changes'}</button>
@@ -352,7 +327,6 @@ function Employees() {
       ) : (
         /* --- NORMAL VIEW (Grid/List) --- */
         <>
-            {/* Filter Bar */}
             <div className="filter-bar">
                 <div className="search-wrapper"><i className="bi bi-search search-icon"></i><input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}/></div>
                 <button className="btn-icon-filter" onClick={handleResetFilters}><i className="bi bi-funnel"></i> Filter</button>
@@ -362,36 +336,31 @@ function Employees() {
                 </div>
             </div>
 
-            {/* Grid View */}
             {viewMode === 'grid' ? (
                 <div className="employees-grid">
-                    {filteredEmployees.length > 0 ? (
-                        filteredEmployees.map((emp) => (
-                            <div className="employee-card" key={emp._id}>
-                                <div className="card-header-part">
-                                    <div className="d-flex align-items-center gap-3">
-                                        <div className="avatar" style={{ backgroundColor: getAvatarColor(emp.firstName) }}>{emp.firstName[0]}</div>
-                                        <div className="text-info"><h3>{emp.firstName} {emp.lastName}</h3><p className="role">{emp.designation || 'Employee'}</p></div>
-                                    </div>
-                                    {/* Edit Button in Card */}
-                                    {(user?.role === 'admin' || user?.role === 'hr') && (
-                                        <button className="btn-icon-action ms-auto" onClick={() => handleEditClick(emp)} title="Edit"><i className="bi bi-pencil"></i></button>
-                                    )}
+                    {filteredEmployees.map((emp) => (
+                        <div className="employee-card" key={emp._id}>
+                            <div className="card-header-part">
+                                <div className="d-flex align-items-center gap-3">
+                                    <div className="avatar" style={{ backgroundColor: getAvatarColor(emp.firstName) }}>{emp.firstName[0]}</div>
+                                    <div className="text-info"><h3>{emp.firstName} {emp.lastName}</h3><p className="role">{emp.designation || 'Employee'}</p></div>
                                 </div>
-                                <div className="card-body-part">
-                                    <div className="contact-row"><i className="bi bi-envelope"></i> <span className="text-truncate">{emp.email}</span></div>
-                                    <div className="contact-row"><i className="bi bi-telephone"></i> <span>{emp.contact || '+1 234 567 890'}</span></div>
-                                </div>
-                                <div className="card-footer-part">
-                                    <span className={`status-badge ${emp.isActive ? 'confirmed' : 'inactive'}`}>{emp.isActive ? 'Active' : 'Inactive'}</span>
-                                    <button className="view-profile-link" onClick={() => navigate(`/EmployeeDetails/${emp._id}`)}>View Profile <i className="bi bi-arrow-up-right"></i></button>
-                                </div>
+                                {(user?.role === 'admin' || user?.role === 'hr') && (
+                                    <button className="btn-icon-action ms-auto" onClick={(e) => { e.stopPropagation(); handleEditClick(emp); }}><i className="bi bi-pencil"></i></button>
+                                )}
                             </div>
-                        ))
-                    ) : <div className="no-data">No employees found.</div>}
+                            <div className="card-body-part">
+                                <div className="contact-row"><i className="bi bi-envelope"></i> <span className="text-truncate">{emp.email}</span></div>
+                                <div className="contact-row"><i className="bi bi-telephone"></i> <span>{emp.contact || '-'}</span></div>
+                            </div>
+                            <div className="card-footer-part">
+                                <span className={`status-badge ${emp.isActive ? 'confirmed' : 'inactive'}`}>{emp.isActive ? 'Active' : 'Inactive'}</span>
+                                <button className="view-profile-link" onClick={() => navigate(`/EmployeeDetails/${emp._id}`)}>View Profile <i className="bi bi-arrow-up-right"></i></button>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             ) : (
-                /* List View */
                 <div className="table-card">
                     <table className="modern-table">
                         <thead><tr><th>EMPLOYEE</th><th>DEPARTMENT</th><th>STATUS</th><th>JOIN DATE</th><th className="text-end">ACTIONS</th></tr></thead>
@@ -406,7 +375,7 @@ function Employees() {
                                     </td>
                                     <td className="text-secondary">{emp.department || '-'}</td>
                                     <td><span className={`status-pill ${emp.isActive ? 'active' : 'inactive'}`}>{emp.isActive ? 'Active' : 'Inactive'}</span></td>
-                                    <td className="text-secondary">{emp.dateOfJoining ? new Date(emp.dateOfJoining).toLocaleDateString() : '-'}</td>
+                                    <td className="text-secondary">{emp.dateOfJoining ? new Date(emp.dateOfJoining).toLocaleDateString('en-GB') : '-'}</td>
                                     <td className="text-end action-cell-flex">
                                         <button className="btn-link-action me-3" onClick={() => navigate(`/EmployeeDetails/${emp._id}`)}>View <i className="bi bi-arrow-up-right ms-1"></i></button>
                                         {(user?.role === 'admin' || user?.role === 'hr') && (
