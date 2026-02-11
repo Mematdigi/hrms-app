@@ -80,10 +80,15 @@ function Attendance() {
   const fetchHRData = async () => {
     setLoading(true);
     try {
+      // Calculate from and to dates for the current month
+      const from = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const to = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
       const response = await attendanceAPI.getAllAttendance({
-        month: currentDate.getMonth() + 1,
-        year: currentDate.getFullYear(),
-        ...filters
+        from: from.toISOString().split('T')[0],
+        to: to.toISOString().split('T')[0],
+        status: filters.status
+        // Note: name and dept filters are not supported server-side, handle client-side if needed
       });
 
       // ✅ FIX: Robust check for array structure
@@ -94,19 +99,34 @@ function Attendance() {
           data = response.data.data;
       }
 
-      setAllAttendance(data);
+      // Apply client-side filters for name and dept
+      let filteredData = data;
+      if (filters.name) {
+        filteredData = filteredData.filter(record =>
+          record.username?.toLowerCase().includes(filters.name.toLowerCase()) ||
+          record.employee?.firstName?.toLowerCase().includes(filters.name.toLowerCase()) ||
+          record.employee?.lastName?.toLowerCase().includes(filters.name.toLowerCase())
+        );
+      }
+      if (filters.dept) {
+        filteredData = filteredData.filter(record =>
+          record.employee?.department?.toLowerCase() === filters.dept.toLowerCase()
+        );
+      }
 
-      // Get unique employees
-      const uniqueEmployees = [...new Set(data.map(r => r.employee))];
+      setAllAttendance(filteredData);
 
-      // Calc HR Summary dynamically from fetched data (using lowercase status)
+      // Get unique employees from filtered data
+      const uniqueEmployees = [...new Set(filteredData.map(r => r.employee?._id || r.employee))];
+
+      // Calc HR Summary dynamically from filtered data (using lowercase status)
       setHrSummary({
         total: uniqueEmployees.length,
-        present: data.filter(r => r.status === 'present').length,
-        absent: data.filter(r => r.status === 'absent').length,
-        late: data.filter(r => r.status === 'late').length,
-        short: data.filter(r => r.status === 'short-leave').length,
-        half: data.filter(r => r.status === 'half-day').length
+        present: filteredData.filter(r => r.status === 'present').length,
+        absent: filteredData.filter(r => r.status === 'absent').length,
+        late: filteredData.filter(r => r.status === 'late').length,
+        short: filteredData.filter(r => r.status === 'short-leave').length,
+        half: filteredData.filter(r => r.status === 'half-day').length
       });
 
     } catch (error) {
@@ -170,11 +190,11 @@ function Attendance() {
       
       let statusClass = '';
       if (record) {
-          if(record.status === 'Present') statusClass = 'dot-present';
-          else if(record.status === 'Absent') statusClass = 'dot-absent';
-          else if(record.status === 'Late') statusClass = 'dot-late';
-          else if(record.status === 'Half Day') statusClass = 'dot-half';
-          else if(record.status === 'Short Leave') statusClass = 'dot-short';
+          if(record.status === 'present') statusClass = 'dot-present';
+          else if(record.status === 'absent') statusClass = 'dot-absent';
+          else if(record.status === 'late') statusClass = 'dot-late';
+          else if(record.status === 'half-day') statusClass = 'dot-half';
+          else if(record.status === 'short-leave') statusClass = 'dot-short';
       }
 
       days.push(

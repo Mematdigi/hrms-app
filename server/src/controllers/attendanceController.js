@@ -43,31 +43,31 @@ console.log('Location check result:', result);
       const { employeeId, latitude, longitude } = req.body;
 
       console.log('Check-in request received:', req.body);
-      // Validate location data
-      if (!latitude || !longitude) {
-        return res.status(400).json({
-          success: false,
-          message: 'Location data is required for check-in'
-        });
-      }
+      // Validate location data - commented out to allow check-in without location
+      // if (!latitude || !longitude) {
+      //   return res.status(400).json({
+      //     success: false,
+      //     message: 'Location data is required for check-in'
+      //   });
+      // }
 
-      // Verify if employee is within office premises
-      console.log('Checking location for check-in:', latitude, longitude);
-      const locationCheck = this.isWithinOffice(latitude, longitude);
+      // Verify if employee is within office premises - commented out
+      // console.log('Checking location for check-in:', latitude, longitude);
+      // const locationCheck = this.isWithinOffice(latitude, longitude);
 
-      if (!locationCheck.isWithin) {
-        return res.status(403).json({
-          success: false,
-          message: `You must be at the office premises to check in`,
-          distance: locationCheck.distance,
-          distanceKm: (locationCheck.distance / 1000).toFixed(2),
-          requiredRadius: this.OFFICE_LOCATION.radiusInMeters,
-          officeLocation: {
-            latitude: this.OFFICE_LOCATION.latitude,
-            longitude: this.OFFICE_LOCATION.longitude
-          }
-        });
-      }
+      // if (!locationCheck.isWithin) {
+      //   return res.status(403).json({
+      //     success: false,
+      //     message: `You must be at the office premises to check in`,
+      //     distance: locationCheck.distance,
+      //     distanceKm: (locationCheck.distance / 1000).toFixed(2),
+      //     requiredRadius: this.OFFICE_LOCATION.radiusInMeters,
+      //     officeLocation: {
+      //       latitude: this.OFFICE_LOCATION.latitude,
+      //       longitude: this.OFFICE_LOCATION.longitude
+      //     }
+      //   });
+      // }
 
       // Fetch user to get username
       const user = await User.findById(employeeId);
@@ -110,11 +110,8 @@ console.log('Location check result:', result);
       res.json({
         success: true,
         message: 'Check-in successful',
-        attendance,
-        location: {
-          distance: locationCheck.distance,
-          withinRadius: true
-        }
+        attendance
+        // Location check commented out - no location info in response
       });
     } catch (error) {
       res.status(500).json({
@@ -128,30 +125,30 @@ console.log('Location check result:', result);
     try {
       const { employeeId, latitude, longitude } = req.body;
 
-      // Validate location data
-      if (!latitude || !longitude) {
-        return res.status(400).json({ 
-          success: false,
-          message: 'Location data is required for check-out' 
-        });
-      }
+      // Validate location data - commented out to allow check-out without location
+      // if (!latitude || !longitude) {
+      //   return res.status(400).json({
+      //     success: false,
+      //     message: 'Location data is required for check-out'
+      //   });
+      // }
 
-      // Verify if employee is within office premises
-      const locationCheck = this.isWithinOffice(latitude, longitude);
-      
-      if (!locationCheck.isWithin) {
-        return res.status(403).json({ 
-          success: false,
-          message: `You must be at the office premises to check out`,
-          distance: locationCheck.distance,
-          distanceKm: (locationCheck.distance / 1000).toFixed(2),
-          requiredRadius: this.OFFICE_LOCATION.radiusInMeters,
-          officeLocation: {
-            latitude: this.OFFICE_LOCATION.latitude,
-            longitude: this.OFFICE_LOCATION.longitude
-          }
-        });
-      }
+      // Verify if employee is within office premises - commented out
+      // const locationCheck = this.isWithinOffice(latitude, longitude);
+
+      // if (!locationCheck.isWithin) {
+      //   return res.status(403).json({
+      //     success: false,
+      //     message: `You must be at the office premises to check out`,
+      //     distance: locationCheck.distance,
+      //     distanceKm: (locationCheck.distance / 1000).toFixed(2),
+      //     requiredRadius: this.OFFICE_LOCATION.radiusInMeters,
+      //     officeLocation: {
+      //       latitude: this.OFFICE_LOCATION.latitude,
+      //       longitude: this.OFFICE_LOCATION.longitude
+      //     }
+      //   });
+      // }
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -192,22 +189,22 @@ console.log('Location check result:', result);
       const earliestCheckOutConfig = locationConfig.workingHours.earliestCheckOutTime;
       const earliestCheckOut = earliestCheckOutConfig.hours * 60 + earliestCheckOutConfig.minutes;
 
-      // Check if early checkout
-      if (checkOutTotalMinutes < earliestCheckOut) {
-        return res.status(400).json({ 
-          success: false,
-          requiresApproval: true,
-          message: 'Early checkout requires HR approval',
-          expectedCheckout: `${earliestCheckOutConfig.hours}:${earliestCheckOutConfig.minutes.toString().padStart(2, '0')}`,
-          currentTime: checkOutTime.toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: true 
-          }),
-          checkOutTimeMinutes: checkOutTotalMinutes,
-          requiredMinutes: earliestCheckOut
-        });
-      }
+      // Check if early checkout - commented out to allow early checkout without approval
+      // if (checkOutTotalMinutes < earliestCheckOut) {
+      //   return res.status(400).json({
+      //     success: false,
+      //     requiresApproval: true,
+      //     message: 'Early checkout requires HR approval',
+      //     expectedCheckout: `${earliestCheckOutConfig.hours}:${earliestCheckOutConfig.minutes.toString().padStart(2, '0')}`,
+      //     currentTime: checkOutTime.toLocaleTimeString('en-US', {
+      //       hour: '2-digit',
+      //       minute: '2-digit',
+      //       hour12: true
+      //     }),
+      //     checkOutTimeMinutes: checkOutTotalMinutes,
+      //     requiredMinutes: earliestCheckOut
+      //   });
+      // }
 
       attendance.checkOutTime = checkOutTime;
       attendance.checkOutLocation = { latitude, longitude };
@@ -231,16 +228,13 @@ console.log('Location check result:', result);
       }
 
       await attendance.save();
-      res.json({ 
+      res.json({
         success: true,
         message: 'Check-out successful',
         attendance,
         workingHours: attendance.workingHours,
-        status: attendance.status,
-        location: {
-          distance: locationCheck.distance,
-          withinRadius: true
-        }
+        status: attendance.status
+        // Location check commented out - no location info in response
       });
     } catch (error) {
       res.status(500).json({ 
@@ -319,14 +313,11 @@ console.log('Location check result:', result);
 
       await attendance.save();
       
-      res.json({ 
+      res.json({
         success: true,
         message: 'Early checkout request submitted successfully. Waiting for HR approval.',
-        attendance,
-        location: {
-          distance: locationCheck.distance,
-          withinRadius: true
-        }
+        attendance
+        // Location check commented out - no location info in response
       });
     } catch (error) {
       res.status(500).json({ 
