@@ -1,4 +1,5 @@
 const Attendance = require('../models/Attendance');
+const User = require('../models/User');
 const { calculateDistance, isWithinRadius, validateCoordinates } = require('../utils/geolocation-helper');
 const locationConfig = require('../config/locationConfig');
 
@@ -44,18 +45,18 @@ console.log('Location check result:', result);
       console.log('Check-in request received:', req.body);
       // Validate location data
       if (!latitude || !longitude) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          message: 'Location data is required for check-in' 
+          message: 'Location data is required for check-in'
         });
       }
 
       // Verify if employee is within office premises
       console.log('Checking location for check-in:', latitude, longitude);
       const locationCheck = this.isWithinOffice(latitude, longitude);
-      
+
       if (!locationCheck.isWithin) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           success: false,
           message: `You must be at the office premises to check in`,
           distance: locationCheck.distance,
@@ -68,14 +69,25 @@ console.log('Location check result:', result);
         });
       }
 
+      // Fetch user to get username
+      const user = await User.findById(employeeId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Employee not found'
+        });
+      }
+      const username = `${user.firstName} ${user.lastName}`;
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
       let attendance = await Attendance.findOne({ employee: employeeId, date: today });
-      
+
       if (!attendance) {
         attendance = new Attendance({
           employee: employeeId,
+          username: username,
           date: today,
           checkInTime: new Date(),
           checkInLocation: { latitude, longitude },
@@ -85,8 +97,9 @@ console.log('Location check result:', result);
         attendance.checkInTime = new Date();
         attendance.checkInLocation = { latitude, longitude };
         attendance.status = 'working';
+        attendance.username = username; // Update name if not set
       } else {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           message: 'Already checked in for today',
           attendance
@@ -94,7 +107,7 @@ console.log('Location check result:', result);
       }
 
       await attendance.save();
-      res.json({ 
+      res.json({
         success: true,
         message: 'Check-in successful',
         attendance,
@@ -104,9 +117,9 @@ console.log('Location check result:', result);
         }
       });
     } catch (error) {
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        message: error.message 
+        message: error.message
       });
     }
   };
@@ -506,22 +519,32 @@ console.log('Location check result:', result);
   markAttendance = async (req, res) => {
     try {
       const { employeeId, date, status } = req.body;
-      
+
+      // Fetch user to get username
+      const user = await User.findById(employeeId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Employee not found'
+        });
+      }
+      const username = `${user.firstName} ${user.lastName}`;
+
       const attendance = await Attendance.findOneAndUpdate(
         { employee: employeeId, date: new Date(date) },
-        { status },
+        { status, username },
         { new: true, upsert: true }
       );
 
-      res.json({ 
+      res.json({
         success: true,
-        message: 'Attendance marked successfully', 
-        attendance 
+        message: 'Attendance marked successfully',
+        attendance
       });
     } catch (error) {
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        message: error.message 
+        message: error.message
       });
     }
   };

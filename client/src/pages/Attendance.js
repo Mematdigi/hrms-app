@@ -59,12 +59,12 @@ function Attendance() {
 
       const currentMonthLogs = logs.filter(a => new Date(a.date).getMonth() === currentDate.getMonth());
       setAttendanceSummary({
-        workingDays: 22, 
-        present: currentMonthLogs.filter(a => a.status === 'Present').length,
-        absent: 0, 
-        late: currentMonthLogs.filter(a => a.status === 'Late').length,
-        shortLeaves: currentMonthLogs.filter(a => a.status === 'Short Leave').length,
-        halfDays: currentMonthLogs.filter(a => a.status === 'Half Day').length,
+        workingDays: currentMonthLogs.length,
+        present: currentMonthLogs.filter(a => a.status === 'present').length,
+        absent: currentMonthLogs.filter(a => a.status === 'absent').length,
+        late: currentMonthLogs.filter(a => a.status === 'late').length,
+        shortLeaves: currentMonthLogs.filter(a => a.status === 'short-leave').length,
+        halfDays: currentMonthLogs.filter(a => a.status === 'half-day').length,
         totalHours: currentMonthLogs.reduce((acc, curr) => acc + (parseFloat(curr.workingHours) || 0), 0).toFixed(2)
       });
 
@@ -84,8 +84,8 @@ function Attendance() {
         month: currentDate.getMonth() + 1,
         year: currentDate.getFullYear(),
         ...filters
-      }); 
-      
+      });
+
       // ✅ FIX: Robust check for array structure
       let data = [];
       if (Array.isArray(response.data)) {
@@ -96,17 +96,20 @@ function Attendance() {
 
       setAllAttendance(data);
 
-      // Calc HR Summary dynamically from fetched data
+      // Get unique employees
+      const uniqueEmployees = [...new Set(data.map(r => r.employee))];
+
+      // Calc HR Summary dynamically from fetched data (using lowercase status)
       setHrSummary({
-        total: data.length, // Or unique employees if multiple logs per person
-        present: data.filter(r => r.status === 'Present').length,
-        absent: data.filter(r => r.status === 'Absent').length,
-        late: data.filter(r => r.status === 'Late').length,
-        short: data.filter(r => r.status === 'Short Leave').length,
-        half: data.filter(r => r.status === 'Half Day').length
+        total: uniqueEmployees.length,
+        present: data.filter(r => r.status === 'present').length,
+        absent: data.filter(r => r.status === 'absent').length,
+        late: data.filter(r => r.status === 'late').length,
+        short: data.filter(r => r.status === 'short-leave').length,
+        half: data.filter(r => r.status === 'half-day').length
       });
 
-    } catch (error) { 
+    } catch (error) {
         console.error("HR Fetch Error", error);
         setAllAttendance([]); // Prevent map error
     } finally { setLoading(false); }
@@ -138,7 +141,8 @@ function Attendance() {
     // Simple CSV export logic
     const headers = ["Employee,Date,Punch In,Punch Out,Total Hours,Status\n"];
     const csvRows = allAttendance.map(row => {
-        return `${row.employeeName},${new Date(row.date).toLocaleDateString()},${row.checkInTime || '-'},${row.checkOutTime || '-'},${row.workingHours || '-'},${row.status}`;
+        const employeeName = row.username || (row.employee ? `${row.employee.firstName} ${row.employee.lastName}` : 'Unknown');
+        return `${employeeName},${new Date(row.date).toLocaleDateString()},${row.checkInTime ? new Date(row.checkInTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'},${row.checkOutTime ? new Date(row.checkOutTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'},${row.workingHours || '-'},${row.status}`;
     });
     const csvContent = "data:text/csv;charset=utf-8," + headers + csvRows.join("\n");
     const encodedUri = encodeURI(csvContent);
@@ -294,11 +298,11 @@ function Attendance() {
             {/* 1. HR Stats */}
             <div className="stats-row hr">
                 <div className="stat-box"><small>Total Employees</small><h3>{hrSummary.total}</h3><i className="bi bi-people"></i></div>
-                <div className="stat-box"><small>Present Today</small><h3>{hrSummary.present}</h3><i className="bi bi-person-check text-success"></i></div>
-                <div className="stat-box"><small>Absent Today</small><h3>{hrSummary.absent}</h3><i className="bi bi-person-x text-danger"></i></div>
-                <div className="stat-box"><small>Late</small><h3>{hrSummary.late}</h3><i className="bi bi-clock-history text-warning"></i></div>
-                <div className="stat-box"><small>Short Leave</small><h3>{hrSummary.short}</h3><i className="bi bi-box-arrow-right text-info"></i></div>
-                <div className="stat-box"><small>Half Day</small><h3>{hrSummary.half}</h3><i className="bi bi-pie-chart text-purple"></i></div>
+                <div className="stat-box"><small>Present This Month</small><h3>{hrSummary.present}</h3><i className="bi bi-person-check text-success"></i></div>
+                <div className="stat-box"><small>Absent This Month</small><h3>{hrSummary.absent}</h3><i className="bi bi-person-x text-danger"></i></div>
+                <div className="stat-box"><small>Late This Month</small><h3>{hrSummary.late}</h3><i className="bi bi-clock-history text-warning"></i></div>
+                <div className="stat-box"><small>Short Leave This Month</small><h3>{hrSummary.short}</h3><i className="bi bi-box-arrow-right text-info"></i></div>
+                <div className="stat-box"><small>Half Day This Month</small><h3>{hrSummary.half}</h3><i className="bi bi-pie-chart text-purple"></i></div>
             </div>
 
             {/* 2. Filters */}
@@ -314,10 +318,10 @@ function Attendance() {
                     
                     <select className="filter-select" value={filters.status} onChange={(e) => setFilters({...filters, status: e.target.value})}>
                         <option value="">All Status</option>
-                        <option value="Present">Present</option>
-                        <option value="Absent">Absent</option>
-                        <option value="Late">Late</option>
-                        <option value="Half Day">Half Day</option>
+                        <option value="present">Present</option>
+                        <option value="absent">Absent</option>
+                        <option value="late">Late</option>
+                        <option value="half-day">Half Day</option>
                     </select>
 
                     <select className="filter-select" value={filters.dept} onChange={(e) => setFilters({...filters, dept: e.target.value})}>
@@ -341,8 +345,8 @@ function Attendance() {
                             <tr key={record._id}>
                                 <td>
                                     <div className="emp-cell">
-                                        <div className="avatar">{record.employeeName ? record.employeeName[0] : 'U'}</div>
-                                        <span>{record.employeeName || 'Unknown'}</span>
+                                        <div className="avatar">{record.username ? record.username[0] : 'U'}</div>
+                                        <span>{record.username || 'Unknown'}</span>
                                     </div>
                                 </td>
                                 <td>{new Date(record.date).toLocaleDateString()}</td>
