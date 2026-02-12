@@ -1,4 +1,5 @@
 const Attendance = require('../models/Attendance');
+const User = require('../models/User');
 const { calculateDistance, isWithinRadius, validateCoordinates } = require('../utils/geolocation-helper');
 const locationConfig = require('../config/locationConfig');
 
@@ -39,54 +40,39 @@ console.log('Location check result:', result);
 
   checkIn = async (req, res) => {
     try {
-      const { employeeId, latitude, longitude } = req.body;
+      const { employeeId } = req.body;
 
       console.log('Check-in request received:', req.body);
-      // Validate location data
-      if (!latitude || !longitude) {
-        return res.status(400).json({ 
-          success: false,
-          message: 'Location data is required for check-in' 
-        });
-      }
 
-      // Verify if employee is within office premises
-      console.log('Checking location for check-in:', latitude, longitude);
-      const locationCheck = this.isWithinOffice(latitude, longitude);
-      
-      if (!locationCheck.isWithin) {
-        return res.status(403).json({ 
+      // Fetch user to get username
+      const user = await User.findById(employeeId);
+      if (!user) {
+        return res.status(404).json({
           success: false,
-          message: `You must be at the office premises to check in`,
-          distance: locationCheck.distance,
-          distanceKm: (locationCheck.distance / 1000).toFixed(2),
-          requiredRadius: this.OFFICE_LOCATION.radiusInMeters,
-          officeLocation: {
-            latitude: this.OFFICE_LOCATION.latitude,
-            longitude: this.OFFICE_LOCATION.longitude
-          }
+          message: 'Employee not found'
         });
       }
+      const username = `${user.firstName} ${user.lastName}`;
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
       let attendance = await Attendance.findOne({ employee: employeeId, date: today });
-      
+
       if (!attendance) {
         attendance = new Attendance({
           employee: employeeId,
+          username: username,
           date: today,
           checkInTime: new Date(),
-          checkInLocation: { latitude, longitude },
           status: 'working'
         });
       } else if (!attendance.checkInTime) {
         attendance.checkInTime = new Date();
-        attendance.checkInLocation = { latitude, longitude };
         attendance.status = 'working';
+        attendance.username = username; // Update name if not set
       } else {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           message: 'Already checked in for today',
           attendance
@@ -94,49 +80,27 @@ console.log('Location check result:', result);
       }
 
       await attendance.save();
-      res.json({ 
+      res.json({
         success: true,
         message: 'Check-in successful',
-        attendance,
-        location: {
-          distance: locationCheck.distance,
-          withinRadius: true
-        }
+        attendance
       });
     } catch (error) {
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        message: error.message 
+        message: error.message
       });
     }
   };
 
   checkOut = async (req, res) => {
     try {
-      const { employeeId, latitude, longitude } = req.body;
+      const { employeeId } = req.body;
 
-      // Validate location data
-      if (!latitude || !longitude) {
-        return res.status(400).json({ 
+      if (!employeeId) {
+        return res.status(400).json({
           success: false,
-          message: 'Location data is required for check-out' 
-        });
-      }
-
-      // Verify if employee is within office premises
-      const locationCheck = this.isWithinOffice(latitude, longitude);
-      
-      if (!locationCheck.isWithin) {
-        return res.status(403).json({ 
-          success: false,
-          message: `You must be at the office premises to check out`,
-          distance: locationCheck.distance,
-          distanceKm: (locationCheck.distance / 1000).toFixed(2),
-          requiredRadius: this.OFFICE_LOCATION.radiusInMeters,
-          officeLocation: {
-            latitude: this.OFFICE_LOCATION.latitude,
-            longitude: this.OFFICE_LOCATION.longitude
-          }
+          message: 'Employee ID is required'
         });
       }
 
@@ -144,23 +108,23 @@ console.log('Location check result:', result);
       today.setHours(0, 0, 0, 0);
 
       const attendance = await Attendance.findOne({ employee: employeeId, date: today });
-      
+
       if (!attendance) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          message: 'No check-in found for today. Please check in first.' 
+          message: 'No check-in found for today. Please check in first.'
         });
       }
 
       if (!attendance.checkInTime) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          message: 'Please check in first before checking out' 
+          message: 'Please check in first before checking out'
         });
       }
 
       if (attendance.checkOutTime) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           message: 'Already checked out for today',
           attendance
@@ -175,30 +139,29 @@ console.log('Location check result:', result);
 
       const checkInTotalMinutes = checkInHours * 60 + checkInMinutes;
       const checkOutTotalMinutes = checkOutHours * 60 + checkOutMinutes;
-      
+
       const earliestCheckOutConfig = locationConfig.workingHours.earliestCheckOutTime;
       const earliestCheckOut = earliestCheckOutConfig.hours * 60 + earliestCheckOutConfig.minutes;
 
-      // Check if early checkout
-      if (checkOutTotalMinutes < earliestCheckOut) {
-        return res.status(400).json({ 
-          success: false,
-          requiresApproval: true,
-          message: 'Early checkout requires HR approval',
-          expectedCheckout: `${earliestCheckOutConfig.hours}:${earliestCheckOutConfig.minutes.toString().padStart(2, '0')}`,
-          currentTime: checkOutTime.toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: true 
-          }),
-          checkOutTimeMinutes: checkOutTotalMinutes,
-          requiredMinutes: earliestCheckOut
-        });
-      }
+      // Check if early checkout - commented out to allow early checkout without approval
+      // if (checkOutTotalMinutes < earliestCheckOut) {
+      //   return res.status(400).json({
+      //     success: false,
+      //     requiresApproval: true,
+      //     message: 'Early checkout requires HR approval',
+      //     expectedCheckout: `${earliestCheckOutConfig.hours}:${earliestCheckOutConfig.minutes.toString().padStart(2, '0')}`,
+      //     currentTime: checkOutTime.toLocaleTimeString('en-US', {
+      //       hour: '2-digit',
+      //       minute: '2-digit',
+      //       hour12: true
+      //     }),
+      //     checkOutTimeMinutes: checkOutTotalMinutes,
+      //     requiredMinutes: earliestCheckOut
+      //   });
+      // }
 
       attendance.checkOutTime = checkOutTime;
-      attendance.checkOutLocation = { latitude, longitude };
-      
+
       // Calculate working hours
       if (attendance.checkInTime) {
         const hours = (attendance.checkOutTime - attendance.checkInTime) / (1000 * 60 * 60);
@@ -218,21 +181,17 @@ console.log('Location check result:', result);
       }
 
       await attendance.save();
-      res.json({ 
+      res.json({
         success: true,
         message: 'Check-out successful',
         attendance,
         workingHours: attendance.workingHours,
-        status: attendance.status,
-        location: {
-          distance: locationCheck.distance,
-          withinRadius: true
-        }
+        status: attendance.status
       });
     } catch (error) {
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        message: error.message 
+        message: error.message
       });
     }
   };
@@ -306,14 +265,11 @@ console.log('Location check result:', result);
 
       await attendance.save();
       
-      res.json({ 
+      res.json({
         success: true,
         message: 'Early checkout request submitted successfully. Waiting for HR approval.',
-        attendance,
-        location: {
-          distance: locationCheck.distance,
-          withinRadius: true
-        }
+        attendance
+        // Location check commented out - no location info in response
       });
     } catch (error) {
       res.status(500).json({ 
@@ -506,22 +462,32 @@ console.log('Location check result:', result);
   markAttendance = async (req, res) => {
     try {
       const { employeeId, date, status } = req.body;
-      
+
+      // Fetch user to get username
+      const user = await User.findById(employeeId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Employee not found'
+        });
+      }
+      const username = `${user.firstName} ${user.lastName}`;
+
       const attendance = await Attendance.findOneAndUpdate(
         { employee: employeeId, date: new Date(date) },
-        { status },
+        { status, username },
         { new: true, upsert: true }
       );
 
-      res.json({ 
+      res.json({
         success: true,
-        message: 'Attendance marked successfully', 
-        attendance 
+        message: 'Attendance marked successfully',
+        attendance
       });
     } catch (error) {
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        message: error.message 
+        message: error.message
       });
     }
   };
