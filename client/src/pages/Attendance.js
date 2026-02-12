@@ -139,21 +139,16 @@ function Attendance() {
   const handlePunch = async () => {
     setLoading(true);
     try {
-      const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject);
-      });
-      const { latitude, longitude } = position.coords;
-
       if (!checkedIn) {
-        await attendanceAPI.checkIn({ employeeId: user?.id, latitude, longitude });
+        await attendanceAPI.checkIn({ employeeId: user?.id });
         alert('✅ Checked In Successfully');
       } else {
-        await attendanceAPI.checkOut({ employeeId: user?.id, latitude, longitude });
+        await attendanceAPI.checkOut({ employeeId: user?.id });
         alert('✅ Checked Out Successfully');
       }
       fetchEmployeeData();
     } catch (error) {
-      alert('❌ Punch failed. Ensure location access is allowed.');
+      alert('❌ Punch failed. Please try again.');
     } finally { setLoading(false); }
   };
 
@@ -231,9 +226,9 @@ function Attendance() {
 
             {/* 4. HR Punch Button (Optional: if HR wants to punch from header) */}
             {isHR && (
-              <button 
-                  className={`btn-action punch-btn ${checkedIn ? 'check-out' : 'check-in'}`} 
-                  onClick={handlePunch} 
+              <button
+                  className={`btn-action punch-btn ${checkedIn ? 'check-out' : 'check-in'}`}
+                  onClick={handlePunch}
                   disabled={loading}
               >
                   {loading ? '...' : (checkedIn ? 'Check Out' : 'Check In')}
@@ -272,7 +267,7 @@ function Attendance() {
                     </div>
                     <div className="info-item">
                         <small>Punch Out</small>
-                        <strong>--:--</strong>
+                        <strong>{todayRecord?.checkOutTime ? new Date(todayRecord.checkOutTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--'}</strong>
                     </div>
                     <div className="info-item highlight">
                         <small>Total Hours</small>

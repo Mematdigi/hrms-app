@@ -35,7 +35,7 @@ export const employeeAPI = {
 export const attendanceAPI = {
   // Employee attendance operations
   checkIn: (data) => api.post('/attendance/check-in', data),
-  
+
   checkOut: (data) => api.post('/attendance/check-out', data),
   
   requestEarlyCheckout: (data) => api.post('/attendance/request-early-checkout', data),

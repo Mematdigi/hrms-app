@@ -40,34 +40,9 @@ console.log('Location check result:', result);
 
   checkIn = async (req, res) => {
     try {
-      const { employeeId, latitude, longitude } = req.body;
+      const { employeeId } = req.body;
 
       console.log('Check-in request received:', req.body);
-      // Validate location data - commented out to allow check-in without location
-      // if (!latitude || !longitude) {
-      //   return res.status(400).json({
-      //     success: false,
-      //     message: 'Location data is required for check-in'
-      //   });
-      // }
-
-      // Verify if employee is within office premises - commented out
-      // console.log('Checking location for check-in:', latitude, longitude);
-      // const locationCheck = this.isWithinOffice(latitude, longitude);
-
-      // if (!locationCheck.isWithin) {
-      //   return res.status(403).json({
-      //     success: false,
-      //     message: `You must be at the office premises to check in`,
-      //     distance: locationCheck.distance,
-      //     distanceKm: (locationCheck.distance / 1000).toFixed(2),
-      //     requiredRadius: this.OFFICE_LOCATION.radiusInMeters,
-      //     officeLocation: {
-      //       latitude: this.OFFICE_LOCATION.latitude,
-      //       longitude: this.OFFICE_LOCATION.longitude
-      //     }
-      //   });
-      // }
 
       // Fetch user to get username
       const user = await User.findById(employeeId);
@@ -90,12 +65,10 @@ console.log('Location check result:', result);
           username: username,
           date: today,
           checkInTime: new Date(),
-          checkInLocation: { latitude, longitude },
           status: 'working'
         });
       } else if (!attendance.checkInTime) {
         attendance.checkInTime = new Date();
-        attendance.checkInLocation = { latitude, longitude };
         attendance.status = 'working';
         attendance.username = username; // Update name if not set
       } else {
@@ -111,7 +84,6 @@ console.log('Location check result:', result);
         success: true,
         message: 'Check-in successful',
         attendance
-        // Location check commented out - no location info in response
       });
     } catch (error) {
       res.status(500).json({
@@ -123,54 +95,36 @@ console.log('Location check result:', result);
 
   checkOut = async (req, res) => {
     try {
-      const { employeeId, latitude, longitude } = req.body;
+      const { employeeId } = req.body;
 
-      // Validate location data - commented out to allow check-out without location
-      // if (!latitude || !longitude) {
-      //   return res.status(400).json({
-      //     success: false,
-      //     message: 'Location data is required for check-out'
-      //   });
-      // }
-
-      // Verify if employee is within office premises - commented out
-      // const locationCheck = this.isWithinOffice(latitude, longitude);
-
-      // if (!locationCheck.isWithin) {
-      //   return res.status(403).json({
-      //     success: false,
-      //     message: `You must be at the office premises to check out`,
-      //     distance: locationCheck.distance,
-      //     distanceKm: (locationCheck.distance / 1000).toFixed(2),
-      //     requiredRadius: this.OFFICE_LOCATION.radiusInMeters,
-      //     officeLocation: {
-      //       latitude: this.OFFICE_LOCATION.latitude,
-      //       longitude: this.OFFICE_LOCATION.longitude
-      //     }
-      //   });
-      // }
+      if (!employeeId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Employee ID is required'
+        });
+      }
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
       const attendance = await Attendance.findOne({ employee: employeeId, date: today });
-      
+
       if (!attendance) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          message: 'No check-in found for today. Please check in first.' 
+          message: 'No check-in found for today. Please check in first.'
         });
       }
 
       if (!attendance.checkInTime) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          message: 'Please check in first before checking out' 
+          message: 'Please check in first before checking out'
         });
       }
 
       if (attendance.checkOutTime) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           message: 'Already checked out for today',
           attendance
@@ -185,7 +139,7 @@ console.log('Location check result:', result);
 
       const checkInTotalMinutes = checkInHours * 60 + checkInMinutes;
       const checkOutTotalMinutes = checkOutHours * 60 + checkOutMinutes;
-      
+
       const earliestCheckOutConfig = locationConfig.workingHours.earliestCheckOutTime;
       const earliestCheckOut = earliestCheckOutConfig.hours * 60 + earliestCheckOutConfig.minutes;
 
@@ -207,8 +161,7 @@ console.log('Location check result:', result);
       // }
 
       attendance.checkOutTime = checkOutTime;
-      attendance.checkOutLocation = { latitude, longitude };
-      
+
       // Calculate working hours
       if (attendance.checkInTime) {
         const hours = (attendance.checkOutTime - attendance.checkInTime) / (1000 * 60 * 60);
@@ -234,12 +187,11 @@ console.log('Location check result:', result);
         attendance,
         workingHours: attendance.workingHours,
         status: attendance.status
-        // Location check commented out - no location info in response
       });
     } catch (error) {
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        message: error.message 
+        message: error.message
       });
     }
   };

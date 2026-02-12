@@ -6,27 +6,37 @@ async function testAttendanceAPI() {
   try {
     console.log('=== Testing Attendance API ===\n');
 
-    // 1. Register Test User
-    console.log('1. Registering Test User...');
-    const registerResponse = await axios.post(`${BASE_URL}/auth/register`, {
-      firstName: 'Test',
-      lastName: 'User',
-      email: 'test@test.com',
-      password: 'password123',
-      role: 'employee'
-    });
-    console.log('Registration Response:', registerResponse.data);
-    const userId = registerResponse.data.data.user.id;
-    const token = registerResponse.data.data.token;
+    // 1. Register or Login Test User
+    console.log('1. Registering/Login Test User...');
+    let userId, token;
+    try {
+      const registerResponse = await axios.post(`${BASE_URL}/auth/register`, {
+        firstName: 'Test',
+        lastName: 'User',
+        email: 'test@test.com',
+        password: 'password123',
+        role: 'employee'
+      });
+      console.log('Registration Response:', registerResponse.data);
+      userId = registerResponse.data.data.user.id;
+      token = registerResponse.data.data.token;
+    } catch (error) {
+      console.log('User already exists, logging in...');
+      const loginResponse = await axios.post(`${BASE_URL}/auth/login`, {
+        email: 'test@test.com',
+        password: 'password123'
+      });
+      console.log('Login Response:', loginResponse.data);
+      userId = loginResponse.data.data.user.id;
+      token = loginResponse.data.data.token;
+    }
     console.log('User ID:', userId);
     console.log('Token:', token.substring(0, 50) + '...');
 
     // 2. Test Check-in
     console.log('\n2. Testing Check-in...');
     const checkInResponse = await axios.post(`${BASE_URL}/attendance/check-in`, {
-      employeeId: userId,
-      latitude: 28.570419,
-      longitude: 77.453722
+      employeeId: userId
     }, {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -35,9 +45,7 @@ async function testAttendanceAPI() {
     // 3. Test Check-out
     console.log('\n3. Testing Check-out...');
     const checkOutResponse = await axios.post(`${BASE_URL}/attendance/check-out`, {
-      employeeId: userId,
-      latitude: 28.570419,
-      longitude: 77.453722
+      employeeId: userId
     }, {
       headers: { Authorization: `Bearer ${token}` }
     });
