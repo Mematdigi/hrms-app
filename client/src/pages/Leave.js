@@ -1,48 +1,68 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { leaveAPI } from '../services/api';
+import { 
+  FileText, 
+  HourglassSplit, 
+  CheckCircle, 
+  XCircle, 
+  PersonCheck, 
+  Search, 
+  CheckLg, 
+  XLg, 
+  BriefcaseFill, 
+  ThermometerHalf, 
+  WalletFill, 
+  Calendar3,
+  Funnel,
+  PlusLg,
+  ChevronLeft,
+  ChevronRight
+} from 'react-bootstrap-icons';
 
 function Leave() {
+  
+  // --- EXISTING STATE ---
   const [leaves, setLeaves] = useState([]);
   const [pendingLeaves, setPendingLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const [activeTab, setActiveTab] = useState('my-leaves');
-  const [actionTaken, setActionTaken] = useState('');
   
-  // ✅ NEW: Filter and Search States
+  // Filter States
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState('');
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [selectedStatus, setSelectedStatus] = useState('');
   
+  // Form States
   const [formData, setFormData] = useState({
-    leaveType: 'casual',
+    leaveType: 'Casual Leave',
     startDate: '',
     endDate: '',
     reason: '',
+    category: 'Casual Leave'
   });
 
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // --- UI STATES ---
+  const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedLeave, setSelectedLeave] = useState(null);
+  const [rejectionRemark, setRejectionRemark] = useState('');
+
   const { user } = useSelector((state) => state.auth);
 
+  // --- EXISTING EFFECTS ---
   useEffect(() => {
     if (user?.role === 'hr' || user?.role === 'admin') {
       setActiveTab("all");
     }
   }, []);
 
-  // --- DEFAULT LEAVES & BALANCES (Casual + Sick) ---
-  const [leaveDefaults, setLeaveDefaults] = useState({
-    casualDefault: 0,
-    sickDefault: 0,
-  });
+  const [leaveDefaults, setLeaveDefaults] = useState({ casualDefault: 0, sickDefault: 0 });
   const [balances, setBalances] = useState(null);
-  const [settingsForm, setSettingsForm] = useState({
-    casualDefault: '',
-    sickDefault: '',
-  });
+  const [settingsForm, setSettingsForm] = useState({ casualDefault: '', sickDefault: '' });
 
   useEffect(() => {
     fetchLeaves();
@@ -54,13 +74,11 @@ function Leave() {
     }
   }, [user]);
 
+  // --- EXISTING API FUNCTIONS ---
   const fetchLeaves = async () => {
     try {
       setLoading(true);
-      const response = await leaveAPI.getRequests({
-        employeeId: user?.id,
-        role: user?.role,
-      });
+      const response = await leaveAPI.getRequests({ employeeId: user?.id, role: user?.role });
       setLeaves(response.data);
     } catch (error) {
       console.error('Error fetching leaves:', error);
@@ -89,9 +107,7 @@ function Leave() {
           sickDefault: res.data.sickDefault || '',
         });
       }
-    } catch (err) {
-      console.error('Failed to fetch leave defaults', err);
-    }
+    } catch (err) { console.error('Failed to fetch leave defaults', err); }
   };
 
   const fetchBalances = async () => {
@@ -99,517 +115,576 @@ function Leave() {
     try {
       const res = await leaveAPI.getBalances(user.id);
       setBalances(res.data || null);
-    } catch (err) {
-      console.error('Failed to fetch balances', err);
-    }
+    } catch (err) { console.error('Failed to fetch balances', err); }
   };
 
-  // ✅ NEW: Filter and Search Logic
+  // --- LOGIC HELPERS ---
   const getFilteredLeaves = () => {
     let filtered = [...leaves];
-
-    // 1. Search by employee name (for HR/Admin)
     if (searchQuery && (user?.role === 'hr' || user?.role === 'admin')) {
       filtered = filtered.filter((leave) => {
         const fullName = `${leave.employee?.firstName} ${leave.employee?.lastName}`.toLowerCase();
-        const email = leave.employee?.email?.toLowerCase() || '';
-        return fullName.includes(searchQuery.toLowerCase()) || 
-               email.includes(searchQuery.toLowerCase());
+        return fullName.includes(searchQuery.toLowerCase());
       });
     }
-
-    // 2. Filter by Month
-    if (selectedMonth) {
-      filtered = filtered.filter((leave) => {
-        const leaveDate = new Date(leave.startDate);
-        const leaveMonth = (leaveDate.getMonth() + 1).toString().padStart(2, '0');
-        return leaveMonth === selectedMonth;
-      });
-    }
-
-    // 3. Filter by Year
-    if (selectedYear) {
-      filtered = filtered.filter((leave) => {
-        const leaveDate = new Date(leave.startDate);
-        return leaveDate.getFullYear().toString() === selectedYear;
-      });
-    }
-
-    // 4. Filter by Status
-    if (selectedStatus) {
-      filtered = filtered.filter((leave) => leave.status === selectedStatus);
-    }
-
+    if (selectedStatus) filtered = filtered.filter(l => l.status === selectedStatus);
     return filtered;
   };
 
-  // ✅ NEW: Reset all filters
-  const handleResetFilters = () => {
-    setSearchQuery('');
-    setSelectedMonth('');
-    setSelectedYear(new Date().getFullYear().toString());
-    setSelectedStatus('');
+  const getStats = () => {
+    const list = leaves; 
+    return {
+      total: list.length,
+      pending: list.filter(l => l.status === 'pending').length,
+      approved: list.filter(l => l.status === 'approved').length,
+      rejected: list.filter(l => l.status === 'rejected').length,
+      today: list.filter(l => {
+        const today = new Date().setHours(0,0,0,0);
+        const start = new Date(l.startDate).setHours(0,0,0,0);
+        const end = new Date(l.endDate).setHours(0,0,0,0);
+        return l.status === 'approved' && today >= start && today <= end;
+      }).length
+    };
   };
+  const stats = getStats();
 
-  // ✅ NEW: Get available years from leave data
-  const getAvailableYears = () => {
-    const years = new Set();
-    leaves.forEach((leave) => {
-      const year = new Date(leave.startDate).getFullYear();
-      years.add(year);
-    });
-    return Array.from(years).sort((a, b) => b - a);
-  };
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e) => {
+  const handleApplySubmit = async (e) => {
     e.preventDefault();
     try {
-      await leaveAPI.apply({
-        employeeId: user?.id,
-        ...formData,
-      });
-
-      setSuccessMessage('✅ Leave request submitted successfully! HR will review your request.');
-      setFormData({
-        leaveType: 'casual',
-        startDate: '',
-        endDate: '',
-        reason: '',
-      });
-      setShowForm(false);
-
-      setTimeout(() => setSuccessMessage(''), 5000);
+      await leaveAPI.apply({ employeeId: user?.id, ...formData });
+      setSuccessMessage('✅ Leave request submitted!');
+      setFormData({ leaveType: 'Casual Leave', startDate: '', endDate: '', reason: '', category: 'Casual Leave' });
+      setIsApplyModalOpen(false);
       fetchLeaves();
       if (user?.role === 'employee') fetchBalances();
     } catch (error) {
-      console.error('Error applying leave:', error);
       setErrorMessage('Failed to submit leave request');
-      setTimeout(() => setErrorMessage(''), 5000);
     }
   };
 
-  const handleApproveLeave = async (leaveId, leaveType, numberOfDays) => {
+  const handleApprove = async (leave) => {
     try {
       await leaveAPI.approve({
-        leaveId,
+        leaveId: leave._id,
         approverId: user?.id,
-        numberOfDays: numberOfDays,
-        leaveType: leaveType
+        numberOfDays: leave.numberOfDays,
+        leaveType: leave.leaveType
       });
-      setSuccessMessage('✅ Leave request approved!');
-      setTimeout(() => setSuccessMessage(''), 5000);
-      fetchPendingLeaves();
       fetchLeaves();
-      fetchBalances();
-      setActionTaken('approved');
-    } catch (error) {
-      console.error('Error approving leave:', error);
-      setErrorMessage('Failed to approve leave request');
-      setTimeout(() => setErrorMessage(''), 5000);
-    }
+      fetchPendingLeaves();
+    } catch (error) { console.error(error); }
   };
 
-  const handleRejectLeave = async (leaveId, leaveType, numberOfDays) => {
-    const rejectionReason = prompt('Enter rejection reason:');
-    if (!rejectionReason) return;
+  const initiateReject = (leave) => {
+    setSelectedLeave(leave);
+    setIsRejectModalOpen(true);
+  };
+
+  const confirmReject = async () => {
+    if (!rejectionRemark || !selectedLeave) return;
     try {
       await leaveAPI.reject({
-        leaveId,
-        numberOfDays,
-        leaveType,
-        rejectionReason,
+        leaveId: selectedLeave._id,
+        numberOfDays: selectedLeave.numberOfDays,
+        leaveType: selectedLeave.leaveType,
+        rejectionReason: rejectionRemark,
         approverId: user?.id,
       });
-      setSuccessMessage('✅ Leave request rejected!');
-      setTimeout(() => setSuccessMessage(''), 5000);
-      fetchPendingLeaves();
+      setIsRejectModalOpen(false);
+      setRejectionRemark('');
       fetchLeaves();
-      fetchBalances();
-      setActionTaken('rejected');
-    } catch (error) {
-      console.error('Error rejecting leave:', error);
-      setErrorMessage('Failed to reject leave request');
-      setTimeout(() => setErrorMessage(''), 5000);
+      fetchPendingLeaves();
+    } catch (error) { console.error(error); }
+  };
+
+  // --- CALENDAR LOGIC ---
+  const renderCalendar = () => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay(); // 0 = Sun
+
+    const days = [];
+    // Empty slots for previous month
+    for (let i = 0; i < firstDayOfMonth; i++) {
+      days.push(<div key={`empty-${i}`} className="cal-cell empty"></div>);
     }
-  };
 
-  const getStatusBadge = (status) => {
-    const badges = {
-      pending: { class: 'status-pending', text: '⏳ Pending' },
-      approved: { class: 'status-approved', text: '✅ Approved' },
-      rejected: { class: 'status-rejected', text: '❌ Rejected' },
-    };
-    return badges[status] || { class: 'status-pending', text: status };
-  };
-
-  const handleSettingsSave = async (e) => {
-    e.preventDefault();
-    try {
-      await leaveAPI.updateDefaults({
-        casualDefault: Number(settingsForm.casualDefault),
-        sickDefault: Number(settingsForm.sickDefault),
+    // Days with data logic
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      
+      // Check if any leave falls on this date
+      const daysLeave = leaves.find(l => {
+        const start = new Date(l.startDate);
+        const end = new Date(l.endDate);
+        const current = new Date(dateString);
+        return current >= start && current <= end;
       });
-      setSuccessMessage('✅ Leave defaults updated');
-      fetchLeaveDefaults();
-      setTimeout(() => setSuccessMessage(''), 4000);
-    } catch (err) {
-      console.error('Failed to update defaults', err);
-      setErrorMessage('Failed to update defaults');
-      setTimeout(() => setErrorMessage(''), 4000);
+
+      let statusClass = '';
+      if (daysLeave) {
+        if(daysLeave.status === 'approved') statusClass = 'dot-green';
+        else if(daysLeave.status === 'pending') statusClass = 'dot-orange';
+        else if(daysLeave.status === 'rejected') statusClass = 'dot-red';
+      }
+
+      const isToday = d === today.getDate() ? 'today' : '';
+
+      days.push(
+        <div key={d} className={`cal-cell ${isToday}`}>
+          <span>{d}</span>
+          {statusClass && <div className={`status-dot ${statusClass}`}></div>}
+        </div>
+      );
     }
+    return days;
   };
 
-  // ✅ Get filtered leaves for display
   const filteredLeaves = getFilteredLeaves();
+  const holidays = [
+    { name: "Holi", date: "2026-03-10", day: "Tuesday" },
+    { name: "Good Friday", date: "2026-04-03", day: "Friday" },
+    { name: "Eid ul-Fitr", date: "2026-03-21", day: "Saturday" },
+  ];
 
-  if (loading) return <div className="loading">Loading...</div>;
+  // Helper to calculate percentage for progress bars
+  const calculateProgress = (used, total) => {
+     if (!total || total === 0) return 0;
+     const pct = (used / total) * 100;
+     return pct > 100 ? 100 : pct;
+  };
 
+  // --- JSX RENDER ---
   return (
-    <div className="leave-container">
-      {successMessage && <div className="alert alert-success">{successMessage}</div>}
-      {errorMessage && <div className="alert alert-error">{errorMessage}</div>}
-
-      <div className="leave-header">
-        <h1>Request Management</h1>
-        {user?.role === 'employee' && (
-          <button onClick={() => setShowForm(!showForm)} className="apply-btn">
-            {showForm ? '✕ Cancel' : '+ Apply Leave'}
-          </button>
-        )}
-      </div>
-
-      {/* EMPLOYEE: Default & Remaining leave balances */}
-      {user?.role === 'employee' && (
-        <div className="balances-summary">
-          <h3>Your Leave Balances</h3>
-          <p>Casual Leave (default per year): {leaveDefaults.casualDefault ?? '—'}</p>
-          <p>Sick Leave (default per year): {leaveDefaults.sickDefault ?? '—'}</p>
-          {balances ? (
-            <div>
-              <p>Casual remaining: {balances.casualRemaining ?? '—'}</p>
-              <p>Sick remaining: {balances.sickRemaining ?? '—'}</p>
-            </div>
-          ) : (
-            <p className="muted">Remaining balances not available</p>
-          )}
+    <div className="leave-dashboard">
+      {/* Header */}
+      <header className="dashboard-header">
+        <div>
+          <h1>Leave Management</h1>
+          <p>Track and manage employee leave requests</p>
         </div>
-      )}
+        <div className="header-actions">
+           <div className="view-toggle">
+              <span>{user?.role === 'hr' ? '🛡️ HR View' : '👤 Employee View'}</span>
+           </div>
+           <div className="date-display">
+             <Calendar3 style={{marginRight: '8px'}} />
+             Current Period: <strong>February 2026</strong>
+           </div>
+        </div>
+      </header>
 
-      {/* Leave Application Form */}
-      {showForm && user?.role === 'employee' && (
-        <form onSubmit={handleSubmit} className="leave-form">
-          <h2>Apply for Leave</h2>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Leave Type *</label>
-              <select name="leaveType" value={formData.leaveType} onChange={handleChange} required>
-                <option value="casual">Casual Leave</option>
-                <option value="sick">Sick Leave</option>
-                <option value="earned">Earned Leave</option>
-                <option value="maternity">Maternity Leave</option>
-                <option value="paternity">Paternity Leave</option>
-                <option value="unpaid">Unpaid Leave</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Start Date *</label>
-              <input
-                type="date"
-                name="startDate"
-                value={formData.startDate}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>End Date *</label>
-              <input
-                type="date"
-                name="endDate"
-                value={formData.endDate}
-                onChange={handleChange}
-                required
-              />
-            </div>
-          </div>
-          <div className="form-group">
-            <label>Reason for Leave *</label>
-            <textarea
-              name="reason"
-              value={formData.reason}
-              onChange={handleChange}
-              placeholder="Please provide a reason for your leave request..."
-              required
-              rows="4"
-            />
-          </div>
-          <div className="form-actions">
-            <button type="submit" className="submit-btn">Submit Request</button>
-            <button type="button" className="cancel-btn" onClick={() => setShowForm(false)}>Cancel</button>
-          </div>
-          <p className="form-info">ℹ️ Your leave request will be sent to HR for approval.</p>
-        </form>
-      )}
-
-      {/* HR Tabs */}
+      {/* HR VIEW: Stats Cards */}
       {(user?.role === 'hr' || user?.role === 'admin') && (
-        <div className="leave-tabs">
-          <button
-            className={`tab-btn ${activeTab === 'pending' ? 'active' : ''}`}
-            onClick={() => setActiveTab('pending')}
-          >
-            📋 Pending Requests ({pendingLeaves.length})
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveTab('all')}
-          >
-            📊 All Leaves
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => setActiveTab('settings')}
-          >
-            ⚙️ Leave Settings
-          </button>
+        <div className="stats-row">
+            <div className="stat-card">
+            <div className="icon-box blue"><FileText size={22} /></div>
+            <div className="info">
+                <h3>{stats.total}</h3>
+                <span>Total Requests</span>
+            </div>
+            </div>
+            <div className="stat-card">
+            <div className="icon-box orange"><HourglassSplit size={22} /></div>
+            <div className="info">
+                <h3>{stats.pending}</h3>
+                <span>Pending</span>
+            </div>
+            </div>
+            <div className="stat-card">
+            <div className="icon-box green"><CheckCircle size={22} /></div>
+            <div className="info">
+                <h3>{stats.approved}</h3>
+                <span>Approved</span>
+            </div>
+            </div>
+            <div className="stat-card">
+            <div className="icon-box red"><XCircle size={22} /></div>
+            <div className="info">
+                <h3>{stats.rejected}</h3>
+                <span>Rejected</span>
+            </div>
+            </div>
+            <div className="stat-card">
+            <div className="icon-box purple"><PersonCheck size={22} /></div>
+            <div className="info">
+                <h3>{stats.today}</h3>
+                <span>On Leave Today</span>
+            </div>
+            </div>
         </div>
       )}
 
-      {/* HR: Leave Settings (Default Casual + Sick) */}
-      {(user?.role === 'hr' || user?.role === 'admin') && activeTab === 'settings' && (
-        <div className="settings-section">
-          <h2>Leave Defaults / Policy</h2>
-          <p>Set default annual allowances for Casual and Sick leaves.</p>
-          <form onSubmit={handleSettingsSave} className="settings-form">
-            <div className="form-row">
-              <div className="form-group">
-                <label>Casual Leave (per year)</label>
-                <input
-                  type="number"
-                  min="0"
-                  name="casualDefault"
-                  value={settingsForm.casualDefault}
-                  onChange={(e) =>
-                    setSettingsForm({ ...settingsForm, casualDefault: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Sick Leave (per year)</label>
-                <input
-                  type="number"
-                  min="0"
-                  name="sickDefault"
-                  value={settingsForm.sickDefault}
-                  onChange={(e) =>
-                    setSettingsForm({ ...settingsForm, sickDefault: e.target.value })
-                  }
-                  required
-                />
-              </div>
+      {/* EMPLOYEE VIEW: Balance Cards */}
+      {user?.role === 'employee' && (
+         <div className="balance-section">
+            <div className="b-card">
+                <div className="icon"><BriefcaseFill className="c-blue"/></div>
+                <div className="b-info">
+                    <small>Casual Leave</small>
+                    <div className="count-row">
+                        <strong>{balances?.casualUsed || 0}</strong>
+                        <span> / {leaveDefaults.casualDefault || 12} used</span>
+                    </div>
+                    <div className="progress">
+                        <div 
+                           style={{width: `${calculateProgress(balances?.casualUsed || 0, leaveDefaults.casualDefault || 12)}%`}} 
+                           className="blue"
+                        ></div>
+                    </div>
+                </div>
             </div>
-            <div className="form-actions">
-              <button type="submit" className="submit-btn">
-                Save Defaults
-              </button>
+            <div className="b-card">
+                <div className="icon"><ThermometerHalf className="c-red"/></div>
+                <div className="b-info">
+                    <small>Sick Leave</small>
+                    <div className="count-row">
+                        <strong>{balances?.sickUsed || 0}</strong>
+                        <span> / {leaveDefaults.sickDefault || 8} used</span>
+                    </div>
+                    <div className="progress">
+                        <div 
+                           style={{width: `${calculateProgress(balances?.sickUsed || 0, leaveDefaults.sickDefault || 8)}%`}} 
+                           className="red"
+                        ></div>
+                    </div>
+                </div>
             </div>
-          </form>
-          <div className="current-defaults">
-            <h4>Current defaults</h4>
-            <p>Casual: {leaveDefaults.casualDefault ?? '—'}</p>
-            <p>Sick: {leaveDefaults.sickDefault ?? '—'}</p>
-          </div>
-        </div>
+            <div className="b-card">
+                <div className="icon"><WalletFill className="c-green"/></div>
+                <div className="b-info">
+                    <small>Paid Leave</small>
+                    <div className="count-row">
+                        <strong>{balances?.paidUsed || 0}</strong>
+                        <span> / 15 used</span> {/* Mock total for Paid */}
+                    </div>
+                    <div className="progress">
+                        <div 
+                           style={{width: `${calculateProgress(balances?.paidUsed || 0, 15)}%`}} 
+                           className="green"
+                        ></div>
+                    </div>
+                </div>
+            </div>
+         </div>
       )}
 
-      {/* ✅ NEW: Filter Section - Shows in All Leaves Tab */}
-      {(user?.role === 'employee' ||
-        ((user?.role === 'hr' || user?.role === 'admin') && activeTab === 'all')) && (
-        <>
-          <div className="filters-section">
-            <h3>🔍 Filter & Search</h3>
-            <div className="filters-grid">
-              {/* Search by Employee Name (HR/Admin only) */}
+      <div className="dashboard-grid">
+        {/* Left Column: Table */}
+        <div className="main-section">
+          <div className="section-header">
+            <h2>{user?.role === 'employee' ? 'Leave History' : 'All Leave Requests'}</h2>
+            
+            {/* Show filters mainly for HR view, or simplified for Employee */}
+            <div className="controls">
+              <div className="search-box">
+                <Search className="search-icon" />
+                <input 
+                  type="text" 
+                  placeholder="Search..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              
               {(user?.role === 'hr' || user?.role === 'admin') && (
-                <div className="filter-group">
-                  <label>🔎 Search Employee</label>
-                  <input
-                    type="text"
-                    placeholder="Search by name or email..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="filter-input"
-                  />
+                <div className="filter-dropdown">
+                    <select className="dept-select">
+                    <option>All Departments</option>
+                    <option>Engineering</option>
+                    <option>HR</option>
+                    </select>
+                    <ChevronLeft className="dropdown-arrow" size={12} style={{transform: 'rotate(-90deg)'}}/>
                 </div>
               )}
-
-              {/* Filter by Month */}
-              <div className="filter-group">
-                <label>📅 Month</label>
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="">All Months</option>
-                  <option value="01">January</option>
-                  <option value="02">February</option>
-                  <option value="03">March</option>
-                  <option value="04">April</option>
-                  <option value="05">May</option>
-                  <option value="06">June</option>
-                  <option value="07">July</option>
-                  <option value="08">August</option>
-                  <option value="09">September</option>
-                  <option value="10">October</option>
-                  <option value="11">November</option>
-                  <option value="12">December</option>
-                </select>
-              </div>
-
-              {/* Filter by Year */}
-              <div className="filter-group">
-                <label>📆 Year</label>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="">All Years</option>
-                  {getAvailableYears().map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Filter by Status */}
-              <div className="filter-group">
-                <label>📊 Status</label>
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-              </div>
-
-              {/* Reset Button */}
-              <div className="filter-group">
-                <label>&nbsp;</label>
-                <button onClick={handleResetFilters} className="add-btn">
-                  🔄 Reset Filters
-                </button>
-              </div>
-            </div>
-
-            {/* Results Summary */}
-            <div className="filter-results">
-              <p>
-                Showing <strong>{filteredLeaves.length}</strong> of <strong>{leaves.length}</strong> leaves
-                {searchQuery && ` matching "${searchQuery}"`}
-                {selectedMonth && ` in ${new Date(2000, parseInt(selectedMonth) - 1).toLocaleString('default', { month: 'long' })}`}
-                {selectedYear && ` ${selectedYear}`}
-                {selectedStatus && ` with status: ${selectedStatus}`}
-              </p>
             </div>
           </div>
 
-          {/* All Leaves Table */}
-          <div className="leaves-section">
-            <h2>{user?.role === 'employee' ? 'My Leave Requests' : 'All Leave Requests'}</h2>
-            {filteredLeaves.length === 0 ? (
-              <div className="no-data">
-                {leaves.length === 0 
-                  ? 'No leave requests found' 
-                  : 'No leaves match the selected filters'}
-              </div>
-            ) : (
-              <div className="leaves-table-wrapper">
-                <table className="leaves-table">
-                  <thead>
-                    <tr>
-                      <th>S.no</th>
-                      {(user?.role === 'hr' || user?.role === 'admin') && <th>Employee Name</th>}
-                      <th>Leave Type</th>
-                      <th>Start Date</th>
-                      <th>End Date</th>
-                      <th>Days</th>
-                      <th>Status</th>
-                      <th>Reason</th>
-                      <th>Casual Leave</th>
-                      <th>Sick Leave</th>
-                      {(user?.role === 'hr' || user?.role === 'admin') && <th>Actions</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredLeaves.map((leave, index) => {
-                      const badge = getStatusBadge(leave.status);
-                      return (
-                        <tr key={leave._id} className={`row-${leave.status}`}>
-                          <td>{index + 1}</td>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  {/* Hide Employee Name column for Employee View */}
+                  {(user?.role === 'hr' || user?.role === 'admin') && <th>Employee</th>}
+                  <th>Type</th>
+                  <th>Date / Duration</th>
+                  {(user?.role === 'hr' || user?.role === 'admin') && <th>Applied</th>}
+                  <th>Status</th>
+                  <th>Reason</th>
+                  {(user?.role === 'hr' || user?.role === 'admin') && <th>Action</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLeaves.map(leave => (
+                  <tr key={leave._id} onClick={() => { setSelectedLeave(leave); setIsDetailModalOpen(true); }}>
+                    
+                    {/* Employee Name Cell */}
+                    {(user?.role === 'hr' || user?.role === 'admin') && (
+                        <td className="col-employee">
+                        <div className="avatar">{leave.employee?.firstName?.charAt(0)}</div>
+                        <div>
+                            <div className="name">{leave.employee?.firstName} {leave.employee?.lastName}</div>
+                            <div className="dept">Engineering</div>
+                        </div>
+                        </td>
+                    )}
 
-                          {(user?.role === 'hr' || user?.role === 'admin') && (
-                            <td>
-                              {leave.employee?.firstName} {leave.employee?.lastName}
-                            </td>
-                          )}
+                    <td className="col-type">
+                      <span className={`type-tag ${leave.leaveType === 'Sick Leave' ? 'sick' : 'casual'}`}>
+                        {leave.leaveType.split(' ')[0]}
+                      </span>
+                      <span className="sub-text">Leave</span>
+                    </td>
+                    <td>
+                      <div className="date-range">
+                        {new Date(leave.startDate).toLocaleDateString()}
+                        {leave.endDate !== leave.startDate && ` → ${new Date(leave.endDate).toLocaleDateString()}`}
+                      </div>
+                      <div className="duration-text">{leave.numberOfDays} Days</div>
+                    </td>
+                    
+                    {(user?.role === 'hr' || user?.role === 'admin') && (
+                        <td><div className="applied-date">2026-02-08</div></td>
+                    )}
 
-                          <td>{leave.leaveType}</td>
-                          <td>{new Date(leave.startDate).toLocaleDateString()}</td>
-                          <td>{new Date(leave.endDate).toLocaleDateString()}</td>
-                          <td>{leave.numberOfDays}</td>
-                          <td>
-                            <span className={`status-badge ${badge.class}`}>{badge.text}</span>
-                          </td>
-                          <td>{leave.reason}</td>
-                          <td>
-                            {leave.casualLeave !== undefined ? leave.casualLeave : '—'}
-                          </td>
-                          <td>
-                            {leave.sickLeave !== undefined ? leave.sickLeave : '—'}
-                          </td>
-
-                          {(user?.role === 'hr' || user?.role === 'admin') && (
-                            <td>
-                              <button
-                                className="action-btn approve"
-                                onClick={() => handleApproveLeave(leave._id, leave.leaveType, leave.numberOfDays)}
-                                title="Approve"
-                                disabled={leave.status !== 'pending'}
-                              >
-                                ✅
-                              </button>
-                              <button
-                                className="action-btn reject"
-                                onClick={() => handleRejectLeave(leave._id, leave.leaveType, leave.numberOfDays)}
-                                title="Reject"
-                                disabled={leave.status !== 'pending'}
-                              >
-                                ❌
-                              </button>
-                            </td>
-                          )}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    <td>
+                      <span className={`status-badge ${leave.status}`}>
+                        {leave.status === 'approved' && <><CheckCircle size={10} style={{marginRight:4}}/> Approved</>}
+                        {leave.status === 'pending' && <><HourglassSplit size={10} style={{marginRight:4}}/> Pending</>}
+                        {leave.status === 'rejected' && <><XCircle size={10} style={{marginRight:4}}/> Rejected</>}
+                      </span>
+                    </td>
+                    <td className="col-reason">{leave.reason}</td>
+                    
+                    {(user?.role === 'hr' || user?.role === 'admin') && (
+                      <td className="col-actions" onClick={(e) => e.stopPropagation()}>
+                        {leave.status === 'pending' && (
+                          <>
+                            <button className="btn-icon check" onClick={() => handleApprove(leave)}>
+                                <CheckLg size={16} />
+                            </button>
+                            <button className="btn-icon cross" onClick={() => initiateReject(leave)}>
+                                <XLg size={16} />
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </>
+        </div>
+
+        {/* Right Sidebar */}
+        <aside className="sidebar">
+          <button className="btn-apply-main" onClick={() => setIsApplyModalOpen(true)}>
+            <PlusLg style={{marginRight: '8px'}} /> Apply Leave
+          </button>
+
+          {/* Today's Leaves Widget - ONLY FOR HR */}
+          {(user?.role === 'hr' || user?.role === 'admin') && (
+            <div className="widget">
+                <h3>Today's Leaves</h3>
+                <div className="today-list">
+                <div className="list-item">
+                    <div>
+                    <strong>Rahul Verma</strong>
+                    <span>Sick Leave • Full Day</span>
+                    </div>
+                    <span className="badge green">Approved</span>
+                </div>
+                {/* ... more items ... */}
+                </div>
+            </div>
+          )}
+
+          {/* CALENDAR WIDGET */}
+          <div className="widget calendar-widget">
+            <div className="cal-widget-header">
+                <h3>Leave Calendar</h3>
+            </div>
+            <div className="mini-calendar">
+              <div className="month-nav">
+                  <div className="month-label">February 2026</div>
+                  <div className="nav-arrows">
+                      <ChevronLeft size={12}/>
+                      <ChevronRight size={12}/>
+                  </div>
+              </div>
+
+              <div className="cal-header">
+                <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+              </div>
+              <div className="cal-grid">
+                {renderCalendar()}
+              </div>
+            </div>
+            <div className="cal-legend">
+                <span><span className="dot dot-green"></span> Approved</span>
+                <span><span className="dot dot-orange"></span> Pending</span>
+                <span><span className="dot dot-red"></span> Rejected</span>
+            </div>
+          </div>
+
+           {/* Holidays Widget */}
+           <div className="widget">
+            <h3>📅 Upcoming Holidays</h3>
+            <div className="holiday-list">
+              {holidays.map((h, i) => (
+                <div key={i} className="holiday-item">
+                  <div>
+                    <strong>{h.name}</strong>
+                    <span>{h.day}</span>
+                  </div>
+                  <span className="h-date">{h.date}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      {/* --- MODALS --- */}
+
+      {/* 1. APPLY LEAVE MODAL */}
+      {isApplyModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content apply-modal">
+            <div className="modal-header">
+              <h2>Apply for Leave</h2>
+              <button className="close-btn" onClick={() => setIsApplyModalOpen(false)}><XLg /></button>
+            </div>
+            <form onSubmit={handleApplySubmit}>
+              <label>Leave Type</label>
+              <div className="radio-group">
+                <button 
+                  type="button" 
+                  className={formData.category === 'Short' ? 'active' : ''}
+                  onClick={() => setFormData({...formData, category: 'Short'})}
+                >Short Leave</button>
+                <button 
+                  type="button" 
+                  className={formData.category !== 'Short' ? 'active' : ''}
+                  onClick={() => setFormData({...formData, category: 'Full'})}
+                >Full Day Leave</button>
+              </div>
+
+              <label>Category</label>
+              <select 
+                 value={formData.leaveType} 
+                 onChange={(e) => setFormData({...formData, leaveType: e.target.value})}
+              >
+                <option>Casual Leave</option>
+                <option>Sick Leave</option>
+                <option>Earned Leave</option>
+              </select>
+
+              <div className="row">
+                <div>
+                  <label>From Date</label>
+                  <input type="date" value={formData.startDate} onChange={(e) => setFormData({...formData, startDate: e.target.value})} required />
+                </div>
+                <div>
+                  <label>To Date</label>
+                  <input type="date" value={formData.endDate} onChange={(e) => setFormData({...formData, endDate: e.target.value})} required />
+                </div>
+              </div>
+
+              <label>Reason</label>
+              <textarea 
+                placeholder="Enter your reason..." 
+                value={formData.reason} 
+                onChange={(e) => setFormData({...formData, reason: e.target.value})}
+              />
+
+              <button type="submit" className="submit-full-btn">Submit Request</button>
+            </form>
+          </div>
+        </div>
       )}
+
+      {/* 2. REJECT MODAL */}
+      {isRejectModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content reject-modal">
+            <div className="modal-header">
+              <h2>Reject Leave</h2>
+              <button className="close-btn" onClick={() => setIsRejectModalOpen(false)}><XLg /></button>
+            </div>
+            <div className="modal-body">
+              <textarea 
+                className="reject-textarea"
+                placeholder="Add a remark for rejection..." 
+                value={rejectionRemark}
+                onChange={(e) => setRejectionRemark(e.target.value)}
+              />
+              <button className="reject-confirm-btn" onClick={confirmReject}>Reject</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. DETAILS MODAL */}
+      {isDetailModalOpen && selectedLeave && (
+        <div className="modal-overlay">
+          <div className="modal-content detail-modal">
+            <button className="close-btn-abs" onClick={() => setIsDetailModalOpen(false)}><XLg /></button>
+            <div className="user-header">
+               <h2>{selectedLeave.employee?.firstName} {selectedLeave.employee?.lastName}</h2>
+               <span className="tag">Engineering</span>
+            </div>
+            
+            <div className="balance-cards">
+              <div className="b-card">
+                 <div className="icon"><BriefcaseFill className="c-blue"/></div>
+                 <div className="b-info">
+                   <small>Casual Leave</small>
+                   <strong>{balances?.casualUsed || 9} <span>3/12 used</span></strong>
+                   <div className="progress"><div style={{width: '25%'}} className="blue"></div></div>
+                 </div>
+              </div>
+              <div className="b-card">
+                 <div className="icon"><ThermometerHalf className="c-red"/></div>
+                 <div className="b-info">
+                   <small>Sick Leave</small>
+                   <strong>{balances?.sickUsed || 7} <span>1/8 used</span></strong>
+                   <div className="progress"><div style={{width: '12%'}} className="red"></div></div>
+                 </div>
+              </div>
+              <div className="b-card">
+                 <div className="icon"><WalletFill className="c-green"/></div>
+                 <div className="b-info">
+                   <small>Paid Leave</small>
+                   <strong>{balances?.paidUsed || 10} <span>5/15 used</span></strong>
+                   <div className="progress"><div style={{width: '33%'}} className="green"></div></div>
+                 </div>
+              </div>
+            </div>
+
+            <h3>Leave History</h3>
+            <table className="history-table">
+               <thead>
+                 <tr><th>Type</th><th>Date</th><th>Duration</th><th>Status</th><th>Reason</th></tr>
+               </thead>
+               <tbody>
+                 <tr>
+                   <td>{selectedLeave.leaveType}</td>
+                   <td>{new Date(selectedLeave.startDate).toLocaleDateString()}</td>
+                   <td>Full Day</td>
+                   <td><span className="status-badge approved">Approved</span></td>
+                   <td>{selectedLeave.reason}</td>
+                 </tr>
+               </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
