@@ -302,24 +302,6 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="col-lg-7">
-             <div className="dashboard-card h-100">
-               <div className="d-flex justify-content-between align-items-center mb-3">
-                  <span className="fw-bold">Attendance Calendar</span>
-                  <div className="text-muted small">February 2026 <i className="bi bi-chevron-right ms-1"></i></div>
-               </div>
-               <div className="calendar-grid">
-                  <div className="cal-head">S</div><div className="cal-head">M</div><div className="cal-head">T</div><div className="cal-head">W</div><div className="cal-head">T</div><div className="cal-head">F</div><div className="cal-head">S</div>
-                  {generateCalendar()}
-               </div>
-               <div className="d-flex gap-3 mt-3 justify-content-center">
-                  <span className="small"><span className="legend-dot green"></span> Present</span>
-                  <span className="small"><span className="legend-dot yellow"></span> Short Leave</span>
-                  <span className="small"><span className="legend-dot red"></span> Absent</span>
-                  <span className="small"><span className="legend-dot gray"></span> Weekend</span>
-               </div>
-             </div>
-          </div>
         </div>
       </div>
     );
