@@ -267,9 +267,12 @@ function Leave() {
           <p>Track and manage employee leave requests</p>
         </div>
         <div className="header-actions">
-           <div className="view-toggle">
+           {/* <div className="view-toggle">
               <span>{user?.role === 'hr' ? '🛡️ HR View' : '👤 Employee View'}</span>
-           </div>
+           </div> */}
+           <button className="btn-apply-main" onClick={() => setIsApplyModalOpen(true)}>
+            <PlusLg style={{marginRight: '8px'}} /> Apply Leave
+          </button>
            <div className="date-display">
              <Calendar3 style={{marginRight: '8px'}} />
              Current Period: <strong>February 2026</strong>
@@ -482,9 +485,7 @@ function Leave() {
 
         {/* Right Sidebar */}
         <aside className="sidebar">
-          <button className="btn-apply-main" onClick={() => setIsApplyModalOpen(true)}>
-            <PlusLg style={{marginRight: '8px'}} /> Apply Leave
-          </button>
+          
 
           {/* Today's Leaves Widget - ONLY FOR HR */}
           {(user?.role === 'hr' || user?.role === 'admin') && (
