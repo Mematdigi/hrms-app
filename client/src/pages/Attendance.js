@@ -16,6 +16,7 @@ function Attendance() {
   const [attendance, setAttendance] = useState([]);
   const [checkedIn, setCheckedIn] = useState(false);
   const [punchTime, setPunchTime] = useState(null);
+  const [punchOutTime, setPunchOutTime] = useState(null);
   const [attendanceSummary, setAttendanceSummary] = useState({
     workingDays: 0, present: 0, absent: 0, late: 0, shortLeaves: 0, halfDays: 0, totalHours: 0
   });
@@ -52,9 +53,15 @@ function Attendance() {
       if (todayRecord?.checkInTime && !todayRecord?.checkOutTime) {
         setCheckedIn(true);
         setPunchTime(new Date(todayRecord.checkInTime));
+        setPunchOutTime(null);
+      } else if (todayRecord?.checkInTime && todayRecord?.checkOutTime) {
+        setCheckedIn(false);
+        setPunchTime(new Date(todayRecord.checkInTime));
+        setPunchOutTime(new Date(todayRecord.checkOutTime));
       } else {
         setCheckedIn(false);
         setPunchTime(null);
+        setPunchOutTime(null);
       }
 
       const currentMonthLogs = logs.filter(a => new Date(a.date).getMonth() === currentDate.getMonth());
@@ -148,7 +155,7 @@ function Attendance() {
       }
       fetchEmployeeData();
     } catch (error) {
-      alert('❌ Punch failed. Please try again.');
+      // alert('❌ Punch failed. Please try again.');
     } finally { setLoading(false); }
   };
 
@@ -267,7 +274,7 @@ function Attendance() {
                     </div>
                     <div className="info-item">
                         <small>Punch Out</small>
-                        <strong>{todayRecord?.checkOutTime ? new Date(todayRecord.checkOutTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--'}</strong>
+                        <strong>{punchOutTime ? punchOutTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--'}</strong>
                     </div>
                     <div className="info-item highlight">
                         <small>Total Hours</small>

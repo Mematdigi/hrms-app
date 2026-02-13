@@ -281,11 +281,10 @@ rejectLeave = async (req, res) => {
       { new: true }
     ).populate('employee casualLeave sickLeave status reason', 'firstName lastName email employeeId')
 
-    if(leave.status !="rejected"){
+    if(leave.status !== "rejected"){
     if (leaveType === 'casual'){
       leave.casualLeave = (leave.casualLeave || 0) + numberOfDays;
-    }else(leaveType === 'sick')
-    {
+    } else if (leaveType === 'sick') {
       leave.sickLeave = (leave.sickLeave || 0) + numberOfDays;
     }
     }

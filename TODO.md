@@ -1,11 +1,17 @@
-# TODO: Remove Location Check for Check-In and Check-Out
+# Leave Section Fixes - TODO List
 
-## Tasks
-- [ ] Comment out location validation in checkIn method (make latitude/longitude optional)
-- [ ] Comment out within-office verification in checkIn method
-- [ ] Comment out location validation in checkOut method (make latitude/longitude optional)
-- [ ] Comment out within-office verification in checkOut method
-- [ ] Comment out location validation in requestEarlyCheckout method (make latitude/longitude optional)
-- [ ] Comment out within-office verification in requestEarlyCheckout method
-- [ ] Update success responses to remove location info if not checked
-- [ ] Test the changes to ensure check-in/check-out work without location enforcement
+## Backend Fixes:
+- [ ] 1. Fix syntax error in leaveController.js - `}else(leaveType === 'sick')` should be `} else if (leaveType === 'sick')`
+- [ ] 2. Fix duplicate code in approveLeave function in leaveController.js
+- [ ] 3. Fix status default value in Leave model - change from 'left' to 'pending'
+- [ ] 4. Add balances endpoint in employee routes (employeeRoutes.js)
+- [ ] 5. Add getBalances function in employeeController.js
+
+## Frontend Fixes:
+- [ ] 6. Fix leave type values in Leave.js - change from 'Casual Leave'/'Sick Leave' to 'casual'/'sick'
+- [ ] 7. Update api.js to call the correct balances endpoint
+
+## Testing:
+- [ ] 8. Test backend API endpoints
+- [ ] 9. Test frontend leave section
+- [ ] 10. Fix any remaining issues
