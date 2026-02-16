@@ -499,3 +499,33 @@
     transform: translateY(0);
   }
 }
+.document-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.action-btn {
+  background: none;
+  border: 1px solid #e5e7eb;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.action-btn.view-btn svg {
+  stroke: #3b82f6;
+}
+
+.action-btn.upload-btn svg {
+  stroke: #10b981;
+}

@@ -8,6 +8,7 @@ const express = require('express');
 const { authController } = require("../../controllers/index");
 // const { verifyRestAPIKey } = require('../../middlewares/validate-rest-api-key');
 const jwtVerify = require('../../middleware/verify-token');
+const { authMiddleware } = require('../../middleware/auth');
 const router = express.Router();
 // const authValidation = require('../../validations/auth.validation');
 // const validate = require('../../middlewares/validate');
@@ -22,6 +23,9 @@ router.post('/register',
     //  verifyRestAPIKey, 
     //  validate(authValidation.register), 
 authController.register);
+
+// Get user profile (protected route)
+router.get('/profile', authMiddleware, authController.getProfile);
 
 // // Forgot Password route
 // router.post('/forgot-password', verifyRestAPIKey, validate(authValidation.forgotPassword), authController.forgotPassword);

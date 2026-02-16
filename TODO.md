@@ -1,17 +1,22 @@
-# Leave Section Fixes - TODO List
+# TODO: Add API Data in UserProfile Page
 
-## Backend Fixes:
-- [ ] 1. Fix syntax error in leaveController.js - `}else(leaveType === 'sick')` should be `} else if (leaveType === 'sick')`
-- [ ] 2. Fix duplicate code in approveLeave function in leaveController.js
-- [ ] 3. Fix status default value in Leave model - change from 'left' to 'pending'
-- [ ] 4. Add balances endpoint in employee routes (employeeRoutes.js)
-- [ ] 5. Add getBalances function in employeeController.js
+## Task: Add API data in userprofile page
 
-## Frontend Fixes:
-- [ ] 6. Fix leave type values in Leave.js - change from 'Casual Leave'/'Sick Leave' to 'casual'/'sick'
-- [ ] 7. Update api.js to call the correct balances endpoint
+## Plan:
 
-## Testing:
-- [ ] 8. Test backend API endpoints
-- [ ] 9. Test frontend leave section
-- [ ] 10. Fix any remaining issues
+### Step 1: Add profile route to server
+- [ ] Edit `server/src/routes/v1/authRoutes.js` to add `/profile` GET route with authMiddleware
+
+### Step 2: Update client UserProfile.js to fetch and display API data
+- [ ] Import authAPI from services/api.js
+- [ ] Add useState for user, loading, and error states
+- [ ] Add useEffect to fetch profile on component mount
+- [ ] Replace hardcoded values with user data from API:
+  - Profile header: name, designation, employee ID, department, employment type
+  - Personal details tab: email, phone, address, city, state, zipCode
+  - Work details tab: employeeId, department, designation, dateOfJoining, reportingManager
+- [ ] Handle loading and error states
+
+## Notes:
+- The User model doesn't have emergency contact fields - those will remain as placeholder or can be added to the model
+- Documents tab will remain with placeholder/hardcoded data as it would require additional endpoints
