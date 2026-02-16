@@ -1,22 +1,20 @@
-# TODO: Add API Data in UserProfile Page
+# TODO - Employee Document Upload Access
 
-## Task: Add API data in userprofile page
+## Task: Give employees access to upload their documents
 
-## Plan:
+### Analysis Complete:
+- Backend already handles all 6 document types (adharCard, panCard, salarySlip, relievingLetter, experienceLetter, offerLetter)
+- UserProfile.js already has:
+  - Upload modal with all document types
+  - View document modal
+  - handleDocumentUpload function
+  - Documents tab showing 3/6 documents
 
-### Step 1: Add profile route to server
-- [ ] Edit `server/src/routes/v1/authRoutes.js` to add `/profile` GET route with authMiddleware
+### What needs to be done:
+- [ ] Add remaining 3 document types to Documents tab in UserProfile.js:
+  - Relieving Letter
+  - Experience Letter  
+  - Offer Letter
 
-### Step 2: Update client UserProfile.js to fetch and display API data
-- [ ] Import authAPI from services/api.js
-- [ ] Add useState for user, loading, and error states
-- [ ] Add useEffect to fetch profile on component mount
-- [ ] Replace hardcoded values with user data from API:
-  - Profile header: name, designation, employee ID, department, employment type
-  - Personal details tab: email, phone, address, city, state, zipCode
-  - Work details tab: employeeId, department, designation, dateOfJoining, reportingManager
-- [ ] Handle loading and error states
-
-## Notes:
-- The User model doesn't have emergency contact fields - those will remain as placeholder or can be added to the model
-- Documents tab will remain with placeholder/hardcoded data as it would require additional endpoints
+### Files to edit:
+- client/src/pages/UserProfile.js - Add missing document cards in the documents grid
