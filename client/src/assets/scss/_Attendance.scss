@@ -170,6 +170,88 @@ $border: #e5e7eb;
     // ... repeat for others
   }
 }
+
+// Calendar Column (Calendar + Employee Card)
+.calendar-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+// Employee Attendance Card (Below Calendar)
+.employee-attendance-card {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid $border;
+  padding: 20px;
+  
+  h5 {
+    margin: 0 0 16px;
+    font-size: 15px;
+    font-weight: 700;
+    color: $text-dark;
+  }
+
+  .attendance-card-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .attendance-card-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 1px solid #f3f4f6;
+
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+
+      &.punch-in {
+        background: #dbeafe;
+        color: #2563eb;
+      }
+
+      &.punch-out {
+        background: #fce7f3;
+        color: #db2777;
+      }
+
+      &.working-hours {
+        background: #dcfce7;
+        color: #16a34a;
+      }
+    }
+
+    .card-content {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+
+      small {
+        font-size: 11px;
+        color: $text-grey;
+        text-transform: uppercase;
+        font-weight: 500;
+      }
+
+      strong {
+        font-size: 16px;
+        color: $text-dark;
+        font-weight: 600;
+      }
+    }
+  }
+}
 .download-btn {
             background: #eef2ff; // Light Indigo
             color: #4f46e5;

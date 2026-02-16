@@ -1,11 +1,20 @@
-# TODO: Remove Location Check for Check-In and Check-Out
+# TODO - Employee Document Upload Access
 
-## Tasks
-- [ ] Comment out location validation in checkIn method (make latitude/longitude optional)
-- [ ] Comment out within-office verification in checkIn method
-- [ ] Comment out location validation in checkOut method (make latitude/longitude optional)
-- [ ] Comment out within-office verification in checkOut method
-- [ ] Comment out location validation in requestEarlyCheckout method (make latitude/longitude optional)
-- [ ] Comment out within-office verification in requestEarlyCheckout method
-- [ ] Update success responses to remove location info if not checked
-- [ ] Test the changes to ensure check-in/check-out work without location enforcement
+## Task: Give employees access to upload their documents
+
+### Analysis Complete:
+- Backend already handles all 6 document types (adharCard, panCard, salarySlip, relievingLetter, experienceLetter, offerLetter)
+- UserProfile.js already has:
+  - Upload modal with all document types
+  - View document modal
+  - handleDocumentUpload function
+  - Documents tab showing 3/6 documents
+
+### What needs to be done:
+- [ ] Add remaining 3 document types to Documents tab in UserProfile.js:
+  - Relieving Letter
+  - Experience Letter  
+  - Offer Letter
+
+### Files to edit:
+- client/src/pages/UserProfile.js - Add missing document cards in the documents grid

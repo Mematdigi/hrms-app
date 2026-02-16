@@ -154,11 +154,7 @@ $status-rejected-text: #EE5D50;
     .sidebar {
       display: flex; flex-direction: column; gap: 20px;
 
-      .btn-apply-main {
-        width: 100%; background: $primary-blue; color: white; border: none; padding: 14px; border-radius: 12px;
-        font-weight: 600; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
-        transition: 0.2s; &:hover { opacity: 0.9; }
-      }
+      
 
       .widget {
         background: $white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.02);
@@ -272,4 +268,10 @@ $status-rejected-text: #EE5D50;
     }
     .history-table { width: 100%; th { text-align: left; color: $text-gray; font-size: 12px; border-bottom: 1px solid $border-color; padding-bottom: 8px;} td { padding: 12px 0; font-size: 13px; } }
   }
+}
+
+.btn-apply-main {
+  width: 100%; background: $primary-blue; color: white; border: none; padding: 14px; border-radius: 12px;
+  font-weight: 600; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+  transition: 0.2s; &:hover { opacity: 0.9; }
 }

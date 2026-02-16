@@ -257,7 +257,7 @@ function Employees() {
                         </div>
                     )
                 )}
-      </div>
+        </div>
 
       {/* --- ADD / EDIT FORM VIEW (FULL PAGE) --- */}
       {(viewMode === 'add' || viewMode === 'edit') ? (
