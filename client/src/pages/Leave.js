@@ -17,7 +17,10 @@ import {
   Funnel,
   PlusLg,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Pencil,
+  Trash,
+  CalendarEvent // New Icon
 } from 'react-bootstrap-icons';
 
 function Leave() {
@@ -50,6 +53,18 @@ function Leave() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState(null);
   const [rejectionRemark, setRejectionRemark] = useState('');
+
+  // --- HOLIDAY STATE ---
+  const [holidays, setHolidays] = useState([
+    { id: 1, name: "Holi", date: "2026-03-10" },
+    { id: 2, name: "Good Friday", date: "2026-04-03" },
+    { id: 3, name: "Eid ul-Fitr", date: "2026-03-21" },
+    { id: 4, name: "Independence Day", date: "2026-08-15" },
+    { id: 5, name: "Diwali", date: "2026-11-01" },
+  ]);
+  const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false); // For Add/Edit Form
+  const [isFullHolidayListOpen, setIsFullHolidayListOpen] = useState(false); // New Modal for Full List
+  const [holidayForm, setHolidayForm] = useState({ id: null, name: '', date: '' });
 
   const { user } = useSelector((state) => state.auth);
 
@@ -197,6 +212,40 @@ function Leave() {
     } catch (error) { console.error(error); }
   };
 
+  // --- HOLIDAY CRUD FUNCTIONS ---
+  const handleSaveHoliday = (e) => {
+    e.preventDefault();
+    if (holidayForm.id) {
+        // Edit existing
+        setHolidays(holidays.map(h => h.id === holidayForm.id ? holidayForm : h));
+    } else {
+        // Add new
+        setHolidays([...holidays, { ...holidayForm, id: Date.now() }]);
+    }
+    setIsHolidayModalOpen(false);
+  };
+
+  const handleDeleteHoliday = (id) => {
+    if(window.confirm("Are you sure you want to delete this holiday?")) {
+        setHolidays(holidays.filter(h => h.id !== id));
+    }
+  };
+
+  const openHolidayModal = (holiday = null) => {
+    if (holiday) {
+        setHolidayForm(holiday);
+    } else {
+        setHolidayForm({ id: null, name: '', date: '' });
+    }
+    setIsHolidayModalOpen(true);
+  };
+
+  const getDayName = (dateStr) => {
+      if(!dateStr) return '';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { weekday: 'long' });
+  };
+
   // --- CALENDAR LOGIC ---
   const renderCalendar = () => {
     const today = new Date();
@@ -216,7 +265,6 @@ function Leave() {
     for (let d = 1; d <= daysInMonth; d++) {
       const dateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       
-      // Check if any leave falls on this date
       const daysLeave = leaves.find(l => {
         const start = new Date(l.startDate);
         const end = new Date(l.endDate);
@@ -231,6 +279,10 @@ function Leave() {
         else if(daysLeave.status === 'rejected') statusClass = 'dot-red';
       }
 
+      // Check if it's a holiday
+      const isHoliday = holidays.find(h => h.date === dateString);
+      if(isHoliday) statusClass = 'dot-blue'; 
+
       const isToday = d === today.getDate() ? 'today' : '';
 
       days.push(
@@ -244,13 +296,7 @@ function Leave() {
   };
 
   const filteredLeaves = getFilteredLeaves();
-  const holidays = [
-    { name: "Holi", date: "2026-03-10", day: "Tuesday" },
-    { name: "Good Friday", date: "2026-04-03", day: "Friday" },
-    { name: "Eid ul-Fitr", date: "2026-03-21", day: "Saturday" },
-  ];
-
-  // Helper to calculate percentage for progress bars
+  
   const calculateProgress = (used, total) => {
      if (!total || total === 0) return 0;
      const pct = (used / total) * 100;
@@ -267,9 +313,6 @@ function Leave() {
           <p>Track and manage employee leave requests</p>
         </div>
         <div className="header-actions">
-           {/* <div className="view-toggle">
-              <span>{user?.role === 'hr' ? '🛡️ HR View' : '👤 Employee View'}</span>
-           </div> */}
            <button className="btn-apply-main" onClick={() => setIsApplyModalOpen(true)}>
             <PlusLg style={{marginRight: '8px'}} /> Apply Leave
           </button>
@@ -362,7 +405,7 @@ function Leave() {
                     <small>Paid Leave</small>
                     <div className="count-row">
                         <strong>{balances?.paidUsed || 0}</strong>
-                        <span> / 15 used</span> {/* Mock total for Paid */}
+                        <span> / 15 used</span>
                     </div>
                     <div className="progress">
                         <div 
@@ -381,7 +424,6 @@ function Leave() {
           <div className="section-header">
             <h2>{user?.role === 'employee' ? 'Leave History' : 'All Leave Requests'}</h2>
             
-            {/* Show filters mainly for HR view, or simplified for Employee */}
             <div className="controls">
               <div className="search-box">
                 <Search className="search-icon" />
@@ -410,13 +452,12 @@ function Leave() {
             <table>
               <thead>
                 <tr>
-                  {/* Hide Employee Name column for Employee View */}
                   {(user?.role === 'hr' || user?.role === 'admin') && <th>Employee</th>}
                   <th>Type</th>
                   <th>Date / Duration</th>
                   {(user?.role === 'hr' || user?.role === 'admin') && <th>Applied</th>}
                   <th>Status</th>
-                  <th>Reason</th>
+                  {/* <th>Reason</th> */}
                   {(user?.role === 'hr' || user?.role === 'admin') && <th>Action</th>}
                 </tr>
               </thead>
@@ -424,7 +465,6 @@ function Leave() {
                 {filteredLeaves.map(leave => (
                   <tr key={leave._id} onClick={() => { setSelectedLeave(leave); setIsDetailModalOpen(true); }}>
                     
-                    {/* Employee Name Cell */}
                     {(user?.role === 'hr' || user?.role === 'admin') && (
                         <td className="col-employee">
                         <div className="avatar">{leave.employee?.firstName?.charAt(0)}</div>
@@ -460,7 +500,7 @@ function Leave() {
                         {leave.status === 'rejected' && <><XCircle size={10} style={{marginRight:4}}/> Rejected</>}
                       </span>
                     </td>
-                    <td className="col-reason">{leave.reason}</td>
+                    {/* <td className="col-reason">{leave.reason}</td> */}
                     
                     {(user?.role === 'hr' || user?.role === 'admin') && (
                       <td className="col-actions" onClick={(e) => e.stopPropagation()}>
@@ -486,25 +526,7 @@ function Leave() {
         {/* Right Sidebar */}
         <aside className="sidebar">
           
-
-          {/* Today's Leaves Widget - ONLY FOR HR */}
-          {(user?.role === 'hr' || user?.role === 'admin') && (
-            <div className="widget">
-                <h3>Today's Leaves</h3>
-                <div className="today-list">
-                <div className="list-item">
-                    <div>
-                    <strong>Rahul Verma</strong>
-                    <span>Sick Leave • Full Day</span>
-                    </div>
-                    <span className="badge green">Approved</span>
-                </div>
-                {/* ... more items ... */}
-                </div>
-            </div>
-          )}
-
-          {/* CALENDAR WIDGET */}
+          {/* Calendar Widget */}
           <div className="widget calendar-widget">
             <div className="cal-widget-header">
                 <h3>Leave Calendar</h3>
@@ -528,21 +550,42 @@ function Leave() {
             <div className="cal-legend">
                 <span><span className="dot dot-green"></span> Approved</span>
                 <span><span className="dot dot-orange"></span> Pending</span>
-                <span><span className="dot dot-red"></span> Rejected</span>
+                <span><span className="dot dot-blue"></span> Holiday</span>
             </div>
           </div>
 
-           {/* Holidays Widget */}
+           {/* --- UPDATED HOLIDAY WIDGET --- */}
            <div className="widget">
-            <h3>📅 Upcoming Holidays</h3>
+            <div className="widget-header-row" 
+                 style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', cursor: 'pointer'}}
+                 onClick={() => setIsFullHolidayListOpen(true)}
+                 title="View All Holidays"
+            >
+                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <CalendarEvent size={18} color="#0066FF"/>
+                    <h3 style={{margin:0}}>Upcoming Holidays</h3>
+                </div>
+                {(user?.role === 'hr' || user?.role === 'admin') && (
+                    <button 
+                        className="icon-btn-small" 
+                        onClick={(e) => { e.stopPropagation(); openHolidayModal(); }}
+                        style={{border: 'none', background: 'transparent', color: '#0066FF', cursor: 'pointer'}}
+                        title="Add Holiday"
+                    > 
+                        <PlusLg size={18}/> 
+                    </button>
+                )}
+            </div>
             <div className="holiday-list">
-              {holidays.map((h, i) => (
-                <div key={i} className="holiday-item">
+              {holidays.slice(0, 3).map((h) => (
+                <div key={h.id} className="holiday-item">
                   <div>
                     <strong>{h.name}</strong>
-                    <span>{h.day}</span>
+                    <span>{getDayName(h.date)}</span>
                   </div>
-                  <span className="h-date">{h.date}</span>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                      <span className="h-date">{h.date}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -561,48 +604,22 @@ function Leave() {
               <button className="close-btn" onClick={() => setIsApplyModalOpen(false)}><XLg /></button>
             </div>
             <form onSubmit={handleApplySubmit}>
+              {/* ... form content ... */}
               <label>Leave Type</label>
               <div className="radio-group">
-                <button 
-                  type="button" 
-                  className={formData.category === 'Short' ? 'active' : ''}
-                  onClick={() => setFormData({...formData, category: 'Short'})}
-                >Short Leave</button>
-                <button 
-                  type="button" 
-                  className={formData.category !== 'Short' ? 'active' : ''}
-                  onClick={() => setFormData({...formData, category: 'Full'})}
-                >Full Day Leave</button>
+                <button type="button" className={formData.category === 'Short' ? 'active' : ''} onClick={() => setFormData({...formData, category: 'Short'})}>Short Leave</button>
+                <button type="button" className={formData.category !== 'Short' ? 'active' : ''} onClick={() => setFormData({...formData, category: 'Full'})}>Full Day Leave</button>
               </div>
-
               <label>Category</label>
-              <select 
-                 value={formData.leaveType} 
-                 onChange={(e) => setFormData({...formData, leaveType: e.target.value})}
-              >
-                <option>Casual Leave</option>
-                <option>Sick Leave</option>
-                <option>Earned Leave</option>
+              <select value={formData.leaveType} onChange={(e) => setFormData({...formData, leaveType: e.target.value})}>
+                <option>Casual Leave</option><option>Sick Leave</option><option>Earned Leave</option>
               </select>
-
               <div className="row">
-                <div>
-                  <label>From Date</label>
-                  <input type="date" value={formData.startDate} onChange={(e) => setFormData({...formData, startDate: e.target.value})} required />
-                </div>
-                <div>
-                  <label>To Date</label>
-                  <input type="date" value={formData.endDate} onChange={(e) => setFormData({...formData, endDate: e.target.value})} required />
-                </div>
+                <div><label>From Date</label><input type="date" value={formData.startDate} onChange={(e) => setFormData({...formData, startDate: e.target.value})} required /></div>
+                <div><label>To Date</label><input type="date" value={formData.endDate} onChange={(e) => setFormData({...formData, endDate: e.target.value})} required /></div>
               </div>
-
               <label>Reason</label>
-              <textarea 
-                placeholder="Enter your reason..." 
-                value={formData.reason} 
-                onChange={(e) => setFormData({...formData, reason: e.target.value})}
-              />
-
+              <textarea placeholder="Enter your reason..." value={formData.reason} onChange={(e) => setFormData({...formData, reason: e.target.value})} />
               <button type="submit" className="submit-full-btn">Submit Request</button>
             </form>
           </div>
@@ -618,12 +635,7 @@ function Leave() {
               <button className="close-btn" onClick={() => setIsRejectModalOpen(false)}><XLg /></button>
             </div>
             <div className="modal-body">
-              <textarea 
-                className="reject-textarea"
-                placeholder="Add a remark for rejection..." 
-                value={rejectionRemark}
-                onChange={(e) => setRejectionRemark(e.target.value)}
-              />
+              <textarea className="reject-textarea" placeholder="Add a remark for rejection..." value={rejectionRemark} onChange={(e) => setRejectionRemark(e.target.value)} />
               <button className="reject-confirm-btn" onClick={confirmReject}>Reject</button>
             </div>
           </div>
@@ -634,55 +646,87 @@ function Leave() {
       {isDetailModalOpen && selectedLeave && (
         <div className="modal-overlay">
           <div className="modal-content detail-modal">
-            <button className="close-btn-abs" onClick={() => setIsDetailModalOpen(false)}><XLg /></button>
-            <div className="user-header">
-               <h2>{selectedLeave.employee?.firstName} {selectedLeave.employee?.lastName}</h2>
-               <span className="tag">Engineering</span>
-            </div>
-            
-            <div className="balance-cards">
-              <div className="b-card">
-                 <div className="icon"><BriefcaseFill className="c-blue"/></div>
-                 <div className="b-info">
-                   <small>Casual Leave</small>
-                   <strong>{balances?.casualUsed || 9} <span>3/12 used</span></strong>
-                   <div className="progress"><div style={{width: '25%'}} className="blue"></div></div>
-                 </div>
-              </div>
-              <div className="b-card">
-                 <div className="icon"><ThermometerHalf className="c-red"/></div>
-                 <div className="b-info">
-                   <small>Sick Leave</small>
-                   <strong>{balances?.sickUsed || 7} <span>1/8 used</span></strong>
-                   <div className="progress"><div style={{width: '12%'}} className="red"></div></div>
-                 </div>
-              </div>
-              <div className="b-card">
-                 <div className="icon"><WalletFill className="c-green"/></div>
-                 <div className="b-info">
-                   <small>Paid Leave</small>
-                   <strong>{balances?.paidUsed || 10} <span>5/15 used</span></strong>
-                   <div className="progress"><div style={{width: '33%'}} className="green"></div></div>
-                 </div>
-              </div>
-            </div>
-
-            <h3>Leave History</h3>
-            <table className="history-table">
-               <thead>
-                 <tr><th>Type</th><th>Date</th><th>Duration</th><th>Status</th><th>Reason</th></tr>
-               </thead>
-               <tbody>
-                 <tr>
-                   <td>{selectedLeave.leaveType}</td>
-                   <td>{new Date(selectedLeave.startDate).toLocaleDateString()}</td>
-                   <td>Full Day</td>
-                   <td><span className="status-badge approved">Approved</span></td>
-                   <td>{selectedLeave.reason}</td>
-                 </tr>
-               </tbody>
-            </table>
+             <button className="close-btn-abs" onClick={() => setIsDetailModalOpen(false)}><XLg /></button>
+             <div className="user-header"><h2>{selectedLeave.employee?.firstName} {selectedLeave.employee?.lastName}</h2><span className="tag">Engineering</span></div>
+             <div className="balance-cards">
+                <div className="b-card"><div className="icon"><BriefcaseFill className="c-blue"/></div><div className="b-info"><small>Casual Leave</small><strong>9 <span>3/12 used</span></strong><div className="progress"><div style={{width: '25%'}} className="blue"></div></div></div></div>
+                <div className="b-card"><div className="icon"><ThermometerHalf className="c-red"/></div><div className="b-info"><small>Sick Leave</small><strong>7 <span>1/8 used</span></strong><div className="progress"><div style={{width: '12%'}} className="red"></div></div></div></div>
+                <div className="b-card"><div className="icon"><WalletFill className="c-green"/></div><div className="b-info"><small>Paid Leave</small><strong>10 <span>5/15 used</span></strong><div className="progress"><div style={{width: '33%'}} className="green"></div></div></div></div>
+             </div>
+             <h3>Leave History</h3>
+             <table className="history-table">
+               <thead><tr><th>Type</th><th>Date</th><th>Duration</th><th>Status</th><th>Reason</th></tr></thead>
+               <tbody><tr><td>{selectedLeave.leaveType}</td><td>{new Date(selectedLeave.startDate).toLocaleDateString()}</td><td>Full Day</td><td><span className="status-badge approved">Approved</span></td><td>{selectedLeave.reason}</td></tr></tbody>
+             </table>
           </div>
+        </div>
+      )}
+
+      {/* 4. NEW: MANAGE HOLIDAY FORM MODAL (Add/Edit) */}
+      {isHolidayModalOpen && (
+        <div className="modal-overlay">
+            <div className="modal-content apply-modal">
+                <div className="modal-header">
+                    <h2>{holidayForm.id ? 'Edit Holiday' : 'Add Holiday'}</h2>
+                    <button className="close-btn" onClick={() => setIsHolidayModalOpen(false)}><XLg /></button>
+                </div>
+                <form onSubmit={handleSaveHoliday}>
+                    <label>Holiday Name</label>
+                    <input type="text" required value={holidayForm.name} onChange={(e) => setHolidayForm({...holidayForm, name: e.target.value})} placeholder="e.g. Diwali"/>
+                    <label>Date</label>
+                    <input type="date" required value={holidayForm.date} onChange={(e) => setHolidayForm({...holidayForm, date: e.target.value})}/>
+                    <button type="submit" className="submit-full-btn">{holidayForm.id ? 'Update Holiday' : 'Add Holiday'}</button>
+                </form>
+            </div>
+        </div>
+      )}
+
+      {/* 5. NEW: FULL HOLIDAY LIST MODAL (View All) */}
+      {isFullHolidayListOpen && (
+        <div className="modal-overlay">
+            <div className="modal-content detail-modal">
+                <div className="modal-header">
+                    <h2>Annual Holiday Calendar</h2>
+                    <button className="close-btn" onClick={() => setIsFullHolidayListOpen(false)}><XLg /></button>
+                </div>
+                
+                {/* Header Actions for HR inside the full view */}
+                {/* {(user?.role === 'hr' || user?.role === 'admin') && (
+                    <div style={{marginBottom: '16px', display: 'flex', justifyContent: 'flex-end'}}>
+                        <button className="btn-apply-main" style={{width: 'auto'}} onClick={() => openHolidayModal()}>
+                            <PlusLg style={{marginRight: '8px'}} /> Add New Holiday
+                        </button>
+                    </div>
+                )} */}
+
+                <div className="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Holiday Name</th>
+                                <th>Date</th>
+                                <th>Day</th>
+                                {(user?.role === 'hr' || user?.role === 'admin') && <th>Action</th>}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {holidays.sort((a,b) => new Date(a.date) - new Date(b.date)).map(h => (
+                                <tr key={h.id}>
+                                    <td><strong>{h.name}</strong></td>
+                                    <td>{h.date}</td>
+                                    <td>{getDayName(h.date)}</td>
+                                    {(user?.role === 'hr' || user?.role === 'admin') && (
+                                        <td className="col-actions">
+                                            <button className="btn-icon check" onClick={() => openHolidayModal(h)} title="Edit"><Pencil size={14}/></button>
+                                            <button className="btn-icon cross" onClick={() => handleDeleteHoliday(h.id)} title="Delete"><Trash size={14}/></button>
+                                        </td>
+                                    )}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
       )}
 
