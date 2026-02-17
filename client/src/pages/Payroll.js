@@ -682,7 +682,7 @@ function Payroll() {
           Showing {indexOfFirstEmployee + 1} to {Math.min(indexOfLastEmployee, employees.length)} of {employees.length} employees
         </div>
 
-        {(user?.role === 'admin' || user?.role === 'hr') && selectedEmployee && (
+        {(user?.role === 'admin' || user?.role === 'hr'|| user?.role === 'manager') && selectedEmployee && (
           <button
             onClick={() => {
               const willOpen = !showForm;

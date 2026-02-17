@@ -66,8 +66,6 @@ const Navbar = () => {
         { label: 'Leaves', path: '/leave' },
         { label: 'Payroll', path: '/payroll' },
         { label: 'Employees', path: '/employees' },
-        { label: 'Documents', path: '/documents' },
-        { label: 'Performance', path: '/performance' },
         { label: 'Roles', path: '/roles', admin: true },
         profileItem
       ];
@@ -80,7 +78,6 @@ const Navbar = () => {
         { label: 'Leaves', path: '/leave' },
         { label: 'Payroll', path: '/payroll' },
         { label: 'Employees', path: '/employees' },
-        { label: 'Documents', path: '/documents' },
         profileItem
       ];
     }
@@ -91,6 +88,7 @@ const Navbar = () => {
         { label: "Attendance", path: "/attendance" },
         { label: "Leaves", path: "/leave" },
         { label: "Employees", path: "/employees" },
+        { label: 'Payroll', path: '/payroll' },
         profileItem
       ];
     }

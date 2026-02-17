@@ -35,13 +35,13 @@ router.get('/:id', authMiddleware, employeeController.getEmployeeById);
 // Create Employee (With File Uploads)
 router.post('/', 
   authMiddleware, 
-  roleMiddleware(['admin', 'hr']), 
+  roleMiddleware(['admin', 'hr','manager','employee']), 
   uploadFields, 
   employeeController.createEmployee
 );
 
-router.put('/:id', authMiddleware, roleMiddleware(['admin', 'hr']), uploadFields, employeeController.updateEmployee);
-router.delete('/:id', authMiddleware, roleMiddleware(['admin']), employeeController.deleteEmployee);
-router.get('/all/payrolls', authMiddleware, roleMiddleware(['admin','hr']), employeeController.getEmployeePayrolls);
+router.put('/:id', authMiddleware, roleMiddleware(['admin', 'hr','manager','employee']), uploadFields, employeeController.updateEmployee);
+router.delete('/:id', authMiddleware, roleMiddleware(['admin','manager']), employeeController.deleteEmployee);
+router.get('/all/payrolls', authMiddleware, roleMiddleware(['admin','hr','manager']), employeeController.getEmployeePayrolls);
 
 module.exports = router;
