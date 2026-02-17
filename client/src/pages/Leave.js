@@ -55,7 +55,7 @@ function Leave() {
 
   // --- EXISTING EFFECTS ---
   useEffect(() => {
-    if (user?.role === 'hr' || user?.role === 'admin') {
+    if (user?.role === 'hr' || user?.role === 'admin'|| user?.role === 'manager') {
       setActiveTab("all");
     }
   }, []);
@@ -67,7 +67,7 @@ function Leave() {
   useEffect(() => {
     fetchLeaves();
     fetchLeaveDefaults();
-    if (user?.role === 'hr' || user?.role === 'admin') {
+    if (user?.role === 'hr' || user?.role === 'admin'|| user?.role === 'manager') {
       fetchPendingLeaves();
     } else if (user?.role === 'employee') {
       fetchBalances();
@@ -121,7 +121,7 @@ function Leave() {
   // --- LOGIC HELPERS ---
   const getFilteredLeaves = () => {
     let filtered = [...leaves];
-    if (searchQuery && (user?.role === 'hr' || user?.role === 'admin')) {
+    if (searchQuery && (user?.role === 'hr' || user?.role === 'admin'|| user?.role === 'manager')) {
       filtered = filtered.filter((leave) => {
         const fullName = `${leave.employee?.firstName} ${leave.employee?.lastName}`.toLowerCase();
         return fullName.includes(searchQuery.toLowerCase());
@@ -267,21 +267,22 @@ function Leave() {
           <p>Track and manage employee leave requests</p>
         </div>
         <div className="header-actions">
-           {/* <div className="view-toggle">
-              <span>{user?.role === 'hr' ? '🛡️ HR View' : '👤 Employee View'}</span>
-           </div> */}
-           <button className="btn-apply-main" onClick={() => setIsApplyModalOpen(true)}>
-            <PlusLg style={{marginRight: '8px'}} /> Apply Leave
-          </button>
-           <div className="date-display">
-             <Calendar3 style={{marginRight: '8px'}} />
-             Current Period: <strong>February 2026</strong>
-           </div>
-        </div>
+    {/* ✅ Hide for Admin, show for HR, Manager, and Employee */}
+    {user?.role !== 'admin' && (
+      <button className="btn-apply-main" onClick={() => setIsApplyModalOpen(true)}>
+        <PlusLg style={{marginRight: '8px'}} /> Apply Leave
+      </button>
+    )}
+
+    <div className="date-display">
+      <Calendar3 style={{marginRight: '8px'}} />
+      Current Period: <strong>February 2026</strong>
+    </div>
+</div>
       </header>
 
       {/* HR VIEW: Stats Cards */}
-      {(user?.role === 'hr' || user?.role === 'admin') && (
+      {(user?.role === 'hr' || user?.role === 'admin'|| user?.role === 'manager') && (
         <div className="stats-row">
             <div className="stat-card">
             <div className="icon-box blue"><FileText size={22} /></div>
@@ -393,7 +394,7 @@ function Leave() {
                 />
               </div>
               
-              {(user?.role === 'hr' || user?.role === 'admin') && (
+              {(user?.role === 'hr' || user?.role === 'admin'|| user?.role === 'manager') && (
                 <div className="filter-dropdown">
                     <select className="dept-select">
                     <option>All Departments</option>
@@ -411,13 +412,13 @@ function Leave() {
               <thead>
                 <tr>
                   {/* Hide Employee Name column for Employee View */}
-                  {(user?.role === 'hr' || user?.role === 'admin') && <th>Employee</th>}
+                  {(user?.role === 'hr' || user?.role === 'admin'|| user?.role === 'manager') && <th>Employee</th>}
                   <th>Type</th>
                   <th>Date / Duration</th>
-                  {(user?.role === 'hr' || user?.role === 'admin') && <th>Applied</th>}
+                  {(user?.role === 'hr' || user?.role === 'admin'|| user?.role === 'manager') && <th>Applied</th>}
                   <th>Status</th>
                   <th>Reason</th>
-                  {(user?.role === 'hr' || user?.role === 'admin') && <th>Action</th>}
+                  {(user?.role === 'hr' || user?.role === 'admin'|| user?.role === 'manager') && <th>Action</th>}
                 </tr>
               </thead>
               <tbody>
@@ -425,7 +426,7 @@ function Leave() {
                   <tr key={leave._id} onClick={() => { setSelectedLeave(leave); setIsDetailModalOpen(true); }}>
                     
                     {/* Employee Name Cell */}
-                    {(user?.role === 'hr' || user?.role === 'admin') && (
+                    {(user?.role === 'hr' || user?.role === 'admin'|| user?.role === 'manager') && (
                         <td className="col-employee">
                         <div className="avatar">{leave.employee?.firstName?.charAt(0)}</div>
                         <div>
@@ -449,7 +450,7 @@ function Leave() {
                       <div className="duration-text">{leave.numberOfDays} Days</div>
                     </td>
                     
-                    {(user?.role === 'hr' || user?.role === 'admin') && (
+                    {(user?.role === 'hr' || user?.role === 'admin'|| user?.role === 'manager') && (
                         <td><div className="applied-date">2026-02-08</div></td>
                     )}
 
@@ -462,7 +463,7 @@ function Leave() {
                     </td>
                     <td className="col-reason">{leave.reason}</td>
                     
-                    {(user?.role === 'hr' || user?.role === 'admin') && (
+                    {(user?.role === 'hr' || user?.role === 'admin'|| user?.role === 'manager') && (
                       <td className="col-actions" onClick={(e) => e.stopPropagation()}>
                         {leave.status === 'pending' && (
                           <>
@@ -488,7 +489,7 @@ function Leave() {
           
 
           {/* Today's Leaves Widget - ONLY FOR HR */}
-          {(user?.role === 'hr' || user?.role === 'admin') && (
+          {(user?.role === 'hr' || user?.role === 'admin'|| user?.role === 'manager') && (
             <div className="widget">
                 <h3>Today's Leaves</h3>
                 <div className="today-list">

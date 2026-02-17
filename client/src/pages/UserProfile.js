@@ -929,9 +929,36 @@ const UserProfile = () => {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowViewModal(false)}>Close</Button>
-          <Button variant="primary" onClick={() => window.open(selectedDocument, '_blank')}>Download</Button>
-        </Modal.Footer>
+  <Button variant="secondary" onClick={() => setShowViewModal(false)}>
+    Close
+  </Button>
+  <Button 
+    variant="primary" 
+    onClick={async () => {
+      try {
+        const response = await fetch(selectedDocument);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        
+        // This sets the filename for the download
+        link.setAttribute('download', `${currentDocumentType.replace(/\s+/g, '_')}_${displayData.firstName}.png`); 
+        
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error("Download failed:", error);
+        // Fallback if fetch fails (e.g., Cross-Origin issues)
+        window.open(selectedDocument, '_blank');
+      }
+    }}
+  >
+    Download
+  </Button>
+</Modal.Footer>
       </Modal>
     </div>
   );

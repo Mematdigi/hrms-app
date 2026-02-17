@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 function Attendance() {
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
-  const isHR = user?.role === 'admin' || user?.role === 'hr';
+  const isHR = user?.role === 'admin' || user?.role === 'hr' || user?.role === 'manager';
 
   // --- STATE ---
   const [loading, setLoading] = useState(true);
@@ -251,7 +251,8 @@ function Attendance() {
           )}
 
           {/* 4. HR Punch Button (Optional: if HR wants to punch from header) */}
-          {isHR && (
+          {/* 4. HR Punch Button - Hidden for Admin */}
+          {isHR && user?.role !== 'admin' && (
             <button
               className={`btn-action punch-btn ${checkedIn ? 'check-out' : 'check-in'}`}
               onClick={handlePunch}
@@ -281,11 +282,14 @@ function Attendance() {
       {!isHR ? (
         <div className="employee-layout fade-in">
           <div className="punch-widget-bar">
-            <div className={`punch-btn-area ${checkedIn ? 'checked-in' : ''}`}>
-              <button className="btn-main-punch" onClick={handlePunch} disabled={loading}>
-                {loading ? 'Processing...' : (checkedIn ? 'Check Out' : 'Punch In')}
-              </button>
-            </div>
+            {/* Punch Widget Bar - Hidden for Admin */}
+            {user?.role !== 'admin' && (
+              <div className={`punch-btn-area ${checkedIn ? 'checked-in' : ''}`}>
+                <button className="btn-main-punch" onClick={handlePunch} disabled={loading}>
+                  {loading ? 'Processing...' : (checkedIn ? 'Check Out' : 'Punch In')}
+                </button>
+              </div>
+            )}
             <div className="punch-info">
               <div className="info-item">
                 <small>Punch In</small>
