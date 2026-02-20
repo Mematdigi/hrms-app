@@ -32,10 +32,10 @@ const Dashboard = () => {
    const [showLeaveModal, setShowLeaveModal] = useState(false);
    const [leaveType, setLeaveType] = useState("full"); // 'short' or 'full'
    const [leaveFormData, setLeaveFormData] = useState({
-      date: new Date().toISOString().split('T')[0],
-      fromTime: "",
-      toTime: "",
-      reason: ""
+      date:     new Date().toISOString().split('T')[0],
+      fromTime: '',
+      toTime:   '',
+      reason:   ''
    });
 
    // ── DYNAMIC: Leave Balance State ──
@@ -268,7 +268,7 @@ const Dashboard = () => {
 
    // Annual leave values (from API or safe defaults)
    const annualUsed = leaveBalances?.annualUsed ?? leaveBalances?.earnedUsed ?? 0;
-   const annualTotal = leaveBalances?.annualTotal ?? leaveBalances?.earnedTotal ?? 24;
+   const annualTotal = leaveBalances?.annualTotal ?? leaveBalances?.earnedTotal ?? 14;
    const annualRemaining = annualTotal - annualUsed;
    const annualPercent = annualTotal > 0 ? Math.round((annualUsed / annualTotal) * 100) : 0;
 
@@ -316,25 +316,49 @@ const Dashboard = () => {
 
    const handleSubmitLeave = async () => {
       try {
+         if (!leaveFormData.reason.trim()) {
+            alert('Please provide a reason for the leave.');
+            return;
+         }
+         if (leaveType === 'short' && (!leaveFormData.fromTime || !leaveFormData.toTime)) {
+            alert('Please provide from and to time for short leave.');
+            return;
+         }
+
+         // ✅ FIX: Use correct DB enum values — 'casual' not 'Casual Leave'
          const payload = {
             employeeId: user?.id,
-            leaveType: leaveType === 'short' ? 'Short Leave' : 'Casual Leave',
-            category: leaveType === 'short' ? 'Short' : 'Full',
-            startDate: leaveFormData.date,
-            endDate: leaveFormData.date,
-            reason: leaveFormData.reason,
+            leaveType:  'casual',
+            category:   leaveType === 'short' ? 'Short' : 'Full',
+            startDate:  leaveFormData.date,
+            endDate:    leaveFormData.date,
+            reason:     leaveFormData.reason,
             ...(leaveType === 'short' && {
                fromTime: leaveFormData.fromTime,
-               toTime: leaveFormData.toTime,
+               toTime:   leaveFormData.toTime,
             }),
          };
+
          await leaveAPI.apply(payload);
+
          setShowLeaveModal(false);
+         setLeaveFormData({
+            date:     new Date().toISOString().split('T')[0],
+            fromTime: '',
+            toTime:   '',
+            reason:   ''
+         });
+         setLeaveType('full');
+
          // Refresh balances after applying
-         const balRes = await leaveAPI.getBalances(user?.id);
-         setLeaveBalances(balRes.data || null);
+         try {
+            const balRes = await leaveAPI.getBalances(user?.id);
+            setLeaveBalances(balRes.data || null);
+         } catch (e) { console.error('Balance refresh failed', e); }
+
       } catch (err) {
-         console.error("Leave submission failed", err);
+         console.error('Leave submission failed:', err);
+         alert(err?.response?.data?.message || 'Failed to submit leave request. Please try again.');
       }
    };
 
