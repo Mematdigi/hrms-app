@@ -1,20 +1,24 @@
-# TODO - Employee Document Upload Access
+# Leave Functionality Fixes - TODO List
 
-## Task: Give employees access to upload their documents
+## Issues to Fix:
 
-### Analysis Complete:
-- Backend already handles all 6 document types (adharCard, panCard, salarySlip, relievingLetter, experienceLetter, offerLetter)
-- UserProfile.js already has:
-  - Upload modal with all document types
-  - View document modal
-  - handleDocumentUpload function
-  - Documents tab showing 3/6 documents
+### 1. Leave Model - Fix default status
+- [x] Change default status from 'left' to 'pending' in server/src/models/Leave.js
 
-### What needs to be done:
-- [ ] Add remaining 3 document types to Documents tab in UserProfile.js:
-  - Relieving Letter
-  - Experience Letter  
-  - Offer Letter
+### 2. Leave Controller - Fix bugs in applyLeave, approveLeave, rejectLeave
+- [ ] Fix applyLeave: Proper leave balance checking using LeaveDefaults
+- [ ] Fix approveLeave: Correct findById syntax and leave balance tracking
+- [ ] Fix rejectLeave: Correct findById syntax
 
-### Files to edit:
-- client/src/pages/UserProfile.js - Add missing document cards in the documents grid
+### 3. Employee Controller & Routes - Add balances endpoint
+- [ ] Add getBalances function in server/src/controllers/employeeController.js
+- [ ] Add /employees/:id/balances route in server/src/routes/v1/employeeRoutes.js
+
+### 4. Frontend Leave.js - Fix leaveType mapping
+- [ ] Fix leaveType values to match backend expectations (e.g., 'Casual Leave' -> 'casual')
+
+## Progress:
+- [x] Step 1: Fix Leave Model
+- [ ] Step 2: Fix Leave Controller
+- [ ] Step 3: Add Employee Balances Endpoint
+- [ ] Step 4: Fix Frontend Leave.js
