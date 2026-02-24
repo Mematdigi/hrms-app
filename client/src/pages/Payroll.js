@@ -435,8 +435,350 @@ function Payslip() {
   if (loading) return <div className="loading">Loading...</div>;
 
   return (
+<<<<<<< HEAD
     <div className="payslip-container">
       {isHR ? renderHRView() : renderEmployeeView()}
+=======
+    <div className="payroll-container">
+      {/* ========== HEADER SECTION ========== */}
+      <div className="payroll-header">
+        <h1>Payroll Management</h1>
+
+        {/* NEW: Month/Year Filter */}
+        <div className="month-filter-container" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '15px',
+          margin: '20px 0',
+          padding: '15px',
+          backgroundColor: '#f5f5f5',
+          borderRadius: '8px'
+        }}>
+          <button
+            onClick={goToPreviousMonth}
+            style={{
+              padding: '8px 15px',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            ← Previous
+          </button>
+
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px' }}>Filter by:</label>
+            
+            <select
+              value={filterMonth}
+              onChange={handleMonthChange}
+              style={{
+                padding: '8px 12px',
+                fontSize: '14px',
+                borderRadius: '5px',
+                border: '1px solid #ddd'
+              }}
+            >
+              <option value="1">January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+
+            <select
+              value={filterYear}
+              onChange={handleYearChange}
+              style={{
+                padding: '8px 12px',
+                fontSize: '14px',
+                borderRadius: '5px',
+                border: '1px solid #ddd'
+              }}
+            >
+              {[2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030].map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={goToNextMonth}
+            style={{
+              padding: '8px 15px',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            Next →
+          </button>
+
+          <div className='add-btn'>
+            {getMonthName(filterMonth)} {filterYear}
+          </div>
+        </div>
+
+        <div className="pagination-info">
+          Showing {indexOfFirstEmployee + 1} to {Math.min(indexOfLastEmployee, employees.length)} of {employees.length} employees
+        </div>
+
+        {(user?.role === 'admin' || user?.role === 'hr'|| user?.role === 'manager') && selectedEmployee && (
+          <button
+            onClick={() => {
+              const willOpen = !showForm;
+              setShowForm(willOpen);
+
+              if (willOpen && selectedEmployee) {
+                const emp = getEmployeeById(selectedEmployee);
+                if (emp) {
+                  const payroll = emp.payroll || {};
+                  setFormData({
+                    month: filterMonth,
+                    year: filterYear,
+                    baseSalary: payroll.baseSalary != null ? payroll.baseSalary : '',
+                    workedDays: payroll.workedDays != null ? payroll.workedDays : '',
+                    deductions: payroll.deductions != null ? payroll.deductions : '',
+                    workingDays: payroll.workingDays != null ? payroll.workingDays : '',
+                  });
+                }
+              }
+            }}
+            className="generate-btn"
+          >
+            {showForm ? 'Cancel' : 'Generate Payroll'}
+          </button>
+        )}
+      </div>
+
+      {/* ========== PAYROLL TABLE ========== */}
+      <div className="payroll-table">
+        <h2>Employee Payroll - {getMonthName(filterMonth)} {filterYear}</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Select</th>
+              <th>Employee ID</th>
+              <th>Employee Name</th>
+              <th>Month</th>
+              <th>Year</th>
+              <th>Email</th>
+              <th>Department</th>
+              <th>Designation</th>
+              <th>Date of Joining</th>
+              <th>Base Salary</th>
+              <th>Worked Days</th>
+              <th>Deductions</th>
+              <th>Net Salary</th>
+              <th>Working Days</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {currentEmployees.length === 0 ? (
+              <tr>
+                <td colSpan="15" style={{ textAlign: 'center', padding: '30px' }}>
+                  No employees found
+                </td>
+              </tr>
+            ) : (
+              currentEmployees.map((emp) => (
+                <React.Fragment key={emp._id}>
+                  <tr className={isEmployeeSelected(emp._id) ? 'selected-row' : ''}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={isEmployeeSelected(emp._id)}
+                        onChange={() => selectEmployee(emp)}
+                      />
+                    </td>
+                    <td>{`EMP00${emp.employeeId}`}</td>
+                    <td>{emp.firstName} {emp.lastName}</td>
+                    <td>{emp.payroll?.month || '-'}</td>
+                    <td>{emp.payroll?.year || '-'}</td>
+                    <td>{emp.email}</td>
+                    <td>{emp.department}</td>
+                    <td>{emp.designation}</td>
+                    <td>{new Date(emp.dateOfJoining).toLocaleDateString()}</td>
+                    <td>₹{emp.payroll?.baseSalary?.toLocaleString('en-IN') || '-'}</td>
+                    <td>{emp.payroll?.workedDays || '-'}</td>
+                    <td>₹{emp.payroll?.deductions?.toLocaleString('en-IN') || '-'}</td>
+                    <td>₹{emp.payroll?.netSalary?.toLocaleString('en-IN') || '-'}</td>
+                    <td>{emp.payroll?.workingDays || '-'}</td>
+                    <td>
+                      <button
+                        className={`pdf-btn ${!emp.payroll?.netSalary ? 'disabled' : ''}`}
+                        onClick={() => handleGeneratePDF(emp)}
+                        disabled={!emp.payroll?.netSalary || generatingPDF === emp._id}
+                        title={emp.payroll?.netSalary ? 'View Payslip PDF' : 'No payroll data available'}
+                      >
+                        {generatingPDF === emp._id ? (
+                          <span className="spinner"></span>
+                        ) : (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                          </svg>
+                        )}
+                        PDF
+                      </button>
+                    </td>
+                  </tr>
+
+                  {/* Form Row */}
+                  {showForm && selectedEmployee === emp._id && (
+                    <tr className="form-row-container">
+                      <td colSpan="15">
+                        <form onSubmit={handleSubmit} className="inline-payroll-form">
+                          <h3>Generate Payroll for {getMonthName(filterMonth)} {filterYear}</h3>
+
+                          <div className="selected-employees-box">
+                            <h4>Selected Employee:</h4>
+                            <div className="employee-chips">
+                              <div className="employee-chip">
+                                <span className="emp-id">{`EMP00${emp.employeeId}`}</span>
+                                <span className="emp-name">{emp.firstName} {emp.lastName}</span>
+                                <button
+                                  type="button"
+                                  className="remove-chip"
+                                  onClick={() => {
+                                    setSelectedEmployee(null);
+                                    setShowForm(false);
+                                    setFormData({
+                                      month: filterMonth,
+                                      year: filterYear,
+                                      baseSalary: "",
+                                      workedDays: '',
+                                      deductions: '',
+                                      workingDays: '',
+                                    });
+                                  }}
+                                  title="Remove from selection"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="form-grid">
+                            <div className="form-group">
+                              <label>Month * (Auto-filled)</label>
+                              <input
+                                type="text"
+                                value={getMonthName(formData.month)}
+                                readOnly
+                                style={{ backgroundColor: '#f0f0f0' }}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>Year * (Auto-filled)</label>
+                              <input
+                                type="number"
+                                value={formData.year}
+                                readOnly
+                                style={{ backgroundColor: '#f0f0f0' }}
+                              />
+                            </div>
+
+                            <div className="form-group">
+                              <label>Base Salary</label>
+                              <input type="number" name="baseSalary" placeholder="Enter base salary"
+                                value={formData.baseSalary} onChange={handleChange}
+                                 min="0" step="0.01" />
+                            </div>
+
+                            <div className="form-group">
+                              <label>Worked Days</label>
+                              <input type="number" name="workedDays" placeholder="Enter worked days"
+                                value={formData.workedDays} onChange={handleChange}
+                                min="0" step="1" />
+                            </div>
+
+                            <div className="form-group">
+                              <label>Deductions</label>
+                              <input type="number" name="deductions" placeholder="Enter deductions"
+                                value={formData.deductions} onChange={handleChange}
+                                min="0" step="0.01" />
+                            </div>
+
+                            <div className="form-group">
+                              <label>Total Working Days</label>
+                              <input type="number" name="workingDays" placeholder="Enter total working days"
+                                value={formData.workingDays} onChange={handleChange}
+                                min="0" step="1" />
+                            </div>
+                          </div>
+
+                          <div className="form-actions">
+                            <button type="submit" className="save-payroll-btn" style={{width:"85%"}}>Save Payroll</button>
+                            <button type="button" className="cancel-btn" onClick={() => setShowForm(false)} style={{width:"15%"}}>
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ========== PAGINATION CONTROLS ========== */}
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button onClick={prevPage} disabled={currentPage === 1} className="pagination-btn">
+            Previous
+          </button>
+
+          <div className="pagination-numbers">
+            {[...Array(totalPages)].map((_, index) => (
+              <button
+                key={index + 1}
+                onClick={() => paginate(index + 1)}
+                className={`pagination-number ${currentPage === index + 1 ? 'active' : ''}`}
+              >
+                {index + 1}
+              </button>
+            ))}
+          </div>
+
+          <button onClick={nextPage} disabled={currentPage === totalPages} className="pagination-btn">
+            Next
+          </button>
+        </div>
+      )}
+>>>>>>> ce19a8e9265ddaa6cbc7e8f6842dc31c946bf272
     </div>
   );
 }

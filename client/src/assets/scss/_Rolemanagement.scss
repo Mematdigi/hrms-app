@@ -1,5 +1,5 @@
 .role-management-container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 40px 20px;
   // margin-top: 80px;
@@ -191,5 +191,147 @@
   .update-btn {
     font-size: 12px;
     padding: 6px 10px;
+  }
+}
+/* ── Add these styles to your RoleManagement.css ── */
+
+/* Filter Bar */
+.role-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding: 16px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+}
+
+/* Individual filter input wrapper */
+.filter-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 180px;
+  max-width: 260px;
+}
+
+.filter-icon {
+  position: absolute;
+  left: 10px;
+  color: #6c757d;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.filter-input {
+  width: 100%;
+  padding: 8px 32px 8px 32px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+  color: #212529;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filter-input:focus {
+  border-color: #4a6cf7;
+  box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.12);
+}
+
+.filter-select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  padding-right: 10px;
+}
+
+/* ✕ per-field clear button */
+.filter-clear-btn {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #adb5bd;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.filter-clear-btn:hover {
+  color: #dc3545;
+}
+
+/* Clear All button */
+.filter-reset-btn {
+  padding: 8px 16px;
+  background: #fff;
+  border: 1px solid #dc3545;
+  border-radius: 8px;
+  color: #dc3545;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.filter-reset-btn:hover {
+  background: #dc3545;
+  color: #fff;
+}
+
+/* Result count line */
+.filter-result-count {
+  font-size: 13px;
+  color: #6c757d;
+  margin-bottom: 14px;
+  padding-left: 2px;
+}
+
+.filter-active-label {
+  color: #4a6cf7;
+  font-weight: 500;
+}
+
+/* Empty state row */
+.no-results {
+  text-align: center;
+  padding: 32px 16px;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: #4a6cf7;
+  font-size: 14px;
+  cursor: pointer;
+  margin-left: 8px;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.link-btn:hover {
+  color: #2a4cd7;
+}
+
+/* Responsive: stack on mobile */
+@media (max-width: 576px) {
+  .filter-input-wrapper {
+    max-width: 100%;
+    flex: 0 0 100%;
+  }
+
+  .filter-reset-btn {
+    width: 100%;
+    text-align: center;
   }
 }
