@@ -74,7 +74,64 @@ $status-rejected-text: #EE5D50;
   font-family: 'DM Sans', sans-serif;
   color: $text-dark;
 
-  // ── Header ────────────────────────────────────────────
+  // ACTION DROPDOWN STYLES
+  .action-dropdown-container {
+    position: relative;
+    display: inline-block;
+    
+    .icon-btn-dots {
+      background: none; 
+      border: none; 
+      cursor: pointer; 
+      color: $text-gray; 
+      padding: 6px; 
+      border-radius: 50%;
+      transition: background 0.2s;
+      
+      &:hover, &.active { 
+        background: #F4F7FE; 
+        color: $primary-blue; 
+      }
+    }
+
+    .dropdown-menu {
+      position: absolute; 
+      right: 0; 
+      top: 100%; 
+      z-index: 100;
+      background: $white; 
+      border-radius: 12px; 
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      min-width: 150px; 
+      overflow: hidden; 
+      border: 1px solid #F0F0F0;
+      padding: 6px;
+      
+      button {
+        display: flex; 
+        align-items: center; 
+        gap: 10px; 
+        width: 100%; 
+        padding: 10px 12px;
+        background: none; 
+        border: none; 
+        cursor: pointer; 
+        text-align: left; 
+        font-size: 13px; 
+        font-weight: 500;
+        color: $text-dark;
+        border-radius: 8px;
+        transition: background 0.2s;
+        
+        &:hover { background: #F8F9FC; }
+        
+        .icon-green { color: $status-approved-text; font-size: 16px;}
+        .icon-red { color: $status-rejected-text; font-size: 16px;}
+      }
+    }
+  }
+  
+  // Header
   .dashboard-header {
     display: flex;
     justify-content: space-between;
