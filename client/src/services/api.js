@@ -21,12 +21,12 @@ export const authAPI = {
 };
 
 export const employeeAPI = {
-  getAll:     ()         => api.get('/employees'),
-  getById:    (id)       => api.get(`/employees/${id}`),
-  create:     (data)     => api.post('/employees', data),
-  update:     (id, data) => api.put(`/employees/${id}`, data),
-  delete:     (id)       => api.delete(`/employees/${id}`),
-  getPayrolls:()         => api.get('/employees/all/payrolls'),
+  getAll:      ()         => api.get('/employees'),
+  getById:     (id)       => api.get(`/employees/${id}`),
+  create:      (data)     => api.post('/employees', data),
+  update:      (id, data) => api.put(`/employees/${id}`, data),
+  delete:      (id)       => api.delete(`/employees/${id}`),
+  getPayrolls: ()         => api.get('/employees/all/payrolls'),
 };
 
 export const attendanceAPI = {
@@ -42,26 +42,29 @@ export const attendanceAPI = {
 };
 
 export const leaveAPI = {
-  apply:       (data)        => api.post('/leave/apply', data),
-  getRequests: (params)      => api.get('/leave/requests', { params }),
-  getPending:  (params)      => api.get('/leave/pending', { params }),
-  getStats:    ()            => api.get('/leave/stats'),
-  approve:     (data)        => api.put('/leave/approve', data),
-  reject:      (data)        => api.put('/leave/reject', data),
-
-  // Leave defaults (HR settings)
-  getDefaults:    ()     => api.get('/leave/defaults'),
-  updateDefaults: (data) => api.put('/leave/defaults', data),
-
-  // ✅ FIX: Route changed from /employees/:id/balances → /leave/balances/:id
-  getBalances: (employeeId) => api.get(`/leave/balances/${employeeId}`),
+  apply:          (data)       => api.post('/leave/apply', data),
+  getRequests:    (params)     => api.get('/leave/requests', { params }),
+  getPending:     (params)     => api.get('/leave/pending', { params }),
+  getStats:       ()           => api.get('/leave/stats'),
+  approve:        (data)       => api.put('/leave/approve', data),
+  reject:         (data)       => api.put('/leave/reject', data),
+  getDefaults:    ()           => api.get('/leave/defaults'),
+  updateDefaults: (data)       => api.put('/leave/defaults', data),
+  getBalances:    (employeeId) => api.get(`/leave/balances/${employeeId}`),
 };
 
 export const payrollAPI = {
-  generate:   (data)   => api.post('/payroll/generate', data),
-  getPayroll: (params) => api.get('/payroll', { params }),
-  process:    (data)   => api.post('/payroll/process', data),
-  pay:        (data)   => api.post('/payroll/pay', data),
+  // Auto-generate for one employee — reads attendance + leaves from DB
+  generate:       (data)        => api.post('/payroll/generate', data),
+  // Auto-generate for ALL active employees
+  generateAll:    (data)        => api.post('/payroll/generate-all', data),
+  // Fetch payroll records with optional filters
+  getPayroll:     (params)      => api.get('/payroll', { params }),
+  // Fetch single payroll with full live breakdown (for payslip)
+  getBreakdown:   (payrollId)   => api.get(`/payroll/breakdown/${payrollId}`),
+  // Status transitions
+  process:        (data)        => api.post('/payroll/process', data),
+  pay:            (data)        => api.post('/payroll/pay', data),
 };
 
 export const performanceAPI = {

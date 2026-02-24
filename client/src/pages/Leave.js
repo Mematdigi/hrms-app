@@ -16,10 +16,7 @@ import {
   Calendar3,
   PlusLg,
   ChevronLeft,
-  ChevronRight,
-  Pencil,
-  Trash,
-  CalendarEvent // New Icon
+  ChevronRight
 } from 'react-bootstrap-icons';
 import { json } from 'react-router-dom';
 
@@ -54,18 +51,6 @@ function Leave() {
   const [leaveDefaults, setLeaveDefaults] = useState({ casualDefault: 8, sickDefault: 6, shortLeaveDefault: 3 });
   const [balances,      setBalances]      = useState(null);
   const [settingsForm,  setSettingsForm]  = useState({ casualDefault: '', sickDefault: '' });
-
-  // --- HOLIDAY STATE ---
-  const [holidays, setHolidays] = useState([
-    { id: 1, name: "Holi", date: "2026-03-10" },
-    { id: 2, name: "Good Friday", date: "2026-04-03" },
-    { id: 3, name: "Eid ul-Fitr", date: "2026-03-21" },
-    { id: 4, name: "Independence Day", date: "2026-08-15" },
-    { id: 5, name: "Diwali", date: "2026-11-01" },
-  ]);
-  const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false); // For Add/Edit Form
-  const [isFullHolidayListOpen, setIsFullHolidayListOpen] = useState(false); // New Modal for Full List
-  const [holidayForm, setHolidayForm] = useState({ id: null, name: '', date: '' });
 
   const { user } = useSelector((state) => state.auth);
 
@@ -280,41 +265,7 @@ function Leave() {
     } catch (error) { console.error(error); }
   };
 
-  // --- HOLIDAY CRUD FUNCTIONS ---
-  const handleSaveHoliday = (e) => {
-    e.preventDefault();
-    if (holidayForm.id) {
-        // Edit existing
-        setHolidays(holidays.map(h => h.id === holidayForm.id ? holidayForm : h));
-    } else {
-        // Add new
-        setHolidays([...holidays, { ...holidayForm, id: Date.now() }]);
-    }
-    setIsHolidayModalOpen(false);
-  };
-
-  const handleDeleteHoliday = (id) => {
-    if(window.confirm("Are you sure you want to delete this holiday?")) {
-        setHolidays(holidays.filter(h => h.id !== id));
-    }
-  };
-
-  const openHolidayModal = (holiday = null) => {
-    if (holiday) {
-        setHolidayForm(holiday);
-    } else {
-        setHolidayForm({ id: null, name: '', date: '' });
-    }
-    setIsHolidayModalOpen(true);
-  };
-
-  const getDayName = (dateStr) => {
-      if(!dateStr) return '';
-      const date = new Date(dateStr);
-      return date.toLocaleDateString('en-US', { weekday: 'long' });
-  };
-
-  // --- CALENDAR LOGIC ---
+  // ── Calendar ──
   const renderCalendar = () => {
     const today          = new Date();
     const currentMonth   = today.getMonth();
@@ -342,10 +293,6 @@ function Leave() {
         else if (daysLeave.status === 'pending')  statusClass = 'dot-orange';
         else if (daysLeave.status === 'rejected') statusClass = 'dot-red';
       }
-
-      // Check if it's a holiday
-      const isHoliday = holidays.find(h => h.date === dateString);
-      if(isHoliday) statusClass = 'dot-blue'; 
 
       const isToday = d === today.getDate() ? 'today' : '';
       days.push(
@@ -670,15 +617,13 @@ function Leave() {
           <div className="widget">
             <h3>📅 Upcoming Holidays</h3>
             <div className="holiday-list">
-              {holidays.slice(0, 3).map((h) => (
-                <div key={h.id} className="holiday-item">
+              {holidays.map((h, i) => (
+                <div key={i} className="holiday-item">
                   <div>
                     <strong>{h.name}</strong>
-                    <span>{getDayName(h.date)}</span>
+                    <span>{h.day}</span>
                   </div>
-                  <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                      <span className="h-date">{h.date}</span>
-                  </div>
+                  <span className="h-date">{h.date}</span>
                 </div>
               ))}
             </div>
@@ -911,8 +856,6 @@ function Leave() {
                 </div>
               </div>
             </div>
-        </div>
-      )}
 
             <h3>Leave History</h3>
             <table className="history-table">
