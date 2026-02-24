@@ -529,3 +529,177 @@
 .action-btn.upload-btn svg {
   stroke: #10b981;
 }
+// =====================================================================
+// INLINE CARD EDITING STYLES (New Addition)
+// =====================================================================
+
+.user-profile {
+
+  // Toast notification
+  .profile-toast-success {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    background: #10b981;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 14px;
+    z-index: 9999;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    animation: slideInRight 0.3s ease;
+  }
+
+  @keyframes slideInRight {
+    from { transform: translateX(100px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+  }
+
+  // Card header: push edit button to the right
+  .info-card .card-header {
+    .card-header-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  }
+
+  // Pencil edit button on each card
+  .btn-card-edit {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 13px;
+    color: #4b5563;
+    cursor: pointer;
+    transition: all 0.15s;
+
+    &:hover {
+      background: #6f5edb;
+      color: white;
+      border-color: #6f5edb;
+    }
+  }
+
+  // Inline save/cancel buttons
+  .card-edit-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-card-save {
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover { background: #059669; }
+  }
+
+  .btn-card-cancel {
+    background: #f3f4f6;
+    color: #ef4444;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+
+    &:hover { background: #fef2f2; }
+  }
+
+  // Inline form inside a card
+  .card-inline-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 4px;
+    animation: fadeIn 0.2s ease;
+
+    .inline-form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+
+      @media (max-width: 640px) {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .inline-form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+
+      &.full-width {
+        grid-column: 1 / -1;
+      }
+
+      label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      input, select {
+        border: 1.5px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 14px;
+        color: #111827;
+        background: #f9fafb;
+        outline: none;
+        transition: border-color 0.2s;
+        width: 100%;
+
+        &:focus {
+          border-color: #6f5edb;
+          background: white;
+          box-shadow: 0 0 0 3px rgba(111, 94, 219, 0.1);
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  // Work mode badge in profile header
+  .meta-badge.workmode {
+    background: #ede9fe;
+    color: #7c3aed;
+    border-color: #c4b5fd;
+  }
+
+  // Work mode value inside card
+  .work-mode-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #ede9fe;
+    color: #7c3aed;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+}

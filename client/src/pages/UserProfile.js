@@ -8,12 +8,11 @@ const UserProfile = () => {
   const { user } = useSelector((state) => state.auth);
   const [activeTab, setActiveTab] = useState("personal");
 
-  // State for profile data
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [saveSuccess, setSaveSuccess] = useState("");
 
-  // State for profile image
   const [profileImage, setProfileImage] = useState("https://via.placeholder.com/120");
   const [isUploading, setIsUploading] = useState(false);
 
@@ -23,6 +22,9 @@ const UserProfile = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [currentDocumentType, setCurrentDocumentType] = useState("");
+
+  // Inline edit states for each card
+  const [editingCard, setEditingCard] = useState(null); // 'contact' | 'emergency' | 'bank' | 'work'
 
   // Edit Form State
   const [editFormData, setEditFormData] = useState({
@@ -35,6 +37,7 @@ const UserProfile = () => {
     designation: "",
     dateOfJoining: "",
     baseSalary: "",
+    workMode: "Work From Office",
     emergencyContactName: "",
     emergencyContactPhone: "",
     emergencyContactRelation: "",
@@ -50,32 +53,21 @@ const UserProfile = () => {
     preview: null
   });
 
-  // Helper function to get full image URL
   const getProfileImageUrl = (imagePath) => {
     if (!imagePath) return "https://via.placeholder.com/120";
-    // If it's already a full URL, return as is
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return imagePath;
-    }
-    // If it's a data URL (base64), return as is
-    if (imagePath.startsWith('data:')) {
-      return imagePath;
-    }
-    // Otherwise, prepend the server URL
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) return imagePath;
+    if (imagePath.startsWith('data:')) return imagePath;
     return `http://localhost:5000/uploads/${imagePath}`;
   };
 
-  // Fetch user profile data on component mount
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (!user?.id) return;
-
       try {
         setLoading(true);
         const response = await employeeAPI.getById(user.id);
         setProfileData(response.data);
 
-        // Populate edit form with current data
         setEditFormData({
           firstName: response.data.firstName || "",
           lastName: response.data.lastName || "",
@@ -86,6 +78,7 @@ const UserProfile = () => {
           designation: response.data.designation || "",
           dateOfJoining: response.data.dateOfJoining ? response.data.dateOfJoining.split('T')[0] : "",
           baseSalary: response.data.baseSalary || "",
+          workMode: response.data.workMode || "Work From Office",
           emergencyContactName: response.data.emergencyContactName || "",
           emergencyContactPhone: response.data.emergencyContactPhone || "",
           emergencyContactRelation: response.data.emergencyContactRelation || "",
@@ -94,7 +87,6 @@ const UserProfile = () => {
           ifscCode: response.data.ifscCode || ""
         });
 
-        // Set profile photo from response - use profilePhoto field
         if (response.data.profilePhoto) {
           setProfileImage(getProfileImageUrl(response.data.profilePhoto));
         }
@@ -126,19 +118,13 @@ const UserProfile = () => {
     setIsUploading(true);
     try {
       const formData = new FormData();
-      // Use 'profilePhoto' to match backend field name
       formData.append("profilePhoto", file);
-
-      // Use the existing update endpoint
       await employeeAPI.update(user.id, formData);
-
-      // Refresh profile data to get the updated photo
       const response = await employeeAPI.getById(user.id);
       if (response.data.profilePhoto) {
         setProfileImage(getProfileImageUrl(response.data.profilePhoto));
       }
-
-      alert("Profile image updated successfully!");
+      showToast("Profile image updated successfully!");
     } catch (err) {
       console.error("Error uploading image:", err);
       alert("Failed to upload profile image");
@@ -147,147 +133,121 @@ const UserProfile = () => {
     }
   };
 
-  // Handle Edit Form Changes
-  const handleEditChange = (e) => {
-    const { name, value } = e.target;
-    setEditFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  const showToast = (msg) => {
+    setSaveSuccess(msg);
+    setTimeout(() => setSaveSuccess(""), 3000);
   };
 
-  // Handle Edit Form Submit
-  const handleEditSubmit = async (e) => {
-    e.preventDefault();
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => ({ ...prev, [name]: value }));
+  };
 
+  // Save a specific card's data inline
+  const handleCardSave = async (cardKey) => {
     try {
-      await employeeAPI.update(user.id, editFormData);
+      let payload = {};
+      if (cardKey === 'contact') {
+        payload = {
+          firstName: editFormData.firstName,
+          lastName: editFormData.lastName,
+          contact: editFormData.contact,
+          address: editFormData.address
+        };
+      } else if (cardKey === 'emergency') {
+        payload = {
+          emergencyContactName: editFormData.emergencyContactName,
+          emergencyContactPhone: editFormData.emergencyContactPhone,
+          emergencyContactRelation: editFormData.emergencyContactRelation
+        };
+      } else if (cardKey === 'bank') {
+        payload = {
+          bankName: editFormData.bankName,
+          bankAccountNumber: editFormData.bankAccountNumber,
+          ifscCode: editFormData.ifscCode
+        };
+      } else if (cardKey === 'work') {
+        payload = {
+          workMode: editFormData.workMode,
+          department: editFormData.department,
+          designation: editFormData.designation
+        };
+      }
 
-      // Refresh profile data
+      await employeeAPI.update(user.id, payload);
       const response = await employeeAPI.getById(user.id);
       setProfileData(response.data);
+      setEditingCard(null);
+      showToast("✅ Updated successfully!");
+    } catch (err) {
+      console.error("Error updating:", err);
+      alert("Failed to save changes");
+    }
+  };
 
+  // Handle Edit Form Submit (modal - full edit)
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await employeeAPI.update(user.id, editFormData);
+      const response = await employeeAPI.getById(user.id);
+      setProfileData(response.data);
       setShowEditModal(false);
-      alert("Profile updated successfully!");
+      showToast("✅ Profile updated successfully!");
     } catch (err) {
       console.error("Error updating profile:", err);
       alert("Failed to update profile");
     }
   };
 
-  // Handle Document File Selection
   const handleDocumentFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       const previewUrl = URL.createObjectURL(file);
-
-      setDocumentUpload(prev => ({
-        ...prev,
-        file: file,
-        preview: previewUrl
-      }));
+      setDocumentUpload(prev => ({ ...prev, file, preview: previewUrl }));
     }
   };
 
-  // Handle Document Type Selection
   const handleDocumentTypeChange = (e) => {
-    setDocumentUpload(prev => ({
-      ...prev,
-      documentType: e.target.value
-    }));
+    setDocumentUpload(prev => ({ ...prev, documentType: e.target.value }));
   };
 
-  // Handle Document Upload Submit
-  // const handleDocumentUpload = async (e) => {
-  //   e.preventDefault();
-
-  //   if (!documentUpload.file || !documentUpload.documentType) {
-  //     alert("Please select document type and file");
-  //     return;
-  //   }
-
-  //   try {
-  //     const formData = new FormData();
-  //     formData.append("document", documentUpload.file);
-  //     formData.append("documentType", documentUpload.documentType);
-
-  //     await api.post(`/api/employees/${user.id}/upload-document`, formData, {
-  //       headers: {
-  //         "Content-Type": "multipart/form-data",
-  //       },
-  //     });
-
-  //     // Refresh profile data to get updated documents
-  //     const response = await employeeAPI.getById(user.id);
-  //     setProfileData(response.data);
-
-  //     // Reset form
-  //     setDocumentUpload({
-  //       documentType: "",
-  //       file: null,
-  //       preview: null
-  //     });
-
-  //     setShowUploadModal(false);
-  //     alert("Document uploaded successfully!");
-  //   } catch (err) {
-  //     console.error("Error uploading document:", err);
-  //     alert("Failed to upload document");
-  //   }
-  // };
   const handleDocumentUpload = async (e) => {
     e.preventDefault();
-
     if (!documentUpload.file || !documentUpload.documentType) {
       alert("Please select document type and file");
       return;
     }
-
     try {
       const data = new FormData();
-      // Use the specific document type as the key to match Employees.js logic
       data.append(documentUpload.documentType, documentUpload.file);
-
-      // Use the standard update endpoint as seen in Employees.js
       await employeeAPI.update(user.id, data);
-
-      // Refresh profile data
       const response = await employeeAPI.getById(user.id);
       setProfileData(response.data);
-
-      // Reset state
       setDocumentUpload({ documentType: "", file: null, preview: null });
       setShowUploadModal(false);
-      alert("✅ Document uploaded successfully!");
+      showToast("✅ Document uploaded successfully!");
     } catch (err) {
       console.error("Error uploading document:", err);
       setError(err?.response?.data?.message || "Failed to upload document");
     }
   };
 
-  // Handle View Document
   const handleViewDocument = (docType, docUrl) => {
     setCurrentDocumentType(docType);
     setSelectedDocument(docUrl);
     setShowViewModal(true);
   };
 
-  // Handle Upload Specific Document
   const handleUploadSpecificDocument = (docType) => {
-    setDocumentUpload(prev => ({
-      ...prev,
-      documentType: docType
-    }));
+    setDocumentUpload(prev => ({ ...prev, documentType: docType }));
     setShowUploadModal(true);
   };
 
-  // Format date helper
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+      day: "2-digit", month: "short", year: "numeric",
     });
   };
 
@@ -313,8 +273,33 @@ const UserProfile = () => {
 
   const displayData = profileData || user;
 
+  // Helper: Edit/Save/Cancel buttons for inline card editing
+  const CardEditControls = ({ cardKey }) => (
+    editingCard === cardKey ? (
+      <div className="card-edit-actions">
+        <button className="btn-card-save" onClick={() => handleCardSave(cardKey)}>
+          <i className="bi bi-check-lg"></i> Save
+        </button>
+        <button className="btn-card-cancel" onClick={() => setEditingCard(null)}>
+          <i className="bi bi-x-lg"></i>
+        </button>
+      </div>
+    ) : (
+      <button className="btn-card-edit" onClick={() => setEditingCard(cardKey)} title="Edit">
+        <i className="bi bi-pencil"></i>
+      </button>
+    )
+  );
+
   return (
     <div className="user-profile">
+      {/* Success Toast */}
+      {saveSuccess && (
+        <div className="profile-toast-success">
+          {saveSuccess}
+        </div>
+      )}
+
       {/* Header Section */}
       <div className="profile-header">
         <div className="profile-header-content">
@@ -322,28 +307,10 @@ const UserProfile = () => {
             <div className="profile-avatar">
               <img src={profileImage} alt="Profile" />
               <button className="edit-avatar-btn">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  style={{ display: "none" }}
-                  id="avatar-upload"
-                />
+                <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: "none" }} id="avatar-upload" />
                 <label htmlFor="avatar-upload" style={{ cursor: "pointer" }}>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M11.334 2.00004C11.5091 1.82494 11.7169 1.68605 11.9457 1.59129C12.1745 1.49653 12.4197 1.44775 12.6673 1.44775C12.9149 1.44775 13.1601 1.49653 13.3889 1.59129C13.6177 1.68605 13.8256 1.82494 14.0007 2.00004C14.1758 2.17513 14.3147 2.383 14.4094 2.61178C14.5042 2.84055 14.553 3.08575 14.553 3.33337C14.553 3.58099 14.5042 3.82619 14.4094 4.05497C14.3147 4.28374 14.1758 4.49161 14.0007 4.66671L5.00065 13.6667L1.33398 14.6667L2.33398 11L11.334 2.00004Z"
-                      stroke="white"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M11.334 2.00004C11.5091 1.82494 11.7169 1.68605 11.9457 1.59129C12.1745 1.49653 12.4197 1.44775 12.6673 1.44775C12.9149 1.44775 13.1601 1.49653 13.3889 1.59129C13.6177 1.68605 13.8256 1.82494 14.0007 2.00004C14.1758 2.17513 14.3147 2.383 14.4094 2.61178C14.5042 2.84055 14.553 3.08575 14.553 3.33337C14.553 3.58099 14.5042 3.82619 14.4094 4.05497C14.3147 4.28374 14.1758 4.49161 14.0007 4.66671L5.00065 13.6667L1.33398 14.6667L2.33398 11L11.334 2.00004Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </label>
               </button>
@@ -351,40 +318,21 @@ const UserProfile = () => {
           </div>
 
           <div className="profile-info">
-            <h1 className="profile-name">
-              {displayData?.firstName} {displayData?.lastName}
-            </h1>
-            <p className="profile-designation">
-              {displayData?.role || "Employee"}
-            </p>
+            <h1 className="profile-name">{displayData?.firstName} {displayData?.lastName}</h1>
+            <p className="profile-designation">{displayData?.designation || displayData?.role || "Employee"}</p>
             <div className="profile-meta">
-              <span className="meta-item">
-                {displayData?.employeeId ? `EMP-${displayData.employeeId}` : "N/A"}
-              </span>
-              <span className="meta-item">
-                {displayData?.department || "General"}
-              </span>
-              <span className="meta-badge">
-                {displayData?.status || "Full-time"}
-              </span>
+              <span className="meta-item">{displayData?.employeeId ? `${displayData.employeeId}` : "N/A"}</span>
+              <span className="meta-item">{displayData?.department || "General"}</span>
+              <span className="meta-badge">{displayData?.status || "Full-time"}</span>
+              {displayData?.workMode && (
+                <span className="meta-badge workmode">{displayData.workMode}</span>
+              )}
             </div>
           </div>
 
           <button className="edit-profile-btn" onClick={() => setShowEditModal(true)}>
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 18 18"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M12.75 2.25005C12.9489 2.05114 13.1853 1.89382 13.4462 1.78741C13.7071 1.68099 13.9874 1.62744 14.2702 1.62988C14.553 1.63232 14.8323 1.6907 15.0913 1.80162C15.3503 1.91254 15.5839 2.07385 15.7791 2.27629C15.9743 2.47873 16.1278 2.71838 16.2301 2.98106C16.3323 3.24374 16.3812 3.52447 16.3739 3.80658C16.3665 4.08869 16.3031 4.36643 16.1877 4.62318C16.0724 4.87993 15.9072 5.11048 15.7013 5.30005L5.62502 15.3751L1.12502 16.5001L2.25002 12.0001L12.75 2.25005Z"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12.75 2.25005C12.9489 2.05114 13.1853 1.89382 13.4462 1.78741C13.7071 1.68099 13.9874 1.62744 14.2702 1.62988C14.553 1.63232 14.8323 1.6907 15.0913 1.80162C15.3503 1.91254 15.5839 2.07385 15.7791 2.27629C15.9743 2.47873 16.1278 2.71838 16.2301 2.98106C16.3323 3.24374 16.3812 3.52447 16.3739 3.80658C16.3665 4.08869 16.3031 4.36643 16.1877 4.62318C16.0724 4.87993 15.9072 5.11048 15.7013 5.30005L5.62502 15.3751L1.12502 16.5001L2.25002 12.0001L12.75 2.25005Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             Edit Profile
           </button>
@@ -393,131 +341,171 @@ const UserProfile = () => {
 
       {/* Tabs Navigation */}
       <div className="profile-tabs">
-        <button
-          className={`tab-btn ${activeTab === "personal" ? "active" : ""}`}
-          onClick={() => setActiveTab("personal")}
-        >
-          Personal Details
-        </button>
-        <button
-          className={`tab-btn ${activeTab === "work" ? "active" : ""}`}
-          onClick={() => setActiveTab("work")}
-        >
-          Work Details
-        </button>
-        <button
-          className={`tab-btn ${activeTab === "documents" ? "active" : ""}`}
-          onClick={() => setActiveTab("documents")}
-        >
-          Documents
-        </button>
+        <button className={`tab-btn ${activeTab === "personal" ? "active" : ""}`} onClick={() => setActiveTab("personal")}>Personal Details</button>
+        <button className={`tab-btn ${activeTab === "work" ? "active" : ""}`} onClick={() => setActiveTab("work")}>Work Details</button>
+        <button className={`tab-btn ${activeTab === "documents" ? "active" : ""}`} onClick={() => setActiveTab("documents")}>Documents</button>
       </div>
 
       {/* Tab Content */}
       <div className="profile-content">
-        {/* Personal Details Tab */}
+
+        {/* ===================== PERSONAL DETAILS TAB ===================== */}
         {activeTab === "personal" && (
           <div className="tab-content">
             <div className="content-grid">
-              {/* Contact Information */}
-              <div className="info-card">
-                <div className="card-header">
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 20 20"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M16.6667 17.5V15.8333C16.6667 14.9493 16.3155 14.1014 15.6904 13.4763C15.0653 12.8512 14.2174 12.5 13.3334 12.5H6.66671C5.78265 12.5 4.93480 12.8512 4.30968 13.4763C3.68456 14.1014 3.33337 14.9493 3.33337 15.8333V17.5M13.3334 5.83333C13.3334 7.67428 11.8410 9.16667 10.0000 9.16667C8.15909 9.16667 6.66671 7.67428 6.66671 5.83333C6.66671 3.99238 8.15909 2.5 10.0000 2.5C11.8410 2.5 13.3334 3.99238 13.3334 5.83333Z"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  <h3>Contact Information</h3>
-                </div>
-                <div className="card-content">
-                  <div className="info-row">
-                    <div className="info-icon">
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M3.33337 3.33334H16.6667C17.5834 3.33334 18.3334 4.08334 18.3334 5.00001V15C18.3334 15.9167 17.5834 16.6667 16.6667 16.6667H3.33337C2.41671 16.6667 1.66671 15.9167 1.66671 15V5.00001C1.66671 4.08334 2.41671 3.33334 3.33337 3.33334Z" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M18.3334 5L10 10.8333L1.66671 5" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
-                    <div className="info-text">
-                      <span className="info-label">Email</span>
-                      <span className="info-value">{displayData?.email || "N/A"}</span>
-                    </div>
-                  </div>
 
-                  <div className="info-row">
-                    <div className="info-icon">
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M18.3334 14.1V16.6C18.3343 16.8321 18.2867 17.0618 18.1937 17.2745C18.1008 17.4871 17.9644 17.678 17.7934 17.8349C17.6224 17.9918 17.4205 18.1112 17.2006 18.1856C16.9808 18.26 16.7478 18.2876 16.5167 18.2667C13.9524 17.9881 11.4892 17.1118 9.32505 15.7084C7.31164 14.4289 5.60455 12.7218 4.32505 10.7084C2.91672 8.53438 2.04027 6.05916 1.76672 3.48337C1.74589 3.2531 1.77336 3.02094 1.84719 2.80176C1.92102 2.58257 2.03963 2.38117 2.19562 2.21052C2.35162 2.03988 2.54149 1.90354 2.75315 1.81036C2.96481 1.71717 3.19348 1.66905 3.42505 1.66671H5.92505C6.32953 1.66282 6.72148 1.80628 7.02822 2.07113C7.33497 2.33598 7.53521 2.70234 7.59172 3.10004C7.69717 3.89599 7.89286 4.68006 8.17505 5.43337C8.2871 5.73616 8.31139 6.06414 8.24491 6.38015C8.17843 6.69616 8.02404 6.98726 7.80005 7.21671L6.74172 8.27504C7.92795 10.3682 9.63182 12.0721 11.725 13.2584L12.7834 12.2C13.0128 11.976 13.3039 11.8216 13.6199 11.7552C13.936 11.6887 14.2639 11.713 14.5667 11.825C15.32 12.1072 16.1041 12.3029 16.9 12.4084C17.3023 12.4654 17.6718 12.6693 17.9375 12.9813C18.2032 13.2932 18.3445 13.6914 18.3334 14.1Z" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
-                    <div className="info-text">
-                      <span className="info-label">Phone</span>
-                      <span className="info-value">+91 {displayData?.contact || "N/A"}</span>
-                    </div>
-                  </div>
-
-                  <div className="info-row">
-                    <div className="info-icon">
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17.5 8.33334C17.5 14.1667 10 19.1667 10 19.1667C10 19.1667 2.5 14.1667 2.5 8.33334C2.5 6.34422 3.29018 4.4366 4.6967 3.03007C6.10322 1.62355 8.01088 0.833344 10 0.833344C11.9891 0.833344 13.8968 1.62355 15.3033 3.03007C16.7098 4.4366 17.5 6.34422 17.5 8.33334Z" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M10 10.8333C11.3807 10.8333 12.5 9.71406 12.5 8.33334C12.5 6.95263 11.3807 5.83334 10 5.83334C8.61929 5.83334 7.5 6.95263 7.5 8.33334C7.5 9.71406 8.61929 10.8333 10 10.8333Z" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
-                    <div className="info-text">
-                      <span className="info-label">Address</span>
-                      <span className="info-value">{displayData?.address || "N/A"}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Emergency Contact */}
+              {/* Contact Information Card - INLINE EDITABLE */}
               <div className="info-card">
                 <div className="card-header">
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M18.3334 14.1V16.6C18.3343 16.8321 18.2867 17.0618 18.1937 17.2745C18.1008 17.4871 17.9644 17.678 17.7934 17.8349C17.6224 17.9918 17.4205 18.1112 17.2006 18.1856C16.9808 18.26 16.7478 18.2876 16.5167 18.2667C13.9524 17.9881 11.4892 17.1118 9.32505 15.7084C7.31164 14.4289 5.60455 12.7218 4.32505 10.7084C2.91672 8.53438 2.04027 6.05916 1.76672 3.48337C1.74589 3.2531 1.77336 3.02094 1.84719 2.80176C1.92102 2.58257 2.03963 2.38117 2.19562 2.21052C2.35162 2.03988 2.54149 1.90354 2.75315 1.81036C2.96481 1.71717 3.19348 1.66905 3.42505 1.66671H5.92505C6.32953 1.66282 6.72148 1.80628 7.02822 2.07113C7.33497 2.33598 7.53521 2.70234 7.59172 3.10004C7.69717 3.89599 7.89286 4.68006 8.17505 5.43337C8.2871 5.73616 8.31139 6.06414 8.24491 6.38015C8.17843 6.69616 8.02404 6.98726 7.80005 7.21671L6.74172 8.27504C7.92795 10.3682 9.63182 12.0721 11.725 13.2584L12.7834 12.2C13.0128 11.976 13.3039 11.8216 13.6199 11.7552C13.936 11.6887 14.2639 11.713 14.5667 11.825C15.32 12.1072 16.1041 12.3029 16.9 12.4084C17.3023 12.4654 17.6718 12.6693 17.9375 12.9813C18.2032 13.2932 18.3445 13.6914 18.3334 14.1Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M16.6667 17.5V15.8333C16.6667 14.9493 16.3155 14.1014 15.6904 13.4763C15.0653 12.8512 14.2174 12.5 13.3334 12.5H6.66671C5.78265 12.5 4.93480 12.8512 4.30968 13.4763C3.68456 14.1014 3.33337 14.9493 3.33337 15.8333V17.5M13.3334 5.83333C13.3334 7.67428 11.8410 9.16667 10.0000 9.16667C8.15909 9.16667 6.66671 7.67428 6.66671 5.83333C6.66671 3.99238 8.15909 2.5 10.0000 2.5C11.8410 2.5 13.3334 3.99238 13.3334 5.83333Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <h3>Contact Information</h3>
+                  <div className="card-header-actions">
+                    <CardEditControls cardKey="contact" />
+                  </div>
+                </div>
+
+                {editingCard === 'contact' ? (
+                  <div className="card-inline-form">
+                    <div className="inline-form-row">
+                      <div className="inline-form-group">
+                        <label>First Name</label>
+                        <input type="text" name="firstName" value={editFormData.firstName} onChange={handleEditChange} />
+                      </div>
+                      <div className="inline-form-group">
+                        <label>Last Name</label>
+                        <input type="text" name="lastName" value={editFormData.lastName} onChange={handleEditChange} />
+                      </div>
+                    </div>
+                    <div className="inline-form-row">
+                      <div className="inline-form-group">
+                        <label>Phone</label>
+                        <input type="tel" name="contact" value={editFormData.contact} onChange={handleEditChange} />
+                      </div>
+                      <div className="inline-form-group">
+                        <label>Email (read-only)</label>
+                        <input type="email" value={editFormData.email} disabled />
+                      </div>
+                    </div>
+                    <div className="inline-form-group full-width">
+                      <label>Address</label>
+                      <input type="text" name="address" value={editFormData.address} onChange={handleEditChange} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="card-content">
+                    <div className="info-row">
+                      <div className="info-icon">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M3.33337 3.33334H16.6667C17.5834 3.33334 18.3334 4.08334 18.3334 5.00001V15C18.3334 15.9167 17.5834 16.6667 16.6667 16.6667H3.33337C2.41671 16.6667 1.66671 15.9167 1.66671 15V5.00001C1.66671 4.08334 2.41671 3.33334 3.33337 3.33334Z" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M18.3334 5L10 10.8333L1.66671 5" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <div className="info-text">
+                        <span className="info-label">Email</span>
+                        <span className="info-value">{displayData?.email || "N/A"}</span>
+                      </div>
+                    </div>
+                    <div className="info-row">
+                      <div className="info-icon">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M18.3334 14.1V16.6C18.3343 16.8321 18.2867 17.0618 18.1937 17.2745C18.1008 17.4871 17.9644 17.678 17.7934 17.8349C17.6224 17.9918 17.4205 18.1112 17.2006 18.1856C16.9808 18.26 16.7478 18.2876 16.5167 18.2667C13.9524 17.9881 11.4892 17.1118 9.32505 15.7084C7.31164 14.4289 5.60455 12.7218 4.32505 10.7084C2.91672 8.53438 2.04027 6.05916 1.76672 3.48337C1.74589 3.2531 1.77336 3.02094 1.84719 2.80176C1.92102 2.58257 2.03963 2.38117 2.19562 2.21052C2.35162 2.03988 2.54149 1.90354 2.75315 1.81036C2.96481 1.71717 3.19348 1.66905 3.42505 1.66671H5.92505C6.32953 1.66282 6.72148 1.80628 7.02822 2.07113C7.33497 2.33598 7.53521 2.70234 7.59172 3.10004C7.69717 3.89599 7.89286 4.68006 8.17505 5.43337C8.2871 5.73616 8.31139 6.06414 8.24491 6.38015C8.17843 6.69616 8.02404 6.98726 7.80005 7.21671L6.74172 8.27504C7.92795 10.3682 9.63182 12.0721 11.725 13.2584L12.7834 12.2C13.0128 11.976 13.3039 11.8216 13.6199 11.7552C13.936 11.6887 14.2639 11.713 14.5667 11.825C15.32 12.1072 16.1041 12.3029 16.9 12.4084C17.3023 12.4654 17.6718 12.6693 17.9375 12.9813C18.2032 13.2932 18.3445 13.6914 18.3334 14.1Z" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <div className="info-text">
+                        <span className="info-label">Phone</span>
+                        <span className="info-value">+91 {displayData?.contact || "N/A"}</span>
+                      </div>
+                    </div>
+                    <div className="info-row">
+                      <div className="info-icon">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M17.5 8.33333C17.5 14.1667 10 19.1667 10 19.1667C10 19.1667 2.5 14.1667 2.5 8.33333C2.5 6.34421 3.29018 4.43655 4.6967 3.03003C6.10322 1.62351 8.01088 0.833328 10 0.833328C11.9891 0.833328 13.8968 1.62351 15.3033 3.03003C16.7098 4.43655 17.5 6.34421 17.5 8.33333Z" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M10 10.8333C11.3807 10.8333 12.5 9.71404 12.5 8.33333C12.5 6.95262 11.3807 5.83333 10 5.83333C8.61929 5.83333 7.5 6.95262 7.5 8.33333C7.5 9.71404 8.61929 10.8333 10 10.8333Z" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <div className="info-text">
+                        <span className="info-label">Address</span>
+                        <span className="info-value">{displayData?.address || "N/A"}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Emergency Contact Card - INLINE EDITABLE */}
+              <div className="info-card">
+                <div className="card-header">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22 16.92V19.92C22.0011 20.4853 21.7605 21.0233 21.3339 21.404C20.9073 21.7847 20.3344 21.9745 19.77 21.93C17.5528 21.6966 15.4148 20.9579 13.51 19.77C11.7429 18.6864 10.2283 17.1718 9.14499 15.4047C7.95292 13.491 7.21399 11.3426 6.98499 9.11998C6.94099 8.55857 7.12923 8.00112 7.50578 7.57551C7.88234 7.1499 8.41561 6.90697 8.97999 6.90998H11.98C12.9742 6.89999 13.8178 7.59849 13.98 8.57998C14.1151 9.44779 14.3605 10.2964 14.71 11.1C14.9737 11.724 14.8212 12.4396 14.33 12.91L13.09 14.15C14.1128 15.9792 15.6108 17.4772 17.44 18.5L18.68 17.26C19.1504 16.7688 19.866 16.6163 20.49 16.88C21.2936 17.2295 22.1422 17.4749 23.01 17.61C23.9976 17.7742 24.7007 18.6327 24.68 19.64L22 16.92Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M15.05 3C16.0267 3.00028 16.9635 3.37928 17.6786 4.05234C18.3938 4.72541 18.8338 5.64567 18.91 6.62C19.0047 7.82028 18.8003 9.02592 18.31 10.13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                   <h3>Emergency Contact</h3>
-                </div>
-                <div className="card-content">
-                  <div className="info-row">
-                    <div className="info-text">
-                      <span className="info-label">Contact Name</span>
-                      <span className="info-value">{displayData?.emergencyContactName || "N/A"}</span>
-                    </div>
-                  </div>
-                  <div className="info-row">
-                    <div className="info-text">
-                      <span className="info-label">Contact Phone</span>
-                      <span className="info-value">{displayData?.emergencyContactPhone || "N/A"}</span>
-                    </div>
-                  </div>
-                  <div className="info-row">
-                    <div className="info-text">
-                      <span className="info-label">Relationship</span>
-                      <span className="info-value">{displayData?.emergencyContactRelation || "N/A"}</span>
-                    </div>
+                  <div className="card-header-actions">
+                    <CardEditControls cardKey="emergency" />
                   </div>
                 </div>
+
+                {editingCard === 'emergency' ? (
+                  <div className="card-inline-form">
+                    <div className="inline-form-row">
+                      <div className="inline-form-group">
+                        <label>Contact Name</label>
+                        <input type="text" name="emergencyContactName" value={editFormData.emergencyContactName} onChange={handleEditChange} placeholder="Full name" />
+                      </div>
+                      <div className="inline-form-group">
+                        <label>Contact Phone</label>
+                        <input type="tel" name="emergencyContactPhone" value={editFormData.emergencyContactPhone} onChange={handleEditChange} placeholder="Phone number" />
+                      </div>
+                    </div>
+                    <div className="inline-form-group full-width">
+                      <label>Relationship</label>
+                      <select name="emergencyContactRelation" value={editFormData.emergencyContactRelation} onChange={handleEditChange}>
+                        <option value="">Select Relationship</option>
+                        <option value="Spouse">Spouse</option>
+                        <option value="Parent">Parent</option>
+                        <option value="Sibling">Sibling</option>
+                        <option value="Child">Child</option>
+                        <option value="Friend">Friend</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="card-content">
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">Contact Name</span>
+                        <span className="info-value">{displayData?.emergencyContactName || "N/A"}</span>
+                      </div>
+                    </div>
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">Contact Phone</span>
+                        <span className="info-value">{displayData?.emergencyContactPhone || "N/A"}</span>
+                      </div>
+                    </div>
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">Relationship</span>
+                        <span className="info-value">{displayData?.emergencyContactRelation || "N/A"}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
+
             </div>
           </div>
         )}
 
-        {/* Work Details Tab */}
+        {/* ===================== WORK DETAILS TAB ===================== */}
         {activeTab === "work" && (
           <div className="tab-content">
             <div className="content-grid">
-              {/* Employment Details */}
+
+              {/* Employment Details Card */}
               <div className="info-card">
                 <div className="card-header">
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -525,30 +513,69 @@ const UserProfile = () => {
                     <path d="M13.3334 18.3333V4.16667C13.3334 3.72464 13.1578 3.30072 12.8452 2.98816C12.5327 2.67559 12.1088 2.5 11.6667 2.5H8.33337C7.89135 2.5 7.46742 2.67559 7.15486 2.98816C6.8423 3.30072 6.66671 3.72464 6.66671 4.16667V18.3333" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                   <h3>Employment Details</h3>
-                </div>
-                <div className="card-content">
-                  <div className="info-row">
-                    <div className="info-text">
-                      <span className="info-label">Date of Joining</span>
-                      <span className="info-value">{formatDate(displayData?.dateOfJoining)}</span>
-                    </div>
-                  </div>
-                  <div className="info-row">
-                    <div className="info-text">
-                      <span className="info-label">Department</span>
-                      <span className="info-value">{displayData?.department || "N/A"}</span>
-                    </div>
-                  </div>
-                  <div className="info-row">
-                    <div className="info-text">
-                      <span className="info-label">Designation</span>
-                      <span className="info-value">{displayData?.designation || "N/A"}</span>
-                    </div>
+                  <div className="card-header-actions">
+                    {/* <CardEditControls cardKey="work" /> */}
                   </div>
                 </div>
+
+                {editingCard === 'work' ? (
+                  <div className="card-inline-form">
+                    <div className="inline-form-row">
+                      <div className="inline-form-group">
+                        <label>Department</label>
+                        <select name="department" value={editFormData.department} onChange={handleEditChange}>
+                          <option value="">Select Department</option>
+                          <option value="Development Team">Development</option>
+                          <option value="SEO Team">SEO</option>
+                          <option value="Content Team">Content</option>
+                          <option value="Video Team">Video</option>
+                          <option value="HR Team">HR</option>
+                          <option value="Insurance Team">Insurance</option>
+                          <option value="Graphic Team">Graphic Designing</option>
+                          <option value="Accounts Team">Accounts</option>
+                          <option value="Sales Team">Sales</option>
+                          <option value="PR Team">PR</option>
+                        </select>
+                      </div>
+                      <div className="inline-form-group">
+                        <label>Designation</label>
+                        <input type="text" name="designation" value={editFormData.designation} onChange={handleEditChange} />
+                      </div>
+                    </div>
+                    {/* <div className="inline-form-group full-width">
+                      <label>Work Mode</label>
+                      <select name="workMode" value={editFormData.workMode} onChange={handleEditChange}>
+                        <option value="Work From Office">Work From Office</option>
+                        <option value="Work From Home">Work From Home</option>
+                        <option value="Hybrid">Hybrid</option>
+                      </select>
+                    </div> */}
+                  </div>
+                ) : (
+                  <div className="card-content">
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">Date of Joining</span>
+                        <span className="info-value">{formatDate(displayData?.dateOfJoining)}</span>
+                      </div>
+                    </div>
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">Department</span>
+                        <span className="info-value">{displayData?.department || "N/A"}</span>
+                      </div>
+                    </div>
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">Designation</span>
+                        <span className="info-value">{displayData?.designation || "N/A"}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Compensation */}
+              {/* Compensation Card */}
               <div className="info-card">
                 <div className="card-header">
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -562,7 +589,8 @@ const UserProfile = () => {
                     <div className="info-text">
                       <span className="info-label">Base Salary</span>
                       <span className="info-value">
-                        {displayData?.baseSalary ? `₹${displayData.baseSalary.toLocaleString("en-IN")}` : "N/A"}
+                          {displayData?.baseSalary ? `₹***${displayData.baseSalary.toLocaleString("en-IN").slice(3)}` : "N/A"}
+                        {/* {displayData?.baseSalary ? `₹${displayData.baseSalary.toLocaleString("en-IN")}` : "N/A"} */}
                       </span>
                     </div>
                   </div>
@@ -572,51 +600,75 @@ const UserProfile = () => {
                       <span className="info-value">{displayData?.status || "N/A"}</span>
                     </div>
                   </div>
-                  <div className="info-row">
-                    <div className="info-text">
-                      <span className="info-label">Work Mode</span>
-                      <span className="info-value">{displayData?.workMode || "N/A"}</span>
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">Work Mode</span>
+                        <span className="info-value work-mode-badge w-50">{displayData?.workMode || "N/A"}</span>
+                      </div>
                     </div>
-                  </div>
                 </div>
               </div>
 
-              {/* Bank Details */}
+              {/* Bank Details Card - INLINE EDITABLE */}
               <div className="info-card">
                 <div className="card-header">
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M17.5 5.83333L10 1.66667L2.5 5.83333M17.5 5.83333V14.1667M17.5 5.83333L10 10M2.5 5.83333V14.1667M2.5 5.83333L10 10M10 10V18.3333M2.5 14.1667L10 18.3333M2.5 14.1667H1.66667M10 18.3333L17.5 14.1667M17.5 14.1667H18.3333" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                   <h3>Bank Details</h3>
-                </div>
-                <div className="card-content">
-                  <div className="info-row">
-                    <div className="info-text">
-                      <span className="info-label">Bank Name</span>
-                      <span className="info-value">{displayData?.bankName || "N/A"}</span>
-                    </div>
-                  </div>
-                  <div className="info-row">
-                    <div className="info-text">
-                      <span className="info-label">Account Number</span>
-                      <span className="info-value">
-                        {displayData?.bankAccountNumber ? `****${displayData.bankAccountNumber.slice(-4)}` : "N/A"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="info-row">
-                    <div className="info-text">
-                      <span className="info-label">IFSC Code</span>
-                      <span className="info-value">{displayData?.ifscCode || "N/A"}</span>
-                    </div>
+                  <div className="card-header-actions">
+                    <CardEditControls cardKey="bank" />
                   </div>
                 </div>
+
+                {editingCard === 'bank' ? (
+                  <div className="card-inline-form">
+                    <div className="inline-form-group full-width">
+                      <label>Bank Name</label>
+                      <input type="text" name="bankName" value={editFormData.bankName} onChange={handleEditChange} placeholder="e.g. State Bank of India" />
+                    </div>
+                    <div className="inline-form-row">
+                      <div className="inline-form-group">
+                        <label>Account Number</label>
+                        <input type="text" name="bankAccountNumber" value={editFormData.bankAccountNumber} onChange={handleEditChange} placeholder="Account number" />
+                      </div>
+                      <div className="inline-form-group">
+                        <label>IFSC Code</label>
+                        <input type="text" name="ifscCode" value={editFormData.ifscCode} onChange={handleEditChange} placeholder="e.g. SBIN0001234" style={{ textTransform: 'uppercase' }} />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="card-content">
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">Bank Name</span>
+                        <span className="info-value">{displayData?.bankName || "N/A"}</span>
+                      </div>
+                    </div>
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">Account Number</span>
+                        <span className="info-value">
+                          {displayData?.bankAccountNumber ? `****${displayData.bankAccountNumber.slice(-4)}` : "N/A"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">IFSC Code</span>
+                        <span className="info-value">{displayData?.ifscCode || "N/A"}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
+
             </div>
           </div>
         )}
 
-        {/* Documents Tab */}
+        {/* ===================== DOCUMENTS TAB ===================== */}
         {activeTab === "documents" && (
           <div className="tab-content">
             <div className="documents-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
@@ -634,192 +686,55 @@ const UserProfile = () => {
             </div>
 
             <div className="documents-grid">
-              {/* Aadhar Card */}
-              <div className="document-card">
-                <div className={`document-icon ${displayData?.documents?.adharCard ? 'verified' : 'pending'}`}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M14 2V8H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-                <div className="document-info">
-                  <h4 className="document-name">Aadhar Card</h4>
-                  <span className={`document-status ${displayData?.documents?.adharCard ? 'verified' : 'pending'}`}>
-                    {displayData?.documents?.adharCard ? "Verified" : "Not Uploaded"}
-                  </span>
-                </div>
-                <div className="document-actions">
-                  {displayData?.documents?.adharCard && (
-                    <button className="action-btn view-btn" onClick={() => handleViewDocument("Aadhar Card", getProfileImageUrl(displayData.documents.adharCard))} title="View Document">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
+              {[
+                { label: "Aadhar Card", key: "adharCard" },
+                { label: "Pan Card", key: "panCard" },
+                { label: "Salary Slip", key: "salarySlip" },
+                { label: "Relieving Letter", key: "relievingLetter" },
+                { label: "Experience Letter", key: "experienceLetter" },
+                { label: "Offer Letter", key: "offerLetter" }
+              ].map((doc) => (
+                <div className="document-card" key={doc.key}>
+                  <div className={`document-icon ${displayData?.documents?.[doc.key] ? 'verified' : 'pending'}`}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M14 2V8H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <div className="document-info">
+                    <h4 className="document-name">{doc.label}</h4>
+                    <span className={`document-status ${displayData?.documents?.[doc.key] ? 'verified' : 'pending'}`}>
+                      {displayData?.documents?.[doc.key] ? "Verified" : "Not Uploaded"}
+                    </span>
+                  </div>
+                  <div className="document-actions">
+                    {displayData?.documents?.[doc.key] && (
+                      <button className="action-btn view-btn" onClick={() => handleViewDocument(doc.label, getProfileImageUrl(displayData.documents[doc.key]))} title="View Document">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    )}
+                    <button className="action-btn upload-btn" onClick={() => handleUploadSpecificDocument(doc.key)} title="Upload Document">
+                      <i className="bi bi-cloud-upload"></i>
                     </button>
-                  )}
-                  <button className="action-btn upload-btn" onClick={() => handleUploadSpecificDocument("adharCard")} title="Upload Document">
-                    <i className="bi bi-cloud-upload"></i>
-                  </button>
+                  </div>
                 </div>
-              </div>
-
-
-              {/* PAN Card */}
-              <div className="document-card">
-                <div className={`document-icon ${displayData?.documents?.panCard ? 'verified' : 'pending'}`}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M14 2V8H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-                <div className="document-info">
-                  <h4 className="document-name">Pan Card</h4>
-                  <span className={`document-status ${displayData?.documents?.panCard ? 'verified' : 'pending'}`}>
-                    {displayData?.documents?.panCard ? "Verified" : "Not Uploaded"}
-                  </span>
-                </div>
-                <div className="document-actions">
-                  {displayData?.documents?.panCard && (
-                    <button className="action-btn view-btn" onClick={() => handleViewDocument("Pan Card", getProfileImageUrl(displayData.documents.panCard))} title="View Document">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  )}
-                  <button className="action-btn upload-btn" onClick={() => handleUploadSpecificDocument("panCard")} title="Upload Document">
-                    <i className="bi bi-cloud-upload"></i>
-                  </button>
-                </div>
-              </div>
-
-              {/* salarySlip Card */}
-              <div className="document-card">
-                <div className={`document-icon ${displayData?.documents?.salarySlip ? 'verified' : 'pending'}`}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M14 2V8H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-                <div className="document-info">
-                  <h4 className="document-name">Salary Slip</h4>
-                  <span className={`document-status ${displayData?.documents?.salarySlip ? 'verified' : 'pending'}`}>
-                    {displayData?.documents?.panCard ? "Verified" : "Not Uploaded"}
-                  </span>
-                </div>
-                <div className="document-actions">
-                  {displayData?.documents?.salarySlip && (
-                    <button className="action-btn view-btn" onClick={() => handleViewDocument("Salary Slip", getProfileImageUrl(displayData.documents.salarySlip))} title="View Document">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  )}
-                  <button className="action-btn upload-btn" onClick={() => handleUploadSpecificDocument("salarySlip")} title="Upload Document">
-                    <i className="bi bi-cloud-upload"></i>
-                  </button>
-                </div>
-              </div>
-
-              {/* relievingLetter Card */}
-              <div className="document-card">
-                <div className={`document-icon ${displayData?.documents?.relievingLetter ? 'verified' : 'pending'}`}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M14 2V8H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-                <div className="document-info">
-                  <h4 className="document-name">Relieving Letter</h4>
-                  <span className={`document-status ${displayData?.documents?.relievingLetter ? 'verified' : 'pending'}`}>
-                    {displayData?.documents?.panCard ? "Verified" : "Not Uploaded"}
-                  </span>
-                </div>
-                <div className="document-actions">
-                  {displayData?.documents?.adharCard && (
-                    <button className="action-btn view-btn" onClick={() => handleViewDocument("Relieving Letter", getProfileImageUrl(displayData.documents.relievingLetter))} title="View Document">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  )}
-                  <button className="action-btn upload-btn" onClick={() => handleUploadSpecificDocument("relievingLetter")} title="Upload Document">
-                    <i className="bi bi-cloud-upload"></i>
-                  </button>
-                </div>
-              </div>
-
-              {/* experienceLetter Card */}
-              <div className="document-card">
-                <div className={`document-icon ${displayData?.documents?.experienceLetter ? 'verified' : 'pending'}`}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M14 2V8H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-                <div className="document-info">
-                  <h4 className="document-name">Experience Letter</h4>
-                  <span className={`document-status ${displayData?.documents?.experienceLetter ? 'verified' : 'pending'}`}>
-                    {displayData?.documents?.experienceLetter ? "Verified" : "Not Uploaded"}
-                  </span>
-                </div>
-                <div className="document-actions">
-                  {displayData?.documents?.experienceLetter && (
-                    <button className="action-btn view-btn" onClick={() => handleViewDocument("Experience Letter", getProfileImageUrl(displayData.documents.experienceLetter))} title="View Document">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  )}
-                  <button className="action-btn upload-btn" onClick={() => handleUploadSpecificDocument("experienceLetter")} title="Upload Document">
-                    <i className="bi bi-cloud-upload"></i>
-                  </button>
-                </div>
-              </div>
-
-              {/* offerLetter Card */}
-              <div className="document-card">
-                <div className={`document-icon ${displayData?.documents?.offerLetter ? 'verified' : 'pending'}`}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M14 2V8H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-                <div className="document-info">
-                  <h4 className="document-name">Offer Letter</h4>
-                  <span className={`document-status ${displayData?.documents?.offerLetter ? 'verified' : 'pending'}`}>
-                    {displayData?.documents?.offerLetter ? "Verified" : "Not Uploaded"}
-                  </span>
-                </div>
-                <div className="document-actions">
-                  {displayData?.documents?.offerLetter && (
-                    <button className="action-btn view-btn" onClick={() => handleViewDocument("Offer Letter", getProfileImageUrl(displayData.documents.offerLetter))} title="View Document">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  )}
-                  <button className="action-btn upload-btn" onClick={() => handleUploadSpecificDocument("offerLetter")} title="Upload Document">
-                    <i className="bi bi-cloud-upload"></i>
-                  </button>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* Edit Profile Modal */}
+      {/* Edit Profile Modal (Full) */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Edit Profile</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form onSubmit={handleEditSubmit}>
+            <h6 className="mb-3 text-muted fw-bold">Personal Information</h6>
             <div className="row">
               <div className="col-md-6 mb-3">
                 <Form.Group>
@@ -838,7 +753,7 @@ const UserProfile = () => {
               <div className="col-md-6 mb-3">
                 <Form.Group>
                   <Form.Label>Email</Form.Label>
-                  <Form.Control type="email" name="email" disabled value={editFormData.email} required />
+                  <Form.Control type="email" name="email" disabled value={editFormData.email} />
                 </Form.Group>
               </div>
               <div className="col-md-6 mb-3">
@@ -854,6 +769,62 @@ const UserProfile = () => {
                 <Form.Control as="textarea" rows={2} name="address" value={editFormData.address} onChange={handleEditChange} />
               </Form.Group>
             </div>
+
+
+            <hr />
+            <h6 className="mb-3 text-muted fw-bold">Bank Details</h6>
+            <div className="row">
+              <div className="col-md-4 mb-3">
+                <Form.Group>
+                  <Form.Label>Bank Name</Form.Label>
+                  <Form.Control type="text" name="bankName" value={editFormData.bankName} onChange={handleEditChange} placeholder="e.g. SBI" />
+                </Form.Group>
+              </div>
+              <div className="col-md-4 mb-3">
+                <Form.Group>
+                  <Form.Label>Account Number</Form.Label>
+                  <Form.Control type="text" name="bankAccountNumber" value={editFormData.bankAccountNumber} onChange={handleEditChange} />
+                </Form.Group>
+              </div>
+              <div className="col-md-4 mb-3">
+                <Form.Group>
+                  <Form.Label>IFSC Code</Form.Label>
+                  <Form.Control type="text" name="ifscCode" value={editFormData.ifscCode} onChange={handleEditChange} style={{ textTransform: 'uppercase' }} />
+                </Form.Group>
+              </div>
+            </div>
+
+            <hr />
+            <h6 className="mb-3 text-muted fw-bold">Emergency Contact</h6>
+            <div className="row">
+              <div className="col-md-4 mb-3">
+                <Form.Group>
+                  <Form.Label>Contact Name</Form.Label>
+                  <Form.Control type="text" name="emergencyContactName" value={editFormData.emergencyContactName} onChange={handleEditChange} />
+                </Form.Group>
+              </div>
+              <div className="col-md-4 mb-3">
+                <Form.Group>
+                  <Form.Label>Contact Phone</Form.Label>
+                  <Form.Control type="tel" name="emergencyContactPhone" value={editFormData.emergencyContactPhone} onChange={handleEditChange} />
+                </Form.Group>
+              </div>
+              <div className="col-md-4 mb-3">
+                <Form.Group>
+                  <Form.Label>Relationship</Form.Label>
+                  <Form.Select name="emergencyContactRelation" value={editFormData.emergencyContactRelation} onChange={handleEditChange}>
+                    <option value="">Select</option>
+                    <option value="Spouse">Spouse</option>
+                    <option value="Parent">Parent</option>
+                    <option value="Sibling">Sibling</option>
+                    <option value="Child">Child</option>
+                    <option value="Friend">Friend</option>
+                    <option value="Other">Other</option>
+                  </Form.Select>
+                </Form.Group>
+              </div>
+            </div>
+
             <div className="d-flex justify-content-end gap-2 mt-4">
               <Button variant="secondary" onClick={() => setShowEditModal(false)}>Cancel</Button>
               <Button variant="primary" type="submit">Save Changes</Button>
@@ -930,7 +901,22 @@ const UserProfile = () => {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowViewModal(false)}>Close</Button>
-          <Button variant="primary" onClick={() => window.open(selectedDocument, '_blank')}>Download</Button>
+          <Button variant="primary" onClick={async () => {
+            try {
+              const response = await fetch(selectedDocument);
+              const blob = await response.blob();
+              const url = window.URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.setAttribute('download', `${currentDocumentType.replace(/\s+/g, '_')}_${displayData.firstName}.png`);
+              document.body.appendChild(link);
+              link.click();
+              link.parentNode.removeChild(link);
+              window.URL.revokeObjectURL(url);
+            } catch (error) {
+              window.open(selectedDocument, '_blank');
+            }
+          }}>Download</Button>
         </Modal.Footer>
       </Modal>
     </div>

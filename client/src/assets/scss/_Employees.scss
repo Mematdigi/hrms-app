@@ -624,3 +624,33 @@
   &.success { background: #10b981; }
   &.error { background: #ef4444; }
 }
+// =====================================================================
+// NEW SECTIONS: Bank Details, Emergency Contact, Work Mode
+// =====================================================================
+
+.employees-page {
+
+  // Work Mode badge in employee card
+  .contact-row {
+    i.bi-laptop {
+      color: #7c3aed;
+    }
+  }
+
+  // Bank & Emergency section card headers with icon
+  .form-section-card h4 {
+    i.bi-bank,
+    i.bi-telephone-plus {
+      color: #6f5edb;
+    }
+  }
+
+  // Work Mode select highlight
+  select[name="workMode"] {
+    border-color: #c4b5fd;
+    &:focus {
+      border-color: #6f5edb;
+      box-shadow: 0 0 0 3px rgba(111, 94, 219, 0.1);
+    }
+  }
+}
