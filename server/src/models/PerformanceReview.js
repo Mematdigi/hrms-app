@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const performanceReviewSchema = new mongoose.Schema({
-  employee_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  employeeId: { type: String, ref: 'Employee', required: true },
   reviewer_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   reviewPeriod: { type: String, required: true },
   rating: { type: Number, min: 1, max: 5, required: true },

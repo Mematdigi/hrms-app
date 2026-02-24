@@ -55,9 +55,44 @@ const employeeSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    default: 'employee' // Default role
+    default: 'employee'
   },
-  
+
+  // Work Mode
+  workMode: {
+    type: String,
+    enum: ['Work From Office', 'Work From Home', 'Hybrid'],
+    default: 'Work From Office'
+  },
+
+  // Bank Details
+  bankName: {
+    type: String,
+    default: ''
+  },
+  bankAccountNumber: {
+    type: String,
+    default: ''
+  },
+  ifscCode: {
+    type: String,
+    default: ''
+  },
+
+  // Emergency Contact
+  emergencyContactName: {
+    type: String,
+    default: ''
+  },
+  emergencyContactPhone: {
+    type: String,
+    default: ''
+  },
+  emergencyContactRelation: {
+    type: String,
+    default: ''
+  },
+
   // Document Paths (Storing URLs/Paths)
   profilePhoto: { type: String },
   documents: {

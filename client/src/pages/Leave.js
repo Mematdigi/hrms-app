@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'react-bootstrap-icons';
+import { json } from 'react-router-dom';
 
 function Leave() {
 
@@ -47,7 +48,7 @@ function Leave() {
   const [selectedLeave,    setSelectedLeave]    = useState(null);
   const [rejectionRemark,  setRejectionRemark]  = useState('');
 
-  const [leaveDefaults, setLeaveDefaults] = useState({ casualDefault: 8, sickDefault: 6 });
+  const [leaveDefaults, setLeaveDefaults] = useState({ casualDefault: 8, sickDefault: 6, shortLeaveDefault: 3 });
   const [balances,      setBalances]      = useState(null);
   const [settingsForm,  setSettingsForm]  = useState({ casualDefault: '', sickDefault: '' });
 
@@ -139,21 +140,73 @@ function Leave() {
   const shortLeavesLimit = balances?.shortLeavesLimit ?? 3;
   const shortLeavesLeft  = Math.max(shortLeavesLimit - shortLeavesUsed, 0);
 
+  // ── Monthly casual / sick limits (1 each per month) ──
+  const CASUAL_MONTHLY_LIMIT = 1;
+  const SICK_MONTHLY_LIMIT   = 1;
+
+  const currentMonthYear = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
+  const casualUsedThisMonth = leaves.filter(l => {
+    const leaveMonth = new Date(l.startDate).toISOString().slice(0, 7);
+    return l.leaveType === 'casual' && l.status !== 'rejected' && leaveMonth === currentMonthYear;
+  }).length;
+
+  const sickUsedThisMonth = leaves.filter(l => {
+    const leaveMonth = new Date(l.startDate).toISOString().slice(0, 7);
+    return l.leaveType === 'sick' && l.status !== 'rejected' && leaveMonth === currentMonthYear;
+  }).length;
+
+  const isCasualLimitReached = casualUsedThisMonth >= CASUAL_MONTHLY_LIMIT;
+  const isSickLimitReached   = sickUsedThisMonth   >= SICK_MONTHLY_LIMIT;
+
+  // Build a message for whichever limits are reached
+  const getLimitWarning = () => {
+    const msgs = [];
+    if (isCasualLimitReached) msgs.push('Casual Leave');
+    if (isSickLimitReached)   msgs.push('Sick Leave');
+    if (shortLeavesLeft === 0) msgs.push('Short Leave');
+    if (msgs.length === 0) return '';
+    return `⚠️ Your limit for ${msgs.join(', ')} is full for this month.`;
+  };
+  const limitWarning = getLimitWarning();
+
   // ── Form Handlers ──
   const handleApplySubmit = async (e) => {
     e.preventDefault();
+
+    // Guard: block if monthly limit reached for the chosen type
+    if (formData.category !== 'Short') {
+      if (formData.leaveType === 'casual' && isCasualLimitReached) {
+        setErrorMessage('⚠️ Your Casual Leave limit is full for this month.');
+        setTimeout(() => setErrorMessage(''), 4000);
+        return;
+      }
+      if (formData.leaveType === 'sick' && isSickLimitReached) {
+        setErrorMessage('⚠️ Your Sick Leave limit is full for this month.');
+        setTimeout(() => setErrorMessage(''), 4000);
+        return;
+      }
+    }
+    if (formData.category === 'Short' && shortLeavesLeft === 0) {
+      setErrorMessage('⚠️ Your Short Leave limit is full for this month.');
+      setTimeout(() => setErrorMessage(''), 4000);
+      return;
+    }
+
     try {
       // ✅ FIX: payload uses correct enum values
       const payload = {
         employeeId: user?.id,
         leaveType:  formData.leaveType,   // 'casual', 'sick', 'earned' — correct enums
-        category:   formData.category,    // 'Short' | 'Full'
+        category:   formData.category ,   // 'Short' | 'Full'
         startDate:  formData.startDate,
         endDate:    formData.category === 'Short' ? formData.startDate : formData.endDate,
         reason:     formData.reason,
         ...(formData.category === 'Short' && {
           fromTime: formData.fromTime,
           toTime:   formData.toTime,
+          leaveType: 'short', // Override to 'short' for short leave category
+          category: 'Full'   // No need to send category to backend
         })
       };
 
@@ -278,7 +331,12 @@ function Leave() {
         </div>
         <div className="header-actions">
           {user?.role !== 'admin' && (
-            <button className="btn-apply-main" onClick={() => setIsApplyModalOpen(true)}>
+            <button className="btn-apply-main" onClick={() => {
+              // Pre-select a valid leave type when opening modal
+              const defaultType = !isCasualLimitReached ? 'casual' : !isSickLimitReached ? 'sick' : 'unpaid';
+              setFormData(prev => ({ ...prev, leaveType: defaultType, category: 'Full' }));
+              setIsApplyModalOpen(true);
+            }}>
               <PlusLg style={{ marginRight: '8px' }} /> Apply Leave
             </button>
           )}
@@ -419,7 +477,7 @@ function Leave() {
                     <th>Date / Duration</th>
                     {isHR && <th>Applied On</th>}
                     <th>Status</th>
-                    <th>Reason</th>
+                    <th>Applied Reason</th>
                     {isHR && <th>Action</th>}
                   </tr>
                 </thead>
@@ -588,6 +646,13 @@ function Leave() {
 
             <form onSubmit={handleApplySubmit}>
 
+              {/* ── Limit warning banner ── */}
+              {limitWarning && (
+                <div className="warning-banner limit-warning">
+                  {limitWarning}
+                </div>
+              )}
+
               {/* Short / Full Day Toggle */}
               <div className="leave-type-toggle">
                 <button
@@ -595,7 +660,7 @@ function Leave() {
                   className={`toggle-card ${formData.category === 'Short' ? 'active' : ''} ${shortLeavesLeft === 0 ? 'disabled' : ''}`}
                   onClick={() => {
                     if (shortLeavesLeft === 0) return;
-                    setFormData({ ...formData, category: 'Short', leaveType: 'casual' });
+                   setFormData({ ...formData, category: 'Short', leaveType: 'casual' });
                   }}
                 >
                   <span className="toggle-icon">🕐</span>
@@ -605,8 +670,9 @@ function Leave() {
 
                 <button
                   type="button"
-                  className={`toggle-card ${formData.category === 'Full' ? 'active' : ''}`}
+                                    className={`toggle-card ${formData.category === 'Full' ? 'active' : ''}`}
                   onClick={() => setFormData({ ...formData, category: 'Full' })}
+                
                 >
                   <span className="toggle-icon">📅</span>
                   <div className="fw-bold">Full Day Leave</div>
@@ -635,13 +701,25 @@ function Leave() {
                     onChange={(e) => setFormData({ ...formData, leaveType: e.target.value })}
                     required
                   >
-                    <option value="casual">Casual Leave</option>
-                    <option value="sick">Sick Leave</option>
-                    <option value="earned">Earned Leave</option>
-                    <option value="maternity">Maternity Leave</option>
-                    <option value="paternity">Paternity Leave</option>
+                    <option value="casual" disabled={isCasualLimitReached}>
+                      Casual Leave{isCasualLimitReached ? ' (Limit reached)' : ''}
+                    </option>
+                    <option value="sick" disabled={isSickLimitReached}>
+                      Sick Leave{isSickLimitReached ? ' (Limit reached)' : ''}
+                    </option>
                     <option value="unpaid">Unpaid Leave</option>
                   </select>
+                  {/* Per-type inline messages */}
+                  {formData.leaveType === 'casual' && isCasualLimitReached && (
+                    <div className="warning-banner mt-1">
+                      ⚠️ You have already used your Casual Leave for this month.
+                    </div>
+                  )}
+                  {formData.leaveType === 'sick' && isSickLimitReached && (
+                    <div className="warning-banner mt-1">
+                      ⚠️ You have already used your Sick Leave for this month.
+                    </div>
+                  )}
                 </>
               )}
 
@@ -762,10 +840,9 @@ function Leave() {
                 <div className="b-info">
                   <small>Casual Leave</small>
                   <strong>{selectedLeave.casualLeave ?? leaveDefaults.casualDefault}</strong>
-                  <div className="progress"><div style={{ width: `${calculateProgress(
-                    (leaveDefaults.casualDefault - (selectedLeave.casualLeave ?? leaveDefaults.casualDefault)),
-                    leaveDefaults.casualDefault
-                  )}%` }} className="blue"></div></div>
+                  <div className="progress">
+                <div style={{ width: `${calculateProgress(balances?.casualUsed ?? 0, leaveDefaults.casualDefault || 8)}%` }} className="blue"></div>
+              </div>
                 </div>
               </div>
               <div className="b-card">
@@ -773,10 +850,9 @@ function Leave() {
                 <div className="b-info">
                   <small>Sick Leave</small>
                   <strong>{selectedLeave.sickLeave ?? leaveDefaults.sickDefault}</strong>
-                  <div className="progress"><div style={{ width: `${calculateProgress(
-                    (leaveDefaults.sickDefault - (selectedLeave.sickLeave ?? leaveDefaults.sickDefault)),
-                    leaveDefaults.sickDefault
-                  )}%` }} className="red"></div></div>
+                  <div className="progress">
+                <div style={{ width: `${calculateProgress(balances?.sickUsed ?? 0, leaveDefaults.sickDefault || 6)}%` }} className="red"></div>
+              </div>
                 </div>
               </div>
             </div>
@@ -784,7 +860,7 @@ function Leave() {
             <h3>Leave History</h3>
             <table className="history-table">
               <thead>
-                <tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Reason</th></tr>
+                <tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Rejection Reason</th></tr>
               </thead>
               <tbody>
                 {(selectedLeave.employeeLeaveHistory || [selectedLeave])
@@ -797,7 +873,7 @@ function Leave() {
                       <td>{lv.endDate   ? new Date(lv.endDate).toLocaleDateString()   : '—'}</td>
                       <td>{lv.numberOfDays}</td>
                       <td><span className={`status-badge ${lv.status}`}>{lv.status}</span></td>
-                      <td>{lv.reason}</td>
+                      <td className='text-danger'>{lv.rejectionReason}</td>
                     </tr>
                   ))}
               </tbody>

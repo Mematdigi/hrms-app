@@ -5,7 +5,7 @@ exports.createReview = async (req, res) => {
     const { employee_id, reviewer_id, reviewPeriod, rating, strengths, areasForImprovement, goals, comments } = req.body;
     
     const review = new PerformanceReview({
-      employee_id: employee_id,
+      employeeId: employee_id,
       reviewer_id: reviewer_id,
       reviewPeriod,
       rating,
@@ -25,15 +25,49 @@ exports.createReview = async (req, res) => {
 
 exports.getReviews = async (req, res) => {
   try {
-    const { employee_id, status } = req.query;
+    
     const query = {};
 
-    if (employee_id) query.employee_id = employee_id;
-    if (status) query.status = status;
+    // if (employee_id) query.employee_id = employee_id;
+    // if (status) query.status = status;
+const reviews = await PerformanceReview.aggregate([
+  {
+    $lookup: {
+      from: "employees",            // ✅ correct collection name
+      localField: "employeeId",     // PerformanceReview.employeeId
+      foreignField: "employeeId",   // Employee.employeeId
+      as: "employee"
+    }
+  },
+  {
+    $unwind: {
+      path: "$employee",
+      preserveNullAndEmptyArrays: true
+    }
+  },
+  {
+    $addFields: {
+      firstName: "$employee.firstName",
+      lastName: "$employee.lastName",
+      fullName: {
+        $concat: [
+          "$employee.firstName",
+          " ",
+          "$employee.lastName"
+        ]
+      }
+    }
+  },
+  {
+    $project: {
+      employee: 0,      // remove raw employee object
+      password: 0       // extra safety (if ever included)
+    }
+  }
+]);
 
-    const reviews = await PerformanceReview.find(query)
-      .populate('employee_id', 'firstName lastName')
-      .populate('reviewer_id', 'firstName lastName');
+
+console.log(reviews);
     
     res.json(reviews);
   } catch (error) {

@@ -1,8 +1,18 @@
 const mongoose = require('mongoose');
 
-const LeaveDefaultsSchema = new mongoose.Schema({
-  casualDefault: { type: Number, default: 12 }, // Casual leave per year
-  sickDefault: { type: Number, default: 10 },   // Sick leave per year
-}, { timestamps: true });
+/**
+ * LeaveDefaults — global defaults applied when creating a new employee's LeaveBalance.
+ * Only ONE document should exist in this collection.
+ */
+const leaveDefaultsSchema = new mongoose.Schema({
+  casualDefault:    { type: Number, default: 8   },  // casual leave days/year
+  sickDefault:      { type: Number, default: 6   },  // sick leave days/year
+  earnedDefault:    { type: Number, default: 14  },  // earned/annual leave days/year
+  maternityDefault: { type: Number, default: 90  },  // maternity leave days
+  paternityDefault: { type: Number, default: 15  },  // paternity leave days
+  shortLeaveDefault:  { type: Number, default: 3   },  // short leaves per month
 
-module.exports = mongoose.model('LeaveDefaults', LeaveDefaultsSchema);
+  updatedAt: { type: Date, default: Date.now }
+});
+
+module.exports = mongoose.model('LeaveDefaults', leaveDefaultsSchema);
