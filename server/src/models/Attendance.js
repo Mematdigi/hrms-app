@@ -8,7 +8,7 @@ const attendanceSchema = new mongoose.Schema({
   checkOutTime: { type: Date },
   status: { 
     type: String, 
-    enum: ['present', 'absent', 'half-day', 'leave', 'working', 'pending-approval'], 
+    enum: ['present', 'absent', 'half-day','late','short-leave', 'leave', 'working', 'pending-approval'], 
     default: 'absent' 
   },
   workingHours: { type: Number },
