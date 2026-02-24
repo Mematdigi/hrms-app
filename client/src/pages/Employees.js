@@ -28,8 +28,8 @@ function Employees() {
         firstName: '',
         lastName: '',
         email: '',
-        contact: '', // ✅ Added
-        address: '', // ✅ Added
+        contact: '',
+        address: '',
         password: '',
         department: '',
         designation: '',
@@ -37,6 +37,15 @@ function Employees() {
         baseSalary: '',
         status: 'Full Time',
         isActive: true,
+        workMode: 'Work From Office',
+        // Bank Details
+        bankName: '',
+        bankAccountNumber: '',
+        ifscCode: '',
+        // Emergency Contact
+        emergencyContactName: '',
+        emergencyContactPhone: '',
+        emergencyContactRelation: '',
         // Documents
         adharCard: null,
         panCard: null,
@@ -50,7 +59,7 @@ function Employees() {
     // Edit State
     const [editingId, setEditingId] = useState(null);
     const [photoPreview, setPhotoPreview] = useState(null);
-    const [existingDocs, setExistingDocs] = useState({}); // To show "File Uploaded" text
+    const [existingDocs, setExistingDocs] = useState({});
 
     const { user } = useSelector((state) => state.auth);
 
@@ -67,8 +76,6 @@ function Employees() {
     };
 
     // --- Handlers ---
-
-    // ✅ FIXED: Populate ALL fields including Contact/Address for Editing
     const handleEditClick = (employee) => {
         setEditingId(employee._id);
 
@@ -77,31 +84,37 @@ function Employees() {
             firstName: employee.firstName || '',
             lastName: employee.lastName || '',
             email: employee.email || '',
-            contact: employee.contact || '', // ✅ Map Contact
-            address: employee.address || '', // ✅ Map Address
-            password: '', // Leave empty unless changing
+            contact: employee.contact || '',
+            address: employee.address || '',
+            password: '',
             department: employee.department || '',
             designation: employee.designation || '',
             dateOfJoining: employee.dateOfJoining ? new Date(employee.dateOfJoining).toISOString().split('T')[0] : '',
             baseSalary: employee.baseSalary || '',
             status: employee.status || 'Full Time',
             isActive: employee.isActive,
-            // Reset files (user must re-upload to change them)
+            workMode: employee.workMode || 'Work From Office',
+            // Bank Details
+            bankName: employee.bankName || '',
+            bankAccountNumber: employee.bankAccountNumber || '',
+            ifscCode: employee.ifscCode || '',
+            // Emergency Contact
+            emergencyContactName: employee.emergencyContactName || '',
+            emergencyContactPhone: employee.emergencyContactPhone || '',
+            emergencyContactRelation: employee.emergencyContactRelation || '',
+            // Reset files
             adharCard: null, panCard: null, salarySlip: null,
             relievingLetter: null, experienceLetter: null, offerLetter: null, profilePhoto: null
         });
 
-        // Handle Photo Preview
         if (employee.profilePhoto) {
             setPhotoPreview(`http://localhost:5000/uploads/${employee.profilePhoto}`);
         } else {
             setPhotoPreview(null);
         }
 
-        // Set existing documents to show status
         setExistingDocs(employee.documents || {});
-
-        setViewMode('edit'); // Switch to Full Page
+        setViewMode('edit');
     };
 
     const handleChange = (e) => {
@@ -131,26 +144,19 @@ function Employees() {
 
         try {
             const data = new FormData();
+            const fileFields = ['adharCard', 'panCard', 'salarySlip', 'relievingLetter', 'experienceLetter', 'offerLetter', 'profilePhoto'];
 
-            // Add all form data
             Object.keys(formData).forEach((key) => {
-                // Handle files
-                if (['adharCard', 'panCard', 'salarySlip', 'relievingLetter', 'experienceLetter', 'offerLetter', 'profilePhoto'].includes(key)) {
-                    if (formData[key]) {
-                        data.append(key, formData[key]);
-                    }
+                if (fileFields.includes(key)) {
+                    if (formData[key]) data.append(key, formData[key]);
                 } else {
-                    // Handle text fields (skip password if empty in edit mode)
-                    if (key === 'password' && viewMode === 'edit' && !formData[key]) {
-                        return; // Don't append empty password in edit mode
-                    }
+                    if (key === 'password' && viewMode === 'edit' && !formData[key]) return;
                     if (formData[key] !== null && formData[key] !== undefined) {
                         data.append(key, formData[key]);
                     }
                 }
             });
 
-            // Add isActive as string since FormData converts everything to string
             data.append('isActive', formData.isActive.toString());
 
             if (viewMode === 'add') {
@@ -172,8 +178,12 @@ function Employees() {
     const resetForm = () => {
         setFormData({
             employeeId: '', firstName: '', lastName: '', email: '', contact: '', address: '',
-            password: '', department: '', designation: 'Content Team', dateOfJoining: '', baseSalary: '',
-            status: 'Full Time', isActive: true, adharCard: null, panCard: null, salarySlip: null,
+            password: '', department: '', designation: '', dateOfJoining: '', baseSalary: '',
+            status: 'Full Time', isActive: true,
+            workMode: 'Work From Office',
+            bankName: '', bankAccountNumber: '', ifscCode: '',
+            emergencyContactName: '', emergencyContactPhone: '', emergencyContactRelation: '',
+            adharCard: null, panCard: null, salarySlip: null,
             relievingLetter: null, experienceLetter: null, offerLetter: null, profilePhoto: null
         });
         setPhotoPreview(null);
@@ -228,32 +238,18 @@ function Employees() {
 
             {/* Header */}
             <div className="page-header">
-
                 <div>
                     <h1>{viewMode === 'add' ? 'Add New Employee' : viewMode === 'edit' ? 'Edit Details' : 'Employees'}</h1>
                     <p>{viewMode === 'grid' || viewMode === 'list' ? 'Manage your team members.' : 'Manage employee information and documents.'}</p>
                 </div>
-                {/* Show Add button only in Grid/List mode */}
                 {(user?.role === 'admin' || user?.role === 'hr') && (
                     viewMode === 'grid' || viewMode === 'list' ? (
-                        <button
-                            className="btn-primary-add"
-                            onClick={() => {
-                                resetForm();
-                                setViewMode('add');
-                            }}
-                        >
+                        <button className="btn-primary-add" onClick={() => { resetForm(); setViewMode('add'); }}>
                             + Add Employee
                         </button>
                     ) : (
                         <div className="form-footer-actions">
-                            <button
-                                type="button"
-                                className="btn-primary-add"
-                                onClick={resetForm}
-                            >
-                                Cancel
-                            </button>
+                            <button type="button" className="btn-primary-add" onClick={resetForm}>Cancel</button>
                         </div>
                     )
                 )}
@@ -300,6 +296,7 @@ function Employees() {
                     {/* Right Side: Form Sections */}
                     <div className="right-form-area">
 
+                        {/* Personal Information */}
                         <div className="form-section-card">
                             <div className="d-flex justify-content-between align-items-center mb-3">
                                 <h4>Personal Information</h4>
@@ -314,12 +311,13 @@ function Employees() {
                             </div>
                         </div>
 
+                        {/* Employment Details */}
                         <div className="form-section-card">
                             <h4>Employment Details</h4>
                             <div className="form-row-grid">
                                 <div className="input-group"><label>Employee ID <span className="req">*</span></label><input type="text" name="employeeId" value={formData.employeeId} onChange={handleChange} required /></div>
-                                {/* <div className="input-group"><label>Department</label><input type="text" name="department" value={formData.department} onChange={handleChange} /></div> */}
-                                 <div className="input-group"><label>Department</label>
+                                <div className="input-group">
+                                    <label>Department</label>
                                     <select name="department" value={formData.department} onChange={handleChange}>
                                         <option value="" disabled>Select Department</option>
                                         <option value="Development Team">Development</option>
@@ -336,7 +334,8 @@ function Employees() {
                                 </div>
                                 <div className="input-group"><label>Designation</label><input type="text" name="designation" value={formData.designation} onChange={handleChange} /></div>
                                 <div className="input-group"><label>Joining Date</label><input type="date" name="dateOfJoining" value={formData.dateOfJoining} onChange={handleChange} /></div>
-                                <div className="input-group"><label>Status</label>
+                                <div className="input-group">
+                                    <label>Employment Status</label>
                                     <select name="status" value={formData.status} onChange={handleChange}>
                                         <option value=" " disabled>Select Employee Type</option>
                                         <option value="Full Time">Full Time</option>
@@ -344,15 +343,77 @@ function Employees() {
                                         <option value="Internship">Internship</option>
                                     </select>
                                 </div>
+                                <div className="input-group">
+                                    <label>Work Mode</label>
+                                    <select name="workMode" value={formData.workMode} onChange={handleChange}>
+                                        <option value="Work From Office">Work From Office</option>
+                                        <option value="Work From Home">Work From Home</option>
+                                        <option value="Hybrid">Hybrid</option>
+                                    </select>
+                                </div>
                                 <div className="input-group"><label>Base Salary</label><input type="number" name="baseSalary" value={formData.baseSalary} onChange={handleChange} /></div>
                                 <div className="input-group"><label>Password {viewMode === 'add' && <span className="req">*</span>}</label><input type="password" name="password" value={formData.password} onChange={handleChange} required={viewMode === 'add'} placeholder={viewMode === 'edit' ? "Leave empty to keep current" : ""} /></div>
                             </div>
                         </div>
 
+                        {/* ✅ NEW: Bank Details Section */}
+                        <div className="form-section-card">
+                            <h4><i className="bi bi-bank me-2"></i>Bank Details</h4>
+                            <div className="form-row-grid">
+                                <div className="input-group">
+                                    <label>Bank Name</label>
+                                    <input type="text" name="bankName" value={formData.bankName} onChange={handleChange} placeholder="e.g. State Bank of India" />
+                                </div>
+                                <div className="input-group">
+                                    <label>Account Number</label>
+                                    <input type="text" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleChange} placeholder="Enter account number" />
+                                </div>
+                                <div className="input-group">
+                                    <label>IFSC Code</label>
+                                    <input type="text" name="ifscCode" value={formData.ifscCode} onChange={handleChange} placeholder="e.g. SBIN0001234" style={{ textTransform: 'uppercase' }} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ✅ NEW: Emergency Contact Section */}
+                        <div className="form-section-card">
+                            <h4><i className="bi bi-telephone-plus me-2"></i>Emergency Contact</h4>
+                            <div className="form-row-grid">
+                                <div className="input-group">
+                                    <label>Contact Name</label>
+                                    <input type="text" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange} placeholder="Full name" />
+                                </div>
+                                <div className="input-group">
+                                    <label>Contact Phone</label>
+                                    <input type="tel" name="emergencyContactPhone" value={formData.emergencyContactPhone} onChange={handleChange} placeholder="Phone number" />
+                                </div>
+                                <div className="input-group">
+                                    <label>Relationship</label>
+                                    <select name="emergencyContactRelation" value={formData.emergencyContactRelation} onChange={handleChange}>
+                                        <option value="">Select Relationship</option>
+                                        <option value="Spouse">Spouse</option>
+                                        <option value="Parent">Parent</option>
+                                        <option value="Sibling">Sibling</option>
+                                        <option value="Child">Child</option>
+                                        <option value="Friend">Friend</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Documents Upload */}
                         <div className="form-section-card">
                             <h4>Documents Upload</h4>
                             <div className="documents-grid">
-                                {[{ label: "Aadhar Card", name: "adharCard" }, { label: "PAN Card", name: "panCard" }, { label: "Salary Slip", name: "salarySlip" }, { label: "Relieving Letter", name: "relievingLetter" }, { label: "Experience Letter", name: "experienceLetter" }, { label: "Offer Letter", name: "offerLetter" }].map((doc) => (
+                                {[
+                                    { label: "Aadhar Card", name: "adharCard" },
+                                    { label: "PAN Card", name: "panCard" },
+                                    { label: "Salary Slip", name: "salarySlip" },
+                                    { label: "Relieving Letter", name: "relievingLetter" },
+                                    { label: "Experience Letter", name: "experienceLetter" },
+                                    { label: "Offer Letter", name: "offerLetter" }
+                                ].map((doc) => (
                                     <div className="file-upload-box" key={doc.name}>
                                         <label>{doc.label}</label>
                                         <div className={`file-input-wrapper ${existingDocs[doc.name] ? 'has-file' : ''}`}>
@@ -403,6 +464,7 @@ function Employees() {
                                     <div className="card-body-part">
                                         <div className="contact-row"><i className="bi bi-envelope"></i> <span className="text-truncate">{emp.email}</span></div>
                                         <div className="contact-row"><i className="bi bi-telephone"></i> <span>{emp.contact || '-'}</span></div>
+                                        <div className="contact-row"><i className="bi bi-laptop"></i> <span>{emp.workMode || 'Work From Office'}</span></div>
                                     </div>
                                     <div className="card-footer-part">
                                         <span className={`status-badge ${emp.isActive ? 'confirmed' : 'inactive'}`}>{emp.status}</span>
@@ -414,7 +476,7 @@ function Employees() {
                     ) : (
                         <div className="table-card">
                             <table className="modern-table">
-                                <thead><tr><th>EMPLOYEE</th><th>DEPARTMENT</th><th>STATUS</th><th>JOIN DATE</th><th className="text-end">ACTIONS</th></tr></thead>
+                                <thead><tr><th>EMPLOYEE</th><th>DEPARTMENT</th><th>WORK MODE</th><th>STATUS</th><th>JOIN DATE</th><th className="text-end">ACTIONS</th></tr></thead>
                                 <tbody>
                                     {filteredEmployees.map((emp) => (
                                         <tr key={emp._id}>
@@ -425,12 +487,16 @@ function Employees() {
                                                 </div>
                                             </td>
                                             <td className="text-secondary">{emp.department || '-'}</td>
+                                            <td className="text-secondary">{emp.workMode || 'WFO'}</td>
                                             <td><span className={`status-pill ${emp.isActive ? 'active' : 'inactive'}`}>{emp.status}</span></td>
                                             <td className="text-secondary">{emp.dateOfJoining ? new Date(emp.dateOfJoining).toLocaleDateString('en-GB') : '-'}</td>
                                             <td className="text-end action-cell-flex">
                                                 <button className="btn-link-action me-3" onClick={() => navigate(`/EmployeeDetails/${emp._id}`)}>View <i className="bi bi-arrow-up-right ms-1"></i></button>
                                                 {(user?.role === 'admin' || user?.role === 'hr') && (
-                                                    <><button className="btn-icon-action ms-1" onClick={() => handleEditClick(emp)}><i className="bi bi-pencil"></i></button><button className="btn-icon-action delete ms-1" onClick={() => handleDelete(emp._id, emp.firstName)}><i className="bi bi-trash"></i></button></>
+                                                    <>
+                                                        <button className="btn-icon-action ms-1" onClick={() => handleEditClick(emp)}><i className="bi bi-pencil"></i></button>
+                                                        <button className="btn-icon-action delete ms-1" onClick={() => handleDelete(emp._id, emp.firstName)}><i className="bi bi-trash"></i></button>
+                                                    </>
                                                 )}
                                             </td>
                                         </tr>

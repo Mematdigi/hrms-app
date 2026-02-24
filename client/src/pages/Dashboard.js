@@ -31,6 +31,7 @@ const Dashboard = () => {
    // Leave Modal State
    const [showLeaveModal, setShowLeaveModal] = useState(false);
    const [leaveType, setLeaveType] = useState("full"); // 'short' or 'full'
+   const [selectedLeaveCategory, setSelectedLeaveCategory] = useState("casual"); // 'casual' | 'sick' | 'unpaid'
    const [leaveFormData, setLeaveFormData] = useState({
       date:     new Date().toISOString().split('T')[0],
       fromTime: '',
@@ -121,6 +122,7 @@ const Dashboard = () => {
             try {
                const balRes = await leaveAPI.getBalances(user?.id);
                setLeaveBalances(balRes.data || null);
+               console.log(balRes.data)
             } catch (err) {
                console.error("Leave balances fetch failed", err);
             }
@@ -267,7 +269,7 @@ const Dashboard = () => {
    // ==============================
 
    // Annual leave values (from API or safe defaults)
-   const annualUsed = leaveBalances?.annualUsed ?? leaveBalances?.earnedUsed ?? 0;
+   const annualUsed = leaveBalances?.casualUsed + leaveBalances?.sickUsed ?? leaveBalances?.earnedUsed ?? 0;
    const annualTotal = leaveBalances?.annualTotal ?? leaveBalances?.earnedTotal ?? 14;
    const annualRemaining = annualTotal - annualUsed;
    const annualPercent = annualTotal > 0 ? Math.round((annualUsed / annualTotal) * 100) : 0;
@@ -275,6 +277,31 @@ const Dashboard = () => {
    // Short leaves: backend may track as shortLeavesUsed, or count from leaves data
    const shortLeavesTaken = leaveBalances?.shortLeavesUsed ?? leaveBalances?.shortUsed ?? 0;
    const shortLeavesLimit = leaveBalances?.shortLeavesLimit ?? 3;
+
+   // ── Monthly casual / sick limits (1 each per month) ──
+   const CASUAL_MONTHLY_LIMIT = 1;
+   const SICK_MONTHLY_LIMIT   = 1;
+
+   const currentMonthYear = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
+   // We compute from leaveBalances — backend tracks casualUsed/sickUsed for current month
+   // casualUsed / sickUsed from balances reflect this month's usage
+   const casualUsedThisMonth = leaveBalances?.casualUsed ?? 0;
+   const sickUsedThisMonth   = leaveBalances?.sickUsed   ?? 0;
+
+   const isCasualLimitReached = casualUsedThisMonth >= CASUAL_MONTHLY_LIMIT;
+   const isSickLimitReached   = sickUsedThisMonth   >= SICK_MONTHLY_LIMIT;
+
+   // Combined warning message for the modal banner
+   const getMonthlyLimitWarning = () => {
+      const msgs = [];
+      if (isCasualLimitReached) msgs.push('Casual Leave');
+      if (isSickLimitReached)   msgs.push('Sick Leave');
+      if (shortLeavesTaken >= shortLeavesLimit) msgs.push('Short Leave');
+      if (msgs.length === 0) return '';
+      return `⚠️ Your limit for ${msgs.join(', ')} is full for this month.`;
+   };
+   const monthlyLimitWarning = getMonthlyLimitWarning();
 
    // Attendance rate string for HR card
    const attendanceRate = stats.totalEmployees > 0
@@ -305,8 +332,11 @@ const Dashboard = () => {
 
    // --- Leave Modal Handlers ---
    const handleOpenLeaveModal = () => {
-      setShowLeaveModal(true);
+      // Pre-select the first available full-day leave type
+      const defaultCategory = !isCasualLimitReached ? 'casual' : !isSickLimitReached ? 'sick' : 'unpaid';
+      setSelectedLeaveCategory(defaultCategory);
       setLeaveType("full");
+      setShowLeaveModal(true);
    };
 
    const handleSelectLeaveType = (type) => {
@@ -325,11 +355,25 @@ const Dashboard = () => {
             return;
          }
 
+         // ── Monthly limit guards ──
+         if (leaveType === 'short' && shortLeavesTaken >= shortLeavesLimit) {
+            alert('⚠️ Your Short Leave limit is full for this month.');
+            return;
+         }
+         if (leaveType === 'full' && selectedLeaveCategory === 'casual' && isCasualLimitReached) {
+            alert('⚠️ Your Casual Leave limit is full for this month.');
+            return;
+         }
+         if (leaveType === 'full' && selectedLeaveCategory === 'sick' && isSickLimitReached) {
+            alert('⚠️ Your Sick Leave limit is full for this month.');
+            return;
+         }
+
          // ✅ FIX: Use correct DB enum values — 'casual' not 'Casual Leave'
          const payload = {
             employeeId: user?.id,
-            leaveType:  'casual',
-            category:   leaveType === 'short' ? 'Short' : 'Full',
+            leaveType:  leaveType === 'short' ? 'short' : selectedLeaveCategory,
+            category:   leaveType === 'short' ? 'Full' : 'Full',
             startDate:  leaveFormData.date,
             endDate:    leaveFormData.date,
             reason:     leaveFormData.reason,
@@ -746,6 +790,14 @@ const HeaderActionButtons = () => {
             </Modal.Header>
             <Modal.Body className="pt-2">
 
+               {/* ── Monthly limit warning banner ── */}
+               {monthlyLimitWarning && (
+                  <div className="alert alert-soft-red mb-3 py-2 small">
+                     <i className="bi bi-exclamation-triangle me-2"></i>
+                     {monthlyLimitWarning}
+                  </div>
+               )}
+
                {/* Step 1: Selection */}
                <div className="d-flex gap-3 mb-3">
                   <div
@@ -779,6 +831,37 @@ const HeaderActionButtons = () => {
                      <i className="bi bi-exclamation-circle me-2"></i>
                      You have exceeded the Short Leave limit ({shortLeavesLimit}/month). Please apply for Full Day Leave.
                   </div>
+               )}
+
+               {/* Leave Category Dropdown — Full Day only */}
+               {leaveType === 'full' && (
+                  <Form.Group className="mb-3">
+                     <Form.Label className="small fw-semibold">Leave Category</Form.Label>
+                     <Form.Select
+                        value={selectedLeaveCategory}
+                        onChange={(e) => setSelectedLeaveCategory(e.target.value)}
+                     >
+                        <option value="casual" disabled={isCasualLimitReached}>
+                           Casual Leave{isCasualLimitReached ? ' (Limit reached)' : ''}
+                        </option>
+                        <option value="sick" disabled={isSickLimitReached}>
+                           Sick Leave{isSickLimitReached ? ' (Limit reached)' : ''}
+                        </option>
+                        <option value="unpaid">Unpaid Leave</option>
+                     </Form.Select>
+                     {selectedLeaveCategory === 'casual' && isCasualLimitReached && (
+                        <div className="alert alert-soft-red mt-2 py-2 small mb-0">
+                           <i className="bi bi-exclamation-circle me-2"></i>
+                           You have already used your Casual Leave for this month.
+                        </div>
+                     )}
+                     {selectedLeaveCategory === 'sick' && isSickLimitReached && (
+                        <div className="alert alert-soft-red mt-2 py-2 small mb-0">
+                           <i className="bi bi-exclamation-circle me-2"></i>
+                           You have already used your Sick Leave for this month.
+                        </div>
+                     )}
+                  </Form.Group>
                )}
 
                {/* Step 2: Form */}
@@ -827,7 +910,11 @@ const HeaderActionButtons = () => {
                <Button
                   className="w-100 rounded-pill btn-deep-blue"
                   onClick={handleSubmitLeave}
-                  disabled={leaveType === 'short' && shortLeavesTaken >= shortLeavesLimit}
+                  disabled={
+                     (leaveType === 'short' && shortLeavesTaken >= shortLeavesLimit) ||
+                     (leaveType === 'full' && selectedLeaveCategory === 'casual' && isCasualLimitReached) ||
+                     (leaveType === 'full' && selectedLeaveCategory === 'sick'   && isSickLimitReached)
+                  }
                >
                   Submit Application
                </Button>

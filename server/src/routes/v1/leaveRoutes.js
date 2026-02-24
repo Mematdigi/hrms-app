@@ -4,30 +4,34 @@ const router  = express.Router();
 const { authMiddleware, roleMiddleware } = require('../../middleware/auth');
 const { leaveController }               = require('../../controllers/index');
 
-// Apply for leave (Employee / HR / Manager)
-router.post('/apply', authMiddleware, leaveController.applyLeave);
+// ── Employee routes ────────────────────────────────────────────────────────
+// Apply for leave
+router.post('/apply',    authMiddleware, leaveController.applyLeave);
 
-// Get leave requests (role-based filtering via query params)
-router.get('/requests', authMiddleware, leaveController.getLeaveRequests);
+// Get own leave requests (employee) or all (hr/admin/manager)
+router.get('/requests',  authMiddleware, leaveController.getLeaveRequests);
 
-// Get pending leave requests (for HR approval panel)
-router.get('/pending', authMiddleware, leaveController.getPendingLeaveRequests);
+// Get leave statistics (pending/approved/rejected counts)
+router.get('/stats',     authMiddleware, leaveController.getLeaveStats);
 
-// Get leave statistics (counts of pending / approved / rejected)
-router.get('/stats', authMiddleware, leaveController.getLeaveStats);
+// ── HR / Admin routes ──────────────────────────────────────────────────────
+// Get all pending requests
+router.get('/pending',   authMiddleware, leaveController.getPendingLeaveRequests);
 
-// Approve leave (HR only)
-router.put('/approve', authMiddleware, roleMiddleware(['hr']), leaveController.approveLeave);
+// Approve leave
+router.put('/approve',   authMiddleware, roleMiddleware(['hr', 'admin', 'manager']), leaveController.approveLeave);
 
-// Reject leave (HR only)
-router.put('/reject', authMiddleware, roleMiddleware(['hr']), leaveController.rejectLeave);
+// Reject leave
+router.put('/reject',    authMiddleware, roleMiddleware(['hr', 'admin', 'manager']), leaveController.rejectLeave);
 
-// Get / Update default leave settings
-router.get('/defaults',                                                   leaveController.getDefaults);
-router.put('/defaults', authMiddleware, roleMiddleware(['hr']),            leaveController.updateDefaults);
+// ── Leave defaults (global settings) ──────────────────────────────────────
+router.get('/defaults',  leaveController.getDefaults);
+router.put('/defaults',  authMiddleware, roleMiddleware(['hr', 'admin']), leaveController.updateDefaults);
 
-// ✅ NEW: Get leave balances for a specific employee
-// Called by frontend: leaveAPI.getBalances(employeeId) → GET /leave/balances/:employeeId
-router.get('/balances/:employeeId', authMiddleware, leaveController.getEmployeeBalances);
+// ── Employee leave balances ────────────────────────────────────────────────
+// GET  /leave/balances/:employeeId  → get computed balances for one employee
+// PUT  /leave/balances/:employeeId  → HR updates allocation for one employee
+router.get('/balances/:employeeId',  authMiddleware, leaveController.getEmployeeBalances);
+router.put('/balances/:employeeId',  authMiddleware, roleMiddleware(['hr', 'admin']), leaveController.updateEmployeeBalances);
 
 module.exports = router;
