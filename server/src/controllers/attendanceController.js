@@ -171,14 +171,39 @@ console.log('Location check result:', result);
       const latestCheckInConfig = locationConfig.workingHours.latestCheckInTime;
       const latestCheckIn = latestCheckInConfig.hours * 60 + latestCheckInConfig.minutes;
 
-      // Determine attendance status
-      if (checkInTotalMinutes <= latestCheckIn && checkOutTotalMinutes >= earliestCheckOut) {
+      // ─── Time boundary constants (in total minutes from midnight) ───────────
+      const LATE_CHECKIN_START    = 9 * 60 + 40;   // 9:40 AM
+      const LATE_CHECKIN_END      = 9 * 60 + 50;   // 9:50 AM
+      const SHORT_LEAVE_CHECKIN_END = 11 * 60;      // 11:00 AM
+      const SHORT_LEAVE_CHECKOUT_START = 17 * 60;   // 5:00 PM
+      const SHORT_LEAVE_CHECKOUT_END   = 18 * 60 + 30; // 6:30 PM
+      // ────────────────────────────────────────────────────────────────────────
+
+      // Condition 1: CheckIn between 9:40 - 9:50 → LATE
+      const isLateCheckIn = checkInTotalMinutes >= LATE_CHECKIN_START && checkInTotalMinutes < LATE_CHECKIN_END;
+
+      // Condition 2: CheckIn between 9:50 - 11:00 → SHORT LEAVE
+      const isShortLeaveByCheckIn = checkInTotalMinutes >= LATE_CHECKIN_END && checkInTotalMinutes < SHORT_LEAVE_CHECKIN_END;
+
+      // Condition 3: CheckOut between 17:00 - 18:30 → SHORT LEAVE
+      const isShortLeaveByCheckOut = checkOutTotalMinutes >= SHORT_LEAVE_CHECKOUT_START && checkOutTotalMinutes <= SHORT_LEAVE_CHECKOUT_END;
+
+      // ─── Status determination (priority order) ───────────────────────────────
+      if (isShortLeaveByCheckIn || isShortLeaveByCheckOut) {
+        // Short leave takes priority: late check-in (9:50-11:00) or early checkout (17:00-18:30)
+        attendance.status = 'short-leave';
+      } else if (isLateCheckIn) {
+        // Late check-in: arrived between 9:40 and 9:50
+        attendance.status = 'late';
+      } else if (checkInTotalMinutes <= latestCheckIn && checkOutTotalMinutes >= earliestCheckOut) {
+        // On time check-in + proper checkout → Present
         attendance.status = 'present';
       } else if (attendance.workingHours >= locationConfig.workingHours.minimumHoursForHalfDay) {
         attendance.status = 'half-day';
       } else {
         attendance.status = 'absent';
       }
+      // ─────────────────────────────────────────────────────────────────────────
 
       await attendance.save();
       res.json({
@@ -251,30 +276,29 @@ console.log('Location check result:', result);
           attendance.earlyCheckoutRequest?.status === 'pending') {
         return res.status(400).json({ 
           success: false,
-          message: 'Early checkout request already submitted and pending approval' 
+          message: 'Early checkout request already pending' 
         });
       }
 
       attendance.earlyCheckoutRequest = {
         requested: true,
-        reason: reason,
+        reason: reason.trim(),
         requestedAt: new Date(),
         status: 'pending'
       };
       attendance.status = 'pending-approval';
 
       await attendance.save();
-      
+
       res.json({
         success: true,
-        message: 'Early checkout request submitted successfully. Waiting for HR approval.',
+        message: 'Early checkout request submitted successfully',
         attendance
-        // Location check commented out - no location info in response
       });
     } catch (error) {
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        message: error.message 
+        message: error.message
       });
     }
   };
@@ -439,6 +463,8 @@ console.log('Location check result:', result);
         present: attendance.filter(a => a.status === 'present').length,
         absent: attendance.filter(a => a.status === 'absent').length,
         halfDay: attendance.filter(a => a.status === 'half-day').length,
+        late: attendance.filter(a => a.status === 'late').length,
+        shortLeave: attendance.filter(a => a.status === 'short-leave').length,
         leave: attendance.filter(a => a.status === 'leave').length,
         pending: attendance.filter(a => a.status === 'pending-approval').length,
         totalWorkingHours: attendance.reduce((sum, a) => sum + (a.workingHours || 0), 0).toFixed(2),
