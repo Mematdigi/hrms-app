@@ -110,28 +110,12 @@ const PayslipView = ({ payroll, employee, breakdown }) => {
               ['Bank Name',         emp.bankName    || 'N/A'],
               ['Total Working Days', b.workingDays  || 0],
               ['Days Attended',     att.presentDays || 0],
-              ['Paid Leaves',       att.paidLeaveDays || 0],
+              // ['Paid Leaves',       att.paidLeaveDays || 0],
               ['Leaves Taken',      (lv.casualLeavesTaken || 0) + (lv.sickLeavesTaken || 0) + (lv.earnedLeavesTaken || 0)],
             ].map(([label, val]) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', fontSize: 12.5, borderBottom: '1px solid #f0f0f0' }}>
                 <span style={{ color: '#666' }}>{label}</span>
                 <span style={{ fontWeight: 600 }}>{val}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Attendance Summary */}
-          <div style={{ color: '#1a237e', fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', margin: '16px 0 8px', borderBottom: '2px solid #1a237e', paddingBottom: 4 }}>Attendance Summary</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 4 }}>
-            {[
-              ['Present',   att.presentDays   || 0, '#10b981'],
-              ['Half Days', att.halfDays       || 0, '#f59e0b'],
-              ['Absent',    att.absentDays     || 0, '#ef4444'],
-              ['Late',      att.lateDays       || 0, '#f97316'],
-            ].map(([label, val, color]) => (
-              <div key={label} style={{ background: '#f5f5f5', borderRadius: 6, padding: 8, textAlign: 'center', fontSize: 12 }}>
-                <strong style={{ display: 'block', fontSize: 18, color }}>{val}</strong>
-                {label}
               </div>
             ))}
           </div>

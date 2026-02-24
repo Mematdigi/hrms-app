@@ -96,7 +96,8 @@ class PayrollController {
     }
 
     const baseSalary  = employee.baseSalary;
-    const workingDays = getWorkingDaysInMonth(year, month);  // actual Mon-Sat days
+    // const workingDays = getWorkingDaysInMonth(year, month);  // actual Mon-Sat days
+    const workingDays = 30; // fixed working days for payroll calculation (configurable)
     const startDate   = new Date(year, month - 1, 1);
     const endDate     = new Date(year, month, 0, 23, 59, 59);
 
@@ -234,16 +235,16 @@ class PayrollController {
     let deductions = 0;
 
     // Absent without leave — full day deduction
-    deductions += absentDays * perDaySalary;
+    deductions += (workingDays - workedDays)*perDaySalary;
 
-    // Unpaid leave — full day deduction
-    deductions += unpaidLeaveDays * perDaySalary;
+    // // Unpaid leave — full day deduction
+    // deductions += unpaidLeaveDays * perDaySalary;
 
-    // Half day — half day deduction
-    deductions += halfDays * (perDaySalary * 0.5);
+    // // Half day — half day deduction
+    // deductions += halfDays * (perDaySalary * 0.5);
 
-    // Late arrival — 0.25 day per late (configurable)
-    deductions += lateDays * (perDaySalary * 0.25);
+    // // Late arrival — 0.25 day per late (configurable)
+    // deductions += lateDays;
 
     // Excess casual/sick leaves beyond employee balance
     const leaveBalance = await Leave.findOne({ employee: employeeId, leaveType: 'Initial Allocation' });
