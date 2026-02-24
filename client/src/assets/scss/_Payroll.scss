@@ -1,691 +1,404 @@
-/* ==================== MAIN CONTAINER ==================== */
-/* Main wrapper for the entire payroll page */
-.payroll-container {
-  max-width: 1400px;      /* Maximum width to prevent content from stretching too wide */
-  margin: 0 auto;         /* Center the container horizontally */
-  padding: 5px 20px;     /* Spacing around the content */
-}
+/* Variables */
+$primary-blue: #1E3A8A;
+$primary-blue-light: #254baf;
+$success: #10B981;
+$danger: #EF4444;
+$warning: #F59E0B;
+$info: #3B82F6;
+$gray-100: #F3F4F6;
+$gray-200: #E5E7EB;
+$gray-300: #D1D5DB;
+$gray-600: #4B5563;
+$gray-800: #1F2937;
+$bg-color: #F8FAFC;
+$white: #FFFFFF;
 
-/* ==================== HEADER SECTION ==================== */
-/* Header containing title and generate button */
-.payroll-header {
-  display: flex;                    /* Use flexbox for layout */
-  justify-content: space-between;   /* Space between items */
-  align-items: center;              /* Vertically center items */
-  // margin-bottom: 30px;              /* Space below header */
-  flex-wrap: wrap;                  /* Allow wrapping on small screens */
-  gap: 15px;                        /* Space between wrapped items */
-}
+.payslip-container {
+  padding: 24px;
+  background-color: $bg-color;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+  color: $gray-800;
 
-/* Main heading style */
-.payroll-header h1 {
-  font-size: 32px;      /* Large heading size */
-  color: #333;          /* Dark gray color */
-  font-weight: 700;     /* Bold font weight */
-}
+  h2 {
+    margin-bottom: 24px;
+    font-size: 24px;
+    font-weight: 700;
+    color: $primary-blue;
+  }
 
-/* Pagination info text */
-.pagination-info {
-  font-size: 14px;      /* Small font size */
-  color: #666;          /* Medium gray color */
-  font-weight: 500;     /* Medium weight */
-}
+  /* Global UI Elements */
+  .badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
 
-/* ==================== GENERATE PAYROLL BUTTON ==================== */
-/* Button to open/close the payroll generation form */
-.generate-btn {
-  padding: 12px 24px;                                      /* Button spacing */
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Purple gradient */
-  color: white;                                            /* White text */
-  border: none;                                            /* Remove default border */
-  border-radius: 6px;                                      /* Rounded corners */
-  cursor: pointer;                                         /* Show pointer on hover */
-  font-weight: 600;                                        /* Semi-bold text */
-  transition: transform 0.2s ease, background 0.3s ease;   /* Smooth hover effects */
-}
+    &-success { background-color: rgba($success, 0.1); color: darken($success, 10%); }
+    &-danger { background-color: rgba($danger, 0.1); color: darken($danger, 10%); }
+    &-warning { background-color: rgba($warning, 0.2); color: darken($warning, 15%); }
+    &-info { background-color: rgba($info, 0.1); color: darken($info, 10%); }
+    &-light { background-color: $gray-100; color: $gray-600; }
+    &-secondary { background-color: transparent; border: 1px solid $gray-300; color: $gray-600;}
+  }
 
-/* Hover effect for generate button */
-.generate-btn:hover {
-  transform: translateY(-2px);                             /* Lift button slightly */
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); /* Reverse gradient */
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);       /* Add shadow on hover */
-}
+  .btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 
-/* ==================== PAYROLL TABLE CONTAINER ==================== */
-/* White card containing the employee table */
-.payroll-table {
-  background: white;                       /* White background */
-  border-radius: 12px;                     /* Rounded corners */
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Subtle shadow for depth */
-  // overflow: hidden;                    
-  margin-bottom: 30px;                 /* Space below table */
-}
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+    
+    &-primary { background-color: $primary-blue; color: $white; &:hover { background-color: $primary-blue-light; } }
+    &-success { background-color: $success; color: $white; }
+    &-danger { background-color: $danger; color: $white; }
+    &-outline { background-color: $gray-100; color: $gray-800; border: 1px solid $gray-300; &:hover { background-color: $gray-200; } }
+    &-ghost { background-color: transparent; color: $gray-600; &:hover { background-color: $gray-100; } }
+  }
 
-/* Table heading */
-.payroll-table h2 {
-  padding: 20px;           /* Spacing around heading */
-  margin: 0;               /* Remove default margin */
-  font-size: 20px;         /* Heading size */
-  color: #333;             /* Dark gray text */
-  border-bottom: 1px solid #eee; /* Bottom border separator */
-}
+  /* ================= HR VIEW ================= */
+  .hr-payslip-view {
+    
+    .filter-bar {
+      background-color: $primary-blue;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+      
+      .filter-header {
+        color: $white;
+        font-weight: 600;
+        margin-bottom: 16px;
+        font-size: 14px;
+      }
 
-/* ==================== TABLE STYLING ==================== */
-/* Main table element */
-// .payroll-table table {
-//   width: 100%;           /* Full width of container */
-//   border-collapse: collapse; /* Remove spacing between cells */
-// }
+      .filter-inputs {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
 
-// /* Table header cells */
-// .payroll-table th {
-//   background: #f5f5f5;     /* Light gray background */
-//   padding: 15px;           /* Cell padding */
-//   text-align: left;        /* Left-align text */
-//   font-weight: 600;        /* Semi-bold text */
-//   color: #333;             /* Dark gray text */
-//   border-bottom: 1px solid #ddd; /* Bottom border */
-//   font-size: 13px;         /* Slightly smaller font */
-//   white-space: nowrap;     /* Prevent text wrapping */
-// }
+        input, select {
+          flex: 1;
+          min-width: 150px;
+          padding: 10px 12px;
+          border-radius: 4px;
+          border: none;
+          outline: none;
+          font-size: 14px;
+        }
 
-// /* Table data cells */
-// .payroll-table td {
-//   padding: 15px;                 /* Cell padding */
-//   border-bottom: 1px solid #eee; /* Bottom border */
-//   font-size: 14px;               /* Standard font size */
-// }
+        .btn-outline {
+          background-color: $white;
+          border: none;
+        }
+      }
+    }
 
-// /* Row hover effect */
-// .payroll-table tbody tr:hover {
-//   background: #f9f9f9;   /* Light gray on hover */
-// }
+    .pending-requests-card {
+      background: $white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      margin-bottom: 24px;
+      border-left: 4px solid $warning;
 
-/* ==================== PAYROLL TABLE WRAPPER ==================== */
-.payroll-table {
-  margin-top: 24px;
-  background: #ffffff;
-  border-radius: 14px;
-  padding: 16px 18px;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-  border: 1px solid #e5e7eb;
-  
-  /* REMOVE SLIDER */
-  overflow-x: hidden !important;
-}
+      h4 { margin: 0 0 16px 0; font-size: 16px; display: flex; align-items: center; gap: 8px; }
 
-/* Title */
-.payroll-table h2 {
-  font-size: 17px;
-  margin: 0 0 14px;
-  font-weight: 600;
-  color: #0f172a;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+      .request-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: $gray-100;
+        padding: 16px;
+        border-radius: 6px;
 
-.payroll-table h2::before {
-  content: "";
-  width: 6px;
-  height: 18px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #667eea, #22c55e);
-}
+        .req-info {
+          h5 { margin: 0 0 4px 0; color: $gray-800; }
+          p { margin: 0 0 4px 0; font-size: 13px; color: $gray-600; }
+          small { color: $gray-600; font-size: 12px; }
+        }
+        .req-actions { display: flex; gap: 10px; }
+      }
+    }
 
-/* ==================== TABLE STYLING ==================== */
-.payroll-table table {
-  width: 100%;
-  border-collapse: collapse;
+    .table-card {
+      background: $white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      overflow: hidden;
 
-  /* AUTO FIT TABLE WITHOUT SCROLL */
-  table-layout: fixed;
-}
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        
+        th, td {
+          padding: 16px;
+          text-align: left;
+          font-size: 14px;
+          border-bottom: 1px solid $gray-200;
+        }
 
-/* Table header */
-.payroll-table th {
-  padding: 8px 10px;
-  background: #eef2ff;
-  font-size: 11px;
-  text-transform: uppercase;
-  border-bottom: 1px solid #d4d4d8;
-  color: #111827;
+        th {
+          background-color: #FAFAFA;
+          color: $gray-600;
+          font-weight: 500;
+        }
 
-  /* WRAPPING ENABLE */
-  white-space: normal !important;
-  word-break: break-word;
-}
+        .actions-cell {
+          display: flex;
+          gap: 12px;
 
-/* Table data cells */
-.payroll-table td {
-  padding: 10px 10px;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 12px;
-  color: #111827;
+          .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: $gray-600;
+            &:hover { color: $primary-blue; }
+            &:disabled { opacity: 0.3; cursor: not-allowed; }
+          }
+        }
+      }
 
-  /* FIX TEXT OVERFLOW */
-  word-break: break-word;
-  white-space: normal !important;
-}
+      .pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px;
+        color: $gray-600;
+        font-size: 14px;
 
-/* Make numeric columns right aligned */
-.payroll-table td:nth-child(8),
-.payroll-table td:nth-child(9),
-.payroll-table td:nth-child(10),
-.payroll-table td:nth-child(11),
-.payroll-table td:nth-child(12) {
-  text-align: right;
-}
+        .page-controls {
+          display: flex;
+          gap: 8px;
 
-/* Row Hover */
-.payroll-table tbody tr:hover {
-  background: #f3f4f6;
-  transition: 0.2s ease;
-}
+          button {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            border: 1px solid $gray-300;
+            background: $white;
+            cursor: pointer;
 
-/* Selected Row */
-.payroll-table tr.selected-row {
-  background: #e0e7ff;
-  box-shadow: inset 3px 0 0 #4f46e5;
-}
+            &.active {
+              background: $primary-blue;
+              color: $white;
+              border-color: $primary-blue;
+            }
+            &:disabled { opacity: 0.5; }
+          }
+        }
+      }
+    }
+  }
 
-.payroll-table tr.selected-row:hover {
-  background: #d7defc;
-}
+  /* ================= EMPLOYEE VIEW ================= */
+  .employee-payslip-view {
+    
+    .view-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      h2 { margin: 0; }
+      .badges { display: flex; gap: 12px; }
+    }
 
-/* Checkbox */
-.payroll-table input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: #667eea;
-  cursor: pointer;
-}
+    .filter-card {
+      background: $white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
 
-/* PDF Button */
-.pdf-btn {
-  padding: 5px 10px;
-  border-radius: 50px;
-  border: 1px solid #4f46e5;
-  background: #6366f1;
-  color: white;
-  font-size: 11px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  transition: 0.15s;
-}
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
 
-.pdf-btn:hover {
-  transform: scale(1.03);
-}
+        label { color: $gray-600; font-size: 14px; }
+        select {
+          padding: 8px 12px;
+          border: 1px solid $gray-300;
+          border-radius: 4px;
+          outline: none;
+        }
+        .year { font-weight: 600; color: $gray-800; }
+      }
+    }
 
-.pdf-btn.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+    .payslip-card {
+      background: $white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      overflow: hidden;
+      
+      .slip-header {
+        background-color: $primary-blue;
+        color: $white;
+        text-align: center;
+        padding: 24px;
 
-/* Form Row */
-.form-row-container td {
-  background: #f8fafc;
-  padding: 16px;
-}
+        h3 { margin: 0 0 8px 0; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+        p { margin: 0; font-size: 14px; opacity: 0.9; }
+      }
 
-/* Form Grid */
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-}
+      .slip-body {
+        padding: 32px;
 
-@media (max-width: 1024px) {
-  /* Fit contents better */
-  .form-grid {
-    grid-template-columns: repeat(2, 1fr);
+        .section-title {
+          color: $primary-blue;
+          font-size: 14px;
+          font-weight: 700;
+          margin: 0 0 16px 0;
+          text-transform: uppercase;
+        }
+
+        .details-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          row-gap: 16px;
+          column-gap: 48px;
+          margin-bottom: 40px;
+
+          div {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid $gray-100;
+            padding-bottom: 8px;
+
+            span { color: $gray-600; font-size: 13px; }
+            strong { color: $gray-800; font-size: 13px; text-align: right;}
+          }
+        }
+
+        .salary-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 40px;
+          margin-bottom: 32px;
+
+          .column {
+            .col-title { margin: 0 0 16px 0; font-size: 13px; font-weight: 700; }
+            .text-blue { color: $info; }
+            .text-red { color: $danger; }
+
+            .row {
+              display: flex;
+              justify-content: space-between;
+              padding: 10px 0;
+              font-size: 14px;
+              color: $gray-800;
+              border-bottom: 1px solid $gray-100;
+
+              &.total {
+                font-weight: 700;
+                border-top: 2px solid $gray-200;
+                border-bottom: none;
+                margin-top: 8px;
+              }
+            }
+          }
+        }
+
+        .net-salary-bar {
+          background-color: $primary-blue;
+          color: $white;
+          padding: 16px 24px;
+          border-radius: 6px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 18px;
+          font-weight: 600;
+          
+          .amount { font-size: 24px; font-weight: 700; }
+        }
+      }
+
+      .slip-footer {
+        text-align: center;
+        padding: 24px;
+        font-size: 12px;
+        font-style: italic;
+        color: $gray-600;
+        border-top: 1px solid $gray-200;
+      }
+    }
+
+    .restricted-access, .no-data {
+      text-align: center;
+      padding: 60px 20px;
+      background: $white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      color: $gray-600;
+    }
+  }
+
+  /* ================= MODAL ================= */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+
+    .modal-content {
+      background: $white;
+      padding: 32px;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 450px;
+
+      h3 { margin: 0 0 20px 0; color: $gray-800; }
+      
+      textarea {
+        width: 100%;
+        height: 100px;
+        padding: 12px;
+        border: 1px solid $gray-300;
+        border-radius: 6px;
+        resize: none;
+        margin-bottom: 24px;
+        font-family: inherit;
+        outline: none;
+        &:focus { border-color: $primary-blue; }
+      }
+
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+      }
+    }
   }
 }
 
+/* Responsive adjustments */
 @media (max-width: 768px) {
-  /* FULLY RESPONSIVE */
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .payroll-table th,
-  .payroll-table td {
-    font-size: 11px;
-    padding: 6px 6px;
-  }
-
-  .pdf-btn {
-    padding: 4px 8px;
-    font-size: 10px;
-  }
-}
-
-
-
-/* ==================== SELECTED ROW HIGHLIGHTING ==================== */
-/* Highlight rows where checkbox is selected */
-.payroll-table tr.selected-row {
-  background: #e8f4fd;              /* Light blue background */
-  border-left: 4px solid #667eea;   /* Blue left border indicator */
-}
-
-/* Hover effect for selected rows */
-.payroll-table tr.selected-row:hover {
-  background: #d6ebff;   /* Slightly darker blue on hover */
-}
-
-/* ==================== CHECKBOX STYLING ==================== */
-/* Custom checkbox appearance */
-.payroll-table input[type="checkbox"] {
-  cursor: pointer;       /* Show pointer cursor */
-  width: 18px;           /* Checkbox width */
-  height: 18px;          /* Checkbox height */
-  accent-color: #667eea; /* Purple checkbox color (modern browsers) */
-}
-
-
-
-/* ==================== INLINE FORM CONTAINER ==================== */
-/* Table row that contains the form */
-.form-row-container {
-  background: #f8f9ff !important; /* Light purple background (override table styling) */
-}
-
-/* Remove padding from the td containing the form */
-.form-row-container td {
-  padding: 0 !important;  /* No padding (form has its own padding) */
-}
-
-/* ==================== INLINE FORM STYLING ==================== */
-/* The actual form element inside the table row */
-.inline-payroll-form {
-  padding: 30px;                    /* Form padding */
-  animation: expandDown 0.3s ease-out; /* Smooth expand animation */
-  border-left: 4px solid #667eea;   /* Blue left border */
-}
-
-/* ==================== FORM EXPAND ANIMATION ==================== */
-/* Animation for form appearing */
-@keyframes expandDown {
-  from {
-    opacity: 0;           /* Start invisible */
-    max-height: 0;        /* Start collapsed */
-    padding: 0 30px;      /* Collapsed padding */
-  }
-  to {
-    opacity: 1;           /* End fully visible */
-    max-height: 1000px;   /* End expanded */
-    padding: 30px;        /* Full padding */
-  }
-}
-
-/* Form heading */
-.inline-payroll-form h3 {
-  font-size: 18px;       /* Heading size */
-  color: #667eea;        /* Purple color */
-  margin-bottom: 20px;   /* Space below */
-  font-weight: 600;      /* Semi-bold */
-}
-
-/* ==================== EMPLOYEE VERIFICATION BOX ==================== */
-/* Box showing selected employees for verification */
-.selected-employees-box {
-  background: #fff;               /* White background */
-  border: 2px solid #667eea;      /* Purple border */
-  border-radius: 8px;             /* Rounded corners */
-  padding: 15px;                  /* Inner spacing */
-  margin-bottom: 25px;            /* Space below */
-}
-
-/* Verification box heading */
-.selected-employees-box h4 {
-  font-size: 14px;       /* Small heading */
-  color: #333;           /* Dark gray */
-  margin: 0 0 12px 0;    /* Space below only */
-  font-weight: 600;      /* Semi-bold */
-}
-
-/* ==================== EMPLOYEE CHIPS ==================== */
-/* Container for employee chips */
-.employee-chips {
-  display: flex;         /* Use flexbox */
-  flex-wrap: wrap;       /* Allow wrapping to multiple lines */
-  gap: 10px;             /* Space between chips */
-}
-
-/* Individual employee chip */
-.employee-chip {
-  display: inline-flex;                                    /* Inline flex container */
-  align-items: center;                                     /* Center items vertically */
-  gap: 8px;                                                /* Space between elements */
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Purple gradient */
-  color: white;                                            /* White text */
-  padding: 8px 12px;                                       /* Chip padding */
-  border-radius: 20px;                                     /* Pill shape */
-  font-size: 13px;                                         /* Small font */
-  animation: chipAppear 0.3s ease-out;                     /* Appear animation */
-}
-
-/* ==================== CHIP APPEAR ANIMATION ==================== */
-/* Animation when chip appears */
-@keyframes chipAppear {
-  from {
-    opacity: 0;           /* Start invisible */
-    transform: scale(0.8); /* Start smaller */
-  }
-  to {
-    opacity: 1;           /* End visible */
-    transform: scale(1);   /* End normal size */
-  }
-}
-
-/* Employee ID badge inside chip */
-.employee-chip .emp-id {
-  font-weight: 700;                    /* Bold text */
-  background: rgba(255, 255, 255, 0.25); /* Semi-transparent white */
-  padding: 2px 8px;                    /* Badge padding */
-  border-radius: 10px;                 /* Rounded badge */
-  font-size: 12px;                     /* Smaller font */
-}
-
-/* Employee name inside chip */
-.employee-chip .emp-name {
-  font-weight: 500;      /* Medium weight */
-}
-
-/* Remove button (×) inside chip */
-.employee-chip .remove-chip {
-  background: rgba(255, 255, 255, 0.2); /* Semi-transparent white */
-  border: none;                         /* No border */
-  color: white;                         /* White × symbol */
-  font-size: 20px;                      /* Large × */
-  line-height: 1;                       /* Tight line height */
-  width: 22px;                          /* Circle width */
-  height: 22px;                         /* Circle height */
-  border-radius: 50%;                   /* Perfect circle */
-  cursor: pointer;                      /* Show pointer */
-  display: flex;                        /* Center content */
-  align-items: center;                  /* Center vertically */
-  justify-content: center;              /* Center horizontally */
-  transition: background 0.2s ease;     /* Smooth hover */
-  padding: 0;                           /* No padding */
-}
-
-/* Hover effect for remove button */
-.employee-chip .remove-chip:hover {
-  background: rgba(255, 255, 255, 0.4); /* More opaque on hover */
-}
-
-/* ==================== FORM GRID LAYOUT ==================== */
-/* Grid for form input fields */
-.form-grid {
-  display: grid;                        /* CSS Grid layout */
-  grid-template-columns: repeat(3, 1fr); /* 3 equal columns */
-  gap: 20px;                            /* Space between fields */
-  margin-bottom: 20px;                  /* Space below grid */
-}
-
-/* ==================== FORM GROUP (Input Container) ==================== */
-/* Wrapper for each form field */
-.form-group {
-  display: flex;           /* Flexbox for vertical stacking */
-  flex-direction: column;  /* Stack label above input */
-}
-
-/* Input labels */
-.form-group label {
-  font-size: 13px;       /* Small label text */
-  font-weight: 600;      /* Semi-bold */
-  color: #555;           /* Medium gray */
-  margin-bottom: 6px;    /* Space below label */
-}
-
-/* Input fields and select dropdowns */
-.form-group input,
-.form-group select {
-  padding: 10px 12px;                  /* Input padding */
-  border: 1px solid #ddd;              /* Light gray border */
-  border-radius: 6px;                  /* Rounded corners */
-  font-size: 14px;                     /* Input text size */
-  transition: border-color 0.3s ease;  /* Smooth border color change */
-}
-
-/* Focus state for inputs */
-.form-group input:focus,
-.form-group select:focus {
-  outline: none;                         /* Remove default outline */
-  border-color: #667eea;                 /* Purple border */
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); /* Purple glow */
-}
-
-/* ==================== FORM ACTION BUTTONS ==================== */
-/* Container for submit and cancel buttons */
-.form-actions {
-  display: flex;           /* Flexbox layout */
-  gap: 10px;               /* Space between buttons */
-  justify-content: flex-end; /* Push buttons to right */
-}
-
-/* ==================== SAVE PAYROLL BUTTON ==================== */
-/* Submit button styling */
-.save-payroll-btn {
-  padding: 12px 30px;                                      /* Button padding */
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Purple gradient */
-  color: white;                                            /* White text */
-  border: none;                                            /* No border */
-  border-radius: 6px;                                      /* Rounded corners */
-  font-size: 14px;                                         /* Button text size */
-  font-weight: 600;                                        /* Semi-bold */
-  cursor: pointer;                                         /* Pointer cursor */
-  transition: transform 0.2s ease, box-shadow 0.3s ease;   /* Smooth effects */
-  width: 83%;
-}
-
-/* Hover effect for save button */
-.save-payroll-btn:hover {
-  transform: translateY(-2px);                    /* Lift button */
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4); /* Purple shadow */
-}
-
-/* ==================== CANCEL BUTTON ==================== */
-/* Cancel button styling */
-.cancel-btn {
-  padding: 12px 30px;            /* Button padding */
-  background: #f5f5f5;           /* Light gray background */
-  color: #666;                   /* Medium gray text */
-  border: 1px solid #ddd;        /* Light gray border */
-  border-radius: 6px;            /* Rounded corners */
-  font-size: 14px;               /* Button text size */
-  font-weight: 600;              /* Semi-bold */
-  cursor: pointer;               /* Pointer cursor */
-  transition: background 0.3s ease; /* Smooth background change */
-}
-
-/* Hover effect for cancel button */
-.cancel-btn:hover {
-  background: #e0e0e0;   /* Darker gray on hover */
-}
-
-/* ==================== PAGINATION SECTION ==================== */
-/* Pagination container */
-.pagination {
-  display: flex;                /* Flexbox layout */
-  justify-content: center;      /* Center pagination */
-  align-items: center;          /* Vertically center items */
-  gap: 10px;                    /* Space between elements */
-  margin-top: 30px;             /* Space above pagination */
-  flex-wrap: wrap;              /* Allow wrapping on small screens */
-}
-
-/* Pagination button (Previous/Next) */
-.pagination-btn {
-  padding: 10px 20px;                                      /* Button padding */
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Purple gradient */
-  color: white;                                            /* White text */
-  border: none;                                            /* No border */
-  border-radius: 6px;                                      /* Rounded corners */
-  cursor: pointer;                                         /* Pointer cursor */
-  font-weight: 600;                                        /* Semi-bold */
-  font-size: 14px;                                         /* Button text size */
-  transition: transform 0.2s ease, opacity 0.3s ease;      /* Smooth effects */
-}
-
-/* Hover effect for pagination button */
-.pagination-btn:hover:not(:disabled) {
-  transform: translateY(-2px);   /* Lift button */
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); /* Add shadow */
-}
-
-/* Disabled state for pagination button */
-.pagination-btn:disabled {
-  opacity: 0.5;          /* Faded appearance */
-  cursor: not-allowed;   /* Not-allowed cursor */
-  transform: none;       /* No lift effect */
-}
-
-/* Pagination numbers container */
-.pagination-numbers {
-  display: flex;         /* Flexbox layout */
-  gap: 5px;              /* Space between numbers */
-  flex-wrap: wrap;       /* Allow wrapping */
-}
-
-/* Individual page number button */
-.pagination-number {
-  padding: 8px 14px;               /* Button padding */
-  background: white;               /* White background */
-  color: #667eea;                  /* Purple text */
-  border: 1px solid #667eea;       /* Purple border */
-  border-radius: 6px;              /* Rounded corners */
-  cursor: pointer;                 /* Pointer cursor */
-  font-weight: 600;                /* Semi-bold */
-  font-size: 14px;                 /* Button text size */
-  transition: all 0.3s ease;       /* Smooth transitions */
-}
-
-/* Hover effect for page number */
-.pagination-number:hover {
-  background: #f0f0ff;   /* Light purple background */
-  transform: translateY(-2px);   /* Lift button */
-}
-
-/* Active page number */
-.pagination-number.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Purple gradient */
-  color: white;                    /* White text */
-  border-color: transparent;       /* No border */
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); /* Add shadow */
-}
-
-/* ==================== LOADING STATE ==================== */
-/* Loading spinner/message */
-.loading {
-  text-align: center;    /* Center text */
-  padding: 50px;         /* Large padding */
-  font-size: 18px;       /* Large text */
-  color: #667eea;        /* Purple color */
-  font-weight: 600;      /* Semi-bold */
-}
-
-/* ==================== RESPONSIVE DESIGN ==================== */
-/* ========== TABLET (1024px and below) ========== */
-@media (max-width: 1024px) {
-  /* Change form grid to 2 columns on tablets */
-  .form-grid {
-    grid-template-columns: repeat(2, 1fr); /* 2 equal columns */
-  }
-
-  /* Adjust table for better mobile viewing */
-  .payroll-table {
-    overflow-x: auto;    /* Enable horizontal scroll */
-  }
-}
-
-/* ========== MOBILE (768px and below) ========== */
-@media (max-width: 768px) {
-  /* Reduce container padding on mobile */
-  .payroll-container {
-    padding: 20px 15px;
-  }
-
-  /* Stack header items vertically on mobile */
-  .payroll-header {
-    flex-direction: column;   /* Stack vertically */
-    gap: 15px;                /* Space between items */
-    align-items: flex-start;  /* Align to left */
-  }
-
-  /* Single column form on mobile */
-  .form-grid {
-    grid-template-columns: 1fr; /* 1 column */
-  }
-
-  /* Reduce form padding on mobile */
-  .inline-payroll-form {
-    padding: 20px;
-  }
-
-  /* Stack employee chips vertically on mobile */
-  .employee-chips {
-    flex-direction: column;
-  }
-
-  /* Full-width chips on mobile */
-  .employee-chip {
-    width: 100%;                    /* Full width */
-    justify-content: space-between; /* Space between content */
-  }
-
-  /* Stack form buttons vertically on mobile */
-  .form-actions {
-    flex-direction: column;
-  }
-
-  /* Full-width buttons on mobile */
-  .save-payroll-btn,
-  .cancel-btn {
-    width: 100%;
-  }
-
-  /* Reduce table cell padding on mobile */
-  .payroll-table th,
-  .payroll-table td {
-    padding: 12px 8px;   /* Smaller padding */
-    font-size: 12px;     /* Smaller text */
-  }
-
-  /* Smaller header text on mobile */
-  .payroll-table th {
-    font-size: 11px;
-  }
-
-  /* Full-width generate button on mobile */
-  .generate-btn {
-    width: 100%;         /* Full width */
-    padding: 14px;       /* Larger padding */
-  }
-
-  /* Enable horizontal scrolling for table on mobile */
-  .payroll-table {
-    overflow-x: auto;    /* Allow horizontal scroll */
-  }
-
-  /* Stack pagination vertically on mobile */
-  .pagination {
-    flex-direction: column;   /* Stack vertically */
-    gap: 15px;                /* More space between elements */
-  }
-
-  /* Full-width pagination buttons on mobile */
-  .pagination-btn {
-    width: 100%;              /* Full width */
-  }
-
-  /* Center pagination numbers */
-  .pagination-numbers {
-    justify-content: center;  /* Center numbers */
+  .payslip-container {
+    padding: 16px;
+    
+    .employee-payslip-view .payslip-card .slip-body {
+      padding: 20px;
+      .details-grid, .salary-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+    }
   }
 }
