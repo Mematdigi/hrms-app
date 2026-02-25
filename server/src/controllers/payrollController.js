@@ -3,6 +3,7 @@ const Attendance = require('../models/Attendance');
 const User       = require('../models/User');
 const Leave      = require('../models/Leave');
 const catchAsync = require('../utils/catchAsync');
+const Holiday    = require('../models/Holiday.modal');
 
 // ─── Helper: count working days in a month (Mon–Sat, skip Sundays) ────────────
 function getWorkingDaysInMonth(year, month) {
@@ -83,6 +84,9 @@ class PayrollController {
   // ───────────────────────────────────────────────────────────────────────────
   // CORE CALCULATION ENGINE
   // ───────────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // CORE CALCULATION ENGINE
+  // ───────────────────────────────────────────────────────────────────────────
   static async _computeAndSave(employeeId, month, year) {
 
     // 1. Employee record (source of baseSalary)
@@ -96,10 +100,36 @@ class PayrollController {
     }
 
     const baseSalary  = employee.baseSalary;
-    // const workingDays = getWorkingDaysInMonth(year, month);  // actual Mon-Sat days
-    const workingDays = 30; // fixed working days for payroll calculation (configurable)
     const startDate   = new Date(year, month - 1, 1);
     const endDate     = new Date(year, month, 0, 23, 59, 59);
+
+    // ── NEW: fetch public holidays for this month from DB ─────────────────────
+    const holidayDocs = await Holiday.find({
+      year,
+      month,
+      isActive: true
+    }).select('date');
+    const holidaySet = new Set(holidayDocs.map(h => new Date(h.date).toISOString().split('T')[0]));
+
+    // ── NEW: helper — is this the 2nd or 4th Saturday? ────────────────────────
+    const isWeekOff = (date) => {
+      const day = date.getDay();
+      if (day === 0) return true;                          // Sunday — always off
+      if (day === 6) {
+        const saturdayIndex = Math.ceil(date.getDate() / 7);
+        return saturdayIndex === 2 || saturdayIndex === 4; // 2nd & 4th Saturday off
+      }
+      return false;
+    };
+
+    // ── NEW: count actual working days (used instead of hardcoded 30) ─────────
+    const totalDaysInMonth = new Date(year, month, 0).getDate();
+    let workingDays = 0;
+    for (let d = 1; d <= totalDaysInMonth; d++) {
+      const date    = new Date(year, month - 1, d);
+      const dateKey = date.toISOString().split('T')[0];
+      if (!isWeekOff(date) && !holidaySet.has(dateKey)) workingDays++;
+    }
 
     // 2. Attendance records for the month
     const attendanceRecords = await Attendance.find({
@@ -132,7 +162,7 @@ class PayrollController {
       attendanceMap.set(new Date(r.date).toISOString().split('T')[0], r.status);
     });
 
-    // 6. Walk every calendar day of the month (skip Sundays)
+    // 6. Walk every calendar day of the month
     let presentDays       = 0;
     let halfDays          = 0;
     let paidLeaveDays     = 0;
@@ -144,14 +174,20 @@ class PayrollController {
     let sickLeavesTaken   = 0;
     let earnedLeavesTaken = 0;
 
-    const totalDaysInMonth = new Date(year, month, 0).getDate();
-
     for (let d = 1; d <= totalDaysInMonth; d++) {
       const date    = new Date(year, month - 1, d);
-      const dayOfWk = date.getDay();
-      if (dayOfWk === 0) continue; // Skip Sundays
+      const dateKey = date.toISOString().split('T')[0];
 
-      const dateKey   = date.toISOString().split('T')[0];
+      // ── SKIP: Sunday, 2nd/4th Saturday, public holiday ────────────────────
+      if (isWeekOff(date)) {
+        console.log(`Skipping ${dateKey} (${date.getDay() === 0 ? 'Sunday' : '2nd/4th Saturday'})`);
+        continue;
+      }
+      if (holidaySet.has(dateKey)) {
+        console.log(`Skipping ${dateKey} (Public Holiday)`);
+        continue;
+      }
+
       const attStatus = attendanceMap.get(dateKey);
       const leaveType = leaveDateMap.get(dateKey);
 
@@ -162,8 +198,8 @@ class PayrollController {
             unpaidLeaveDays++;
           } else {
             paidLeaveDays++;
-            if (leaveType === 'casual') casualLeavesTaken++;
-            else if (leaveType === 'sick') sickLeavesTaken++;
+            if (leaveType === 'casual')      casualLeavesTaken++;
+            else if (leaveType === 'sick')   sickLeavesTaken++;
             else if (leaveType === 'earned') earnedLeavesTaken++;
           }
         } else {
@@ -197,8 +233,8 @@ class PayrollController {
             if (leaveType === 'unpaid') { unpaidLeaveDays++; }
             else {
               paidLeaveDays++;
-              if (leaveType === 'casual') casualLeavesTaken++;
-              else if (leaveType === 'sick') sickLeavesTaken++;
+              if (leaveType === 'casual')      casualLeavesTaken++;
+              else if (leaveType === 'sick')   sickLeavesTaken++;
               else if (leaveType === 'earned') earnedLeavesTaken++;
             }
           } else {
@@ -211,8 +247,8 @@ class PayrollController {
             if (leaveType === 'unpaid') { unpaidLeaveDays++; }
             else {
               paidLeaveDays++;
-              if (leaveType === 'casual') casualLeavesTaken++;
-              else if (leaveType === 'sick') sickLeavesTaken++;
+              if (leaveType === 'casual')      casualLeavesTaken++;
+              else if (leaveType === 'sick')   sickLeavesTaken++;
               else if (leaveType === 'earned') earnedLeavesTaken++;
             }
           } else {
@@ -235,7 +271,7 @@ class PayrollController {
     let deductions = 0;
 
     // Absent without leave — full day deduction
-    deductions += (workingDays - workedDays)*perDaySalary;
+    deductions += (workingDays - workedDays) * perDaySalary;
 
     // // Unpaid leave — full day deduction
     // deductions += unpaidLeaveDays * perDaySalary;
