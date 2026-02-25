@@ -11,3 +11,4 @@ module.exports.leaveController = require('./leaveController');
 module.exports.payrollController = require('./payrollController');
 module.exports.performanceController = require('./performanceController');
 module.exports.roleController = require('./roleController');
+module.exports.holidayController = require('./holidayController');

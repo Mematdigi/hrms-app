@@ -24,6 +24,7 @@ const defaultRoutes = [
   { path: '/payroll',     route: payrollRoutes },
   { path: '/performance', route: performanceRoutes },
   { path: '/roles',       route: roleRoutes },
+  { path: '/holidays',    route: require('./holidayRoutes') },
 ];
 
 defaultRoutes.forEach(({ path, route }) => router.use(path, route));

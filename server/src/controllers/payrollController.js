@@ -96,7 +96,7 @@ class PayrollController {
     }
 
     const baseSalary  = employee.baseSalary;
-    // const workingDays = getWorkingDaysInMonth(year, month);  // actual Mon-Sat days
+    //  const workingDays = getWorkingDaysInMonth(year, month);  // actual Mon-Sat days
     const workingDays = 30; // fixed working days for payroll calculation (configurable)
     const startDate   = new Date(year, month - 1, 1);
     const endDate     = new Date(year, month, 0, 23, 59, 59);
@@ -149,8 +149,10 @@ class PayrollController {
     for (let d = 1; d <= totalDaysInMonth; d++) {
       const date    = new Date(year, month - 1, d);
       const dayOfWk = date.getDay();
-      if (dayOfWk === 0) continue; // Skip Sundays
-
+      if (dayOfWk === 1) 
+      {console.log(`Skipping ${date.toISOString().split('T')[0]} (Sunday)`);
+        continue; // Skip Sundays
+      }
       const dateKey   = date.toISOString().split('T')[0];
       const attStatus = attendanceMap.get(dateKey);
       const leaveType = leaveDateMap.get(dateKey);
