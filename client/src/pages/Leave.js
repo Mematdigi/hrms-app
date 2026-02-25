@@ -23,34 +23,34 @@ import { json } from 'react-router-dom';
 function Leave() {
 
   // ── State ──
-  const [leaves,        setLeaves]        = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [activeTab,     setActiveTab]     = useState('my-leaves');
-  const [searchQuery,   setSearchQuery]   = useState('');
-  const [selectedStatus,setSelectedStatus]= useState('');
+  const [leaves, setLeaves] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('my-leaves');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
 
   // ✅ FIX: leaveType now uses DB enum values (lowercase)
   const [formData, setFormData] = useState({
     leaveType: 'casual',   // enum: 'casual' | 'sick' | 'earned' | ...
-    category:  'Full',     // 'Short' | 'Full'
+    category: 'Full',     // 'Short' | 'Full'
     startDate: new Date().toISOString().split('T')[0],
-    endDate:   new Date().toISOString().split('T')[0],
-    fromTime:  '',
-    toTime:    '',
-    reason:    ''
+    endDate: new Date().toISOString().split('T')[0],
+    fromTime: '',
+    toTime: '',
+    reason: ''
   });
 
-  const [successMessage,   setSuccessMessage]   = useState('');
-  const [errorMessage,     setErrorMessage]     = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
-  const [isRejectModalOpen,setIsRejectModalOpen]= useState(false);
-  const [isDetailModalOpen,setIsDetailModalOpen]= useState(false);
-  const [selectedLeave,    setSelectedLeave]    = useState(null);
-  const [rejectionRemark,  setRejectionRemark]  = useState('');
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedLeave, setSelectedLeave] = useState(null);
+  const [rejectionRemark, setRejectionRemark] = useState('');
 
   const [leaveDefaults, setLeaveDefaults] = useState({ casualDefault: 8, sickDefault: 6, shortLeaveDefault: 3 });
-  const [balances,      setBalances]      = useState(null);
-  const [settingsForm,  setSettingsForm]  = useState({ casualDefault: '', sickDefault: '' });
+  const [balances, setBalances] = useState(null);
+  const [settingsForm, setSettingsForm] = useState({ casualDefault: '', sickDefault: '' });
 
   const { user } = useSelector((state) => state.auth);
 
@@ -115,14 +115,14 @@ function Leave() {
 
   const getStats = () => {
     return {
-      total:    leaves.length,
-      pending:  leaves.filter(l => l.status === 'pending').length,
+      total: leaves.length,
+      pending: leaves.filter(l => l.status === 'pending').length,
       approved: leaves.filter(l => l.status === 'approved').length,
       rejected: leaves.filter(l => l.status === 'rejected').length,
-      today:    leaves.filter(l => {
-        const today = new Date().setHours(0,0,0,0);
-        const start = new Date(l.startDate).setHours(0,0,0,0);
-        const end   = new Date(l.endDate).setHours(0,0,0,0);
+      today: leaves.filter(l => {
+        const today = new Date().setHours(0, 0, 0, 0);
+        const start = new Date(l.startDate).setHours(0, 0, 0, 0);
+        const end = new Date(l.endDate).setHours(0, 0, 0, 0);
         return l.status === 'approved' && today >= start && today <= end;
       }).length
     };
@@ -136,13 +136,13 @@ function Leave() {
   };
 
   // ── Short leave remaining this month ──
-  const shortLeavesUsed  = balances?.shortLeavesUsed  ?? 0;
+  const shortLeavesUsed = balances?.shortLeavesUsed ?? 0;
   const shortLeavesLimit = balances?.shortLeavesLimit ?? 3;
-  const shortLeavesLeft  = Math.max(shortLeavesLimit - shortLeavesUsed, 0);
+  const shortLeavesLeft = Math.max(shortLeavesLimit - shortLeavesUsed, 0);
 
   // ── Monthly casual / sick limits (1 each per month) ──
   const CASUAL_MONTHLY_LIMIT = 1;
-  const SICK_MONTHLY_LIMIT   = 1;
+  const SICK_MONTHLY_LIMIT = 1;
 
   const currentMonthYear = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
 
@@ -157,13 +157,13 @@ function Leave() {
   }).length;
 
   const isCasualLimitReached = casualUsedThisMonth >= CASUAL_MONTHLY_LIMIT;
-  const isSickLimitReached   = sickUsedThisMonth   >= SICK_MONTHLY_LIMIT;
+  const isSickLimitReached = sickUsedThisMonth >= SICK_MONTHLY_LIMIT;
 
   // Build a message for whichever limits are reached
   const getLimitWarning = () => {
     const msgs = [];
     if (isCasualLimitReached) msgs.push('Casual Leave');
-    if (isSickLimitReached)   msgs.push('Sick Leave');
+    if (isSickLimitReached) msgs.push('Sick Leave');
     if (shortLeavesLeft === 0) msgs.push('Short Leave');
     if (msgs.length === 0) return '';
     return `⚠️ Your limit for ${msgs.join(', ')} is full for this month.`;
@@ -197,14 +197,14 @@ function Leave() {
       // ✅ FIX: payload uses correct enum values
       const payload = {
         employeeId: user?.id,
-        leaveType:  formData.leaveType,   // 'casual', 'sick', 'earned' — correct enums
-        category:   formData.category ,   // 'Short' | 'Full'
-        startDate:  formData.startDate,
-        endDate:    formData.category === 'Short' ? formData.startDate : formData.endDate,
-        reason:     formData.reason,
+        leaveType: formData.leaveType,   // 'casual', 'sick', 'earned' — correct enums
+        category: formData.category,   // 'Short' | 'Full'
+        startDate: formData.startDate,
+        endDate: formData.category === 'Short' ? formData.startDate : formData.endDate,
+        reason: formData.reason,
         ...(formData.category === 'Short' && {
           fromTime: formData.fromTime,
-          toTime:   formData.toTime,
+          toTime: formData.toTime,
           leaveType: 'short', // Override to 'short' for short leave category
           category: 'Full'   // No need to send category to backend
         })
@@ -215,12 +215,12 @@ function Leave() {
       setErrorMessage('');
       setFormData({
         leaveType: 'casual',
-        category:  'Full',
+        category: 'Full',
         startDate: new Date().toISOString().split('T')[0],
-        endDate:   new Date().toISOString().split('T')[0],
-        fromTime:  '',
-        toTime:    '',
-        reason:    ''
+        endDate: new Date().toISOString().split('T')[0],
+        fromTime: '',
+        toTime: '',
+        reason: ''
       });
       setIsApplyModalOpen(false);
       fetchLeaves();
@@ -235,10 +235,10 @@ function Leave() {
   const handleApprove = async (leave) => {
     try {
       await leaveAPI.approve({
-        leaveId:     leave._id,
-        approverId:  user?.id,
-        numberOfDays:leave.numberOfDays,
-        leaveType:   leave.leaveType
+        leaveId: leave._id,
+        approverId: user?.id,
+        numberOfDays: leave.numberOfDays,
+        leaveType: leave.leaveType
       });
       fetchLeaves();
     } catch (error) { console.error(error); }
@@ -253,11 +253,11 @@ function Leave() {
     if (!rejectionRemark || !selectedLeave) return;
     try {
       await leaveAPI.reject({
-        leaveId:         selectedLeave._id,
-        numberOfDays:    selectedLeave.numberOfDays,
-        leaveType:       selectedLeave.leaveType,
+        leaveId: selectedLeave._id,
+        numberOfDays: selectedLeave.numberOfDays,
+        leaveType: selectedLeave.leaveType,
         rejectionReason: rejectionRemark,
-        approverId:      user?.id,
+        approverId: user?.id,
       });
       setIsRejectModalOpen(false);
       setRejectionRemark('');
@@ -267,11 +267,11 @@ function Leave() {
 
   // ── Calendar ──
   const renderCalendar = () => {
-    const today          = new Date();
-    const currentMonth   = today.getMonth();
-    const currentYear    = today.getFullYear();
-    const daysInMonth    = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const firstDayOfMonth= new Date(currentYear, currentMonth, 1).getDay();
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
 
     const days = [];
     for (let i = 0; i < firstDayOfMonth; i++) {
@@ -280,17 +280,17 @@ function Leave() {
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const daysLeave  = leaves.find(l => {
+      const daysLeave = leaves.find(l => {
         const start = new Date(l.startDate);
-        const end   = new Date(l.endDate);
-        const curr  = new Date(dateString);
+        const end = new Date(l.endDate);
+        const curr = new Date(dateString);
         return curr >= start && curr <= end;
       });
 
       let statusClass = '';
       if (daysLeave) {
-        if      (daysLeave.status === 'approved') statusClass = 'dot-green';
-        else if (daysLeave.status === 'pending')  statusClass = 'dot-orange';
+        if (daysLeave.status === 'approved') statusClass = 'dot-green';
+        else if (daysLeave.status === 'pending') statusClass = 'dot-orange';
         else if (daysLeave.status === 'rejected') statusClass = 'dot-red';
       }
 
@@ -307,11 +307,103 @@ function Leave() {
 
   const filteredLeaves = getFilteredLeaves();
 
-  const holidays = [
-    { name: 'Holi',       date: '10 Mar 2026', day: 'Tuesday'  },
-    { name: 'Good Friday',date: '03 Apr 2026', day: 'Friday'   },
-    { name: 'Eid ul-Fitr',date: '21 Mar 2026', day: 'Saturday' },
-  ];
+  // ── Holiday Management State ──────────────────────────────────────────────
+  const [holidays, setHolidays] = useState([
+    { id: 1, name: 'New Year', date: '1st January 2026', day: 'Thursday' },
+    { id: 2, name: 'Republic Day', date: '26th January 2026', day: 'Monday' },
+    { id: 3, name: 'Mahashivratri', date: '15th February 2026', day: 'Sunday' },
+    { id: 4, name: 'Holi', date: '4th March 2026', day: 'Wednesday' },
+    { id: 5, name: 'Independence Day', date: '15th August 2026', day: 'Saturday' },
+    { id: 6, name: 'Rakshabandhan', date: '28th August 2026', day: 'Thursday' },
+    { id: 7, name: 'Janmashtami', date: '4th September 2026', day: 'Friday' },
+    { id: 8, name: 'Gandhi Jayanti', date: '2nd October 2026', day: 'Friday' },
+    { id: 9, name: 'Dussehra (Vijayadashami)', date: '20th October 2026', day: 'Tuesday' },
+    { id: 10, name: 'Diwali', date: '8th – 11th November 2026', day: 'Sunday – Wednesday' },
+    { id: 11, name: 'Govardhan Puja', date: '8th – 11th November 2026', day: 'Sunday – Wednesday' },
+    { id: 12, name: 'Bhai Dooj', date: '8th – 11th November 2026', day: 'Sunday – Wednesday' },
+    { id: 13, name: 'Christmas Day', date: '25th December 2026', day: 'Friday' },
+  ]);
+
+  const [showHolidayView, setShowHolidayView] = useState(false);
+  const [showHolidayEdit, setShowHolidayEdit] = useState(false);
+  const [showHolidayUpload, setShowHolidayUpload] = useState(false);
+  const [editHolidays, setEditHolidays] = useState([]);
+  const [uploadError, setUploadError] = useState('');
+  const [uploadSuccess, setUploadSuccess] = useState('');
+
+  const openHolidayEdit = () => {
+    setEditHolidays(holidays.map(h => ({ ...h })));
+    setShowHolidayEdit(true);
+  };
+
+  const handleEditHolidayChange = (id, field, value) => {
+    setEditHolidays(prev => prev.map(h => h.id === id ? { ...h, [field]: value } : h));
+  };
+
+  const handleAddHolidayRow = () => {
+    const newId = Math.max(0, ...editHolidays.map(h => h.id)) + 1;
+    setEditHolidays(prev => [...prev, { id: newId, name: '', date: '', day: '' }]);
+  };
+
+  const handleDeleteHolidayRow = (id) => {
+    setEditHolidays(prev => prev.filter(h => h.id !== id));
+  };
+
+  const saveEditedHolidays = () => {
+    setHolidays(editHolidays.filter(h => h.name.trim()));
+    setShowHolidayEdit(false);
+  };
+
+  const handleHolidayFileUpload = (e) => {
+    setUploadError('');
+    setUploadSuccess('');
+    const file = e.target.files[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    if (ext === 'json') {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          const arr = Array.isArray(parsed) ? parsed : parsed.holidays || [];
+          if (!arr.length) { setUploadError('No holidays found in JSON.'); return; }
+          const mapped = arr.map((h, i) => ({
+            id: i + 1,
+            name: h.name || h.holiday || h.Holiday || '',
+            date: h.date || h.Date || '',
+            day: h.day || h.Day || '',
+          }));
+          setHolidays(mapped);
+          setUploadSuccess('\u2705 ' + mapped.length + ' holidays imported from JSON!');
+        } catch { setUploadError('Invalid JSON format.'); }
+      };
+      reader.readAsText(file);
+    } else if (ext === 'csv') {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const lines = ev.target.result.split('\n').filter(l => l.trim());
+          const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+          const nameIdx = headers.findIndex(h => h.includes('name') || h.includes('holiday'));
+          const dateIdx = headers.findIndex(h => h.includes('date'));
+          const dayIdx = headers.findIndex(h => h.includes('day'));
+          const rows = lines.slice(1).map((line, i) => {
+            const cols = line.split(',').map(c => c.trim().replace(/"/g, ''));
+            return { id: i + 1, name: cols[nameIdx] || '', date: cols[dateIdx] || '', day: cols[dayIdx] || '' };
+          }).filter(r => r.name);
+          setHolidays(rows);
+          setUploadSuccess('\u2705 ' + rows.length + ' holidays imported from CSV!');
+        } catch { setUploadError('Failed to parse CSV.'); }
+      };
+      reader.readAsText(file);
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      setUploadError('For Excel files, please convert to CSV or JSON first, then re-upload.');
+    } else {
+      setUploadError('Unsupported file. Upload .xlsx, .csv, or .json');
+    }
+    e.target.value = '';
+  };
 
   const isHR = user?.role === 'hr' || user?.role === 'admin' || user?.role === 'manager';
 
@@ -321,7 +413,7 @@ function Leave() {
 
       {/* ── Toast Messages ── */}
       {successMessage && <div className="toast-success">{successMessage}</div>}
-      {errorMessage   && <div className="toast-error">{errorMessage}</div>}
+      {errorMessage && <div className="toast-error">{errorMessage}</div>}
 
       {/* ── Header ── */}
       <header className="dashboard-header">
@@ -522,7 +614,7 @@ function Leave() {
                       <td>
                         <span className={`status-badge ${leave.status}`}>
                           {leave.status === 'approved' && <><CheckCircle size={10} style={{ marginRight: 4 }} /> Approved</>}
-                          {leave.status === 'pending'  && <><HourglassSplit size={10} style={{ marginRight: 4 }} /> Pending</>}
+                          {leave.status === 'pending' && <><HourglassSplit size={10} style={{ marginRight: 4 }} /> Pending</>}
                           {leave.status === 'rejected' && <><XCircle size={10} style={{ marginRight: 4 }} /> Rejected</>}
                         </span>
                       </td>
@@ -562,7 +654,7 @@ function Leave() {
                 {leaves.filter(l => {
                   const today = new Date().setHours(0, 0, 0, 0);
                   const start = new Date(l.startDate).setHours(0, 0, 0, 0);
-                  const end   = new Date(l.endDate).setHours(0, 0, 0, 0);
+                  const end = new Date(l.endDate).setHours(0, 0, 0, 0);
                   return l.status === 'approved' && today >= start && today <= end;
                 }).length === 0 ? (
                   <div className="no-data">No leaves today</div>
@@ -570,7 +662,7 @@ function Leave() {
                   leaves.filter(l => {
                     const today = new Date().setHours(0, 0, 0, 0);
                     const start = new Date(l.startDate).setHours(0, 0, 0, 0);
-                    const end   = new Date(l.endDate).setHours(0, 0, 0, 0);
+                    const end = new Date(l.endDate).setHours(0, 0, 0, 0);
                     return l.status === 'approved' && today >= start && today <= end;
                   }).map(l => (
                     <div key={l._id} className="list-item">
@@ -615,10 +707,29 @@ function Leave() {
 
           {/* Holidays Widget */}
           <div className="widget">
-            <h3>📅 Upcoming Holidays</h3>
+            <h3 className='m-3 text-center'>📅 Upcoming Holidays</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 20, borderBottom: '1px solid #eee' }} className='d-flex justify-content-center'>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  title="Upload Holidays"
+                  onClick={() => { setUploadError(''); setUploadSuccess(''); setShowHolidayUpload(true); }}
+                  style={{ background: '#e8f5e9', color: '#2e7d32', border: '1px solid #a5d6a7', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                >⬆ Upload</button>
+                <button
+                  title="View All Holidays"
+                  onClick={() => setShowHolidayView(true)}
+                  style={{ background: '#e3f2fd', color: '#1565c0', border: '1px solid #90caf9', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                >👁 View</button>
+                <button
+                  title="Edit Holidays"
+                  onClick={openHolidayEdit}
+                  style={{ background: '#fff3e0', color: '#e65100', border: '1px solid #ffcc80', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                >✏️ Edit</button>
+              </div>
+            </div>
             <div className="holiday-list">
-              {holidays.map((h, i) => (
-                <div key={i} className="holiday-item">
+              {holidays.slice(0, 5).map((h) => (
+                <div key={h.id} className="holiday-item">
                   <div>
                     <strong>{h.name}</strong>
                     <span>{h.day}</span>
@@ -626,6 +737,13 @@ function Leave() {
                   <span className="h-date">{h.date}</span>
                 </div>
               ))}
+              {holidays.length > 5 && (
+                <div style={{ textAlign: 'center', marginTop: 8 }}>
+                  <button onClick={() => setShowHolidayView(true)} style={{ background: 'none', border: 'none', color: '#1565c0', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                    +{holidays.length - 5} more holidays →
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -660,7 +778,7 @@ function Leave() {
                   className={`toggle-card ${formData.category === 'Short' ? 'active' : ''} ${shortLeavesLeft === 0 ? 'disabled' : ''}`}
                   onClick={() => {
                     if (shortLeavesLeft === 0) return;
-                   setFormData({ ...formData, category: 'Short', leaveType: 'casual' });
+                    setFormData({ ...formData, category: 'Short', leaveType: 'casual' });
                   }}
                 >
                   <span className="toggle-icon">🕐</span>
@@ -670,9 +788,9 @@ function Leave() {
 
                 <button
                   type="button"
-                                    className={`toggle-card ${formData.category === 'Full' ? 'active' : ''}`}
+                  className={`toggle-card ${formData.category === 'Full' ? 'active' : ''}`}
                   onClick={() => setFormData({ ...formData, category: 'Full' })}
-                
+
                 >
                   <span className="toggle-icon">📅</span>
                   <div className="fw-bold">Full Day Leave</div>
@@ -841,8 +959,8 @@ function Leave() {
                   <small>Casual Leave</small>
                   <strong>{selectedLeave.casualLeave ?? leaveDefaults.casualDefault}</strong>
                   <div className="progress">
-                <div style={{ width: `${calculateProgress(balances?.casualUsed ?? 0, leaveDefaults.casualDefault || 8)}%` }} className="blue"></div>
-              </div>
+                    <div style={{ width: `${calculateProgress(balances?.casualUsed ?? 0, leaveDefaults.casualDefault || 8)}%` }} className="blue"></div>
+                  </div>
                 </div>
               </div>
               <div className="b-card">
@@ -851,8 +969,8 @@ function Leave() {
                   <small>Sick Leave</small>
                   <strong>{selectedLeave.sickLeave ?? leaveDefaults.sickDefault}</strong>
                   <div className="progress">
-                <div style={{ width: `${calculateProgress(balances?.sickUsed ?? 0, leaveDefaults.sickDefault || 6)}%` }} className="red"></div>
-              </div>
+                    <div style={{ width: `${calculateProgress(balances?.sickUsed ?? 0, leaveDefaults.sickDefault || 6)}%` }} className="red"></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -870,7 +988,7 @@ function Leave() {
                     <tr key={i}>
                       <td>{lv.leaveType}</td>
                       <td>{lv.startDate ? new Date(lv.startDate).toLocaleDateString() : '—'}</td>
-                      <td>{lv.endDate   ? new Date(lv.endDate).toLocaleDateString()   : '—'}</td>
+                      <td>{lv.endDate ? new Date(lv.endDate).toLocaleDateString() : '—'}</td>
                       <td>{lv.numberOfDays}</td>
                       <td><span className={`status-badge ${lv.status}`}>{lv.status}</span></td>
                       <td className='text-danger'>{lv.rejectionReason}</td>
@@ -878,6 +996,171 @@ function Leave() {
                   ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+
+      {/* ═══════════════════════════════════════ */}
+      {/* MODAL: VIEW ALL HOLIDAYS                */}
+      {/* ═══════════════════════════════════════ */}
+      {showHolidayView && (
+        <div className="modal-overlay" onClick={() => setShowHolidayView(false)}>
+          <div className="modal-content" style={{ maxWidth: 700, width: '95%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ background: '#1a237e', color: 'white', borderRadius: '8px 8px 0 0' }}>
+              <h2 style={{ margin: 0, fontSize: 17 }} className='text-white p-3'>📅 Holiday Calendar 2026</h2>
+              <button className="close-btn m-2" style={{ color: '#1a237e' }} onClick={() => setShowHolidayView(false)}>✕</button>
+            </div>
+            <div style={{ overflowY: 'auto', padding: '16px 20px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                <thead>
+                  <tr style={{ background: '#e8eaf6' }}>
+                    {['#', 'Holiday Name', 'Date', 'Day'].map(h => (
+                      <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: '#1a237e', borderBottom: '2px solid #c5cae9', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {holidays.map((h, i) => (
+                    <tr key={h.id} style={{ background: i % 2 === 0 ? '#fff' : '#f5f5ff' }}>
+                      <td style={{ padding: '9px 12px', color: '#888', width: 36 }}>{i + 1}</td>
+                      <td style={{ padding: '9px 12px', fontWeight: 600, color: '#1a237e' }}>{h.name}</td>
+                      <td style={{ padding: '9px 12px', color: '#374151' }}>{h.date}</td>
+                      <td style={{ padding: '9px 12px' }}>
+                        <span style={{ background: '#e8eaf6', color: '#3949ab', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>{h.day}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ marginTop: 12, fontSize: 12, color: '#888', textAlign: 'center' }}>
+                Total: <strong>{holidays.length}</strong> holidays
+              </div>
+            </div>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowHolidayView(false)} style={{ background: '#1a237e', color: 'white', border: 'none', borderRadius: 7, padding: '8px 20px', fontWeight: 600, cursor: 'pointer' }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════ */}
+      {/* MODAL: EDIT HOLIDAYS                    */}
+      {/* ═══════════════════════════════════════ */}
+      {showHolidayEdit && (
+        <div className="modal-overlay" onClick={() => setShowHolidayEdit(false)}>
+          <div className="modal-content" style={{ maxWidth: 760, width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ background: '#e65100', color: 'white', borderRadius: '8px 8px 0 0' }}>
+              <h2 style={{ margin: 0, fontSize: 17 }} className='text-white p-3'>✏️ Edit Holiday Calendar</h2>
+              <button className="close-btn m-2" style={{ color: '#e65100' }} onClick={() => setShowHolidayEdit(false)}>✕</button>
+            </div>
+            <div style={{ overflowY: 'auto', padding: '16px 20px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: '#fff3e0' }}>
+                    {['#', 'Holiday Name', 'Date', 'Day', ''].map((h, i) => (
+                      <th key={i} style={{ padding: '9px 10px', textAlign: 'left', fontWeight: 700, color: '#e65100', borderBottom: '2px solid #ffcc80' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {editHolidays.map((h, i) => (
+                    <tr key={h.id} style={{ background: i % 2 === 0 ? '#fff' : '#fffde7' }}>
+                      <td style={{ padding: '6px 8px', color: '#aaa', width: 30 }}>{i + 1}</td>
+                      <td style={{ padding: '6px 8px' }}>
+                        <input
+                          value={h.name}
+                          onChange={e => handleEditHolidayChange(h.id, 'name', e.target.value)}
+                          placeholder="Holiday name"
+                          style={{ width: '100%', border: '1px solid #ddd', borderRadius: 5, padding: '5px 8px', fontSize: 13, outline: 'none' }}
+                        />
+                      </td>
+                      <td style={{ padding: '6px 8px' }}>
+                        <input
+                          value={h.date}
+                          onChange={e => handleEditHolidayChange(h.id, 'date', e.target.value)}
+                          placeholder="e.g. 1st January 2026"
+                          style={{ width: '100%', border: '1px solid #ddd', borderRadius: 5, padding: '5px 8px', fontSize: 13, outline: 'none' }}
+                        />
+                      </td>
+                      <td style={{ padding: '6px 8px' }}>
+                        <input
+                          value={h.day}
+                          onChange={e => handleEditHolidayChange(h.id, 'day', e.target.value)}
+                          placeholder="e.g. Monday"
+                          style={{ width: '120px', border: '1px solid #ddd', borderRadius: 5, padding: '5px 8px', fontSize: 13, outline: 'none' }}
+                        />
+                      </td>
+                      <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                        <button
+                          onClick={() => handleDeleteHolidayRow(h.id)}
+                          title="Delete row"
+                          style={{ background: '#fde8e8', color: '#c62828', border: '1px solid #ef9a9a', borderRadius: 5, padding: '3px 10px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+                        >✕</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button
+                onClick={handleAddHolidayRow}
+                style={{ marginTop: 12, background: '#f3f4f6', color: '#374151', border: '1px dashed #9ca3af', borderRadius: 7, padding: '7px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+              >+ Add Row</button>
+            </div>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setShowHolidayEdit(false)} style={{ background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 7, padding: '8px 18px', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={saveEditedHolidays} style={{ background: '#e65100', color: 'white', border: 'none', borderRadius: 7, padding: '8px 22px', fontWeight: 600, cursor: 'pointer' }}>💾 Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════ */}
+      {/* MODAL: BULK UPLOAD HOLIDAYS             */}
+      {/* ═══════════════════════════════════════ */}
+      {showHolidayUpload && (
+        <div className="modal-overlay" onClick={() => setShowHolidayUpload(false)}>
+          <div className="modal-content" style={{ maxWidth: 520, width: '95%' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ background: '#2e7d32', color: 'white', borderRadius: '8px 8px 0 0' }}>
+              <h2 style={{ margin: 0, fontSize: 17 }}>⬆ Bulk Upload Holidays</h2>
+              <button className="close-btn" style={{ color: 'white' }} onClick={() => setShowHolidayUpload(false)}>✕</button>
+            </div>
+            <div style={{ padding: '20px 24px' }}>
+              {uploadError && <div style={{ background: '#fee2e2', color: '#991b1b', borderRadius: 7, padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>❌ {uploadError}</div>}
+              {uploadSuccess && <div style={{ background: '#d1fae5', color: '#065f46', borderRadius: 7, padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>{uploadSuccess}</div>}
+
+              <p style={{ fontSize: 14, color: '#374151', marginBottom: 16 }}>
+                Upload your holiday list as <strong>CSV</strong> or <strong>JSON</strong>. Your current holidays will be replaced.
+              </p>
+
+              {/* Upload zone */}
+              <label style={{ display: 'block', border: '2px dashed #a5d6a7', borderRadius: 10, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', background: '#f1f8f2', marginBottom: 18 }}>
+                <div style={{ fontSize: 36, marginBottom: 8 }}>📂</div>
+                <div style={{ fontWeight: 600, color: '#2e7d32', marginBottom: 4 }}>Click to browse file</div>
+                <div style={{ fontSize: 12, color: '#888' }}>Accepts .csv or .json files</div>
+                <input type="file" accept=".csv,.json,.xlsx,.xls" style={{ display: 'none' }} onChange={handleHolidayFileUpload} />
+              </label>
+
+              {/* Format guide */}
+              <div style={{ background: '#f8f9fa', borderRadius: 8, padding: '12px 16px', fontSize: 12, color: '#555' }}>
+                <strong style={{ display: 'block', marginBottom: 6, color: '#2e7d32' }}>📋 Expected Format</strong>
+                <div style={{ marginBottom: 8 }}>
+                  <strong>CSV columns:</strong> <code>name, date, day</code>
+                  <pre style={{ margin: '4px 0', background: '#eee', padding: '6px 10px', borderRadius: 5, overflowX: 'auto' }}>{`name,date,day
+Holi,4th March 2026,Wednesday`}</pre>
+                </div>
+                <div>
+                  <strong>JSON format:</strong>
+                  <pre style={{ margin: '4px 0', background: '#eee', padding: '6px 10px', borderRadius: 5, overflowX: 'auto' }}>{`[{"name":"Holi","date":"4th March 2026","day":"Wednesday"}]`}</pre>
+                </div>
+              </div>
+            </div>
+            <div style={{ padding: '12px 24px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setShowHolidayUpload(false); setUploadError(''); setUploadSuccess(''); }}
+                style={{ background: '#2e7d32', color: 'white', border: 'none', borderRadius: 7, padding: '8px 20px', fontWeight: 600, cursor: 'pointer' }}
+              >Done</button>
+            </div>
           </div>
         </div>
       )}

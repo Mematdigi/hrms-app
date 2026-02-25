@@ -62,10 +62,10 @@ const PayslipView = ({ payroll, employee, breakdown }) => {
 
   // Salary component split (standard Indian payroll structure)
   const basic      = Math.round((b.baseSalary || 0) * 0.50);
-  const hra        = Math.round((b.baseSalary || 0) * 0.20);
+  const hra        = Math.round((b.baseSalary || 0) * 0.25);
   const conveyance = Math.round((b.baseSalary || 0) * 0.05);
-  const special    = Math.round((b.baseSalary || 0) * 0.15);
-  const medical    = Math.round((b.baseSalary || 0) * 0.10);
+  const special    = Math.round((b.baseSalary || 0) * 0.08);
+  const medical    = Math.round((b.baseSalary || 0) * 0.12);
   const totalGross = basic + hra + conveyance + special + medical;
 
   // Statutory deductions
@@ -73,7 +73,7 @@ const PayslipView = ({ payroll, employee, breakdown }) => {
   const pt  = 200;
   const tds = Math.round(totalGross * 0.10);
   const otherDed = ded.totalDeductions || 0;
-  const totalDed = pf + pt + tds + otherDed;
+  const totalDed = otherDed;
   const netSalary = Math.max(totalGross - totalDed, 0);
 
   return (
@@ -105,12 +105,14 @@ const PayslipView = ({ payroll, employee, breakdown }) => {
               ['Designation',       emp.designation || 'N/A'],
               ['Department',        emp.department  || 'N/A'],
               ['Date of Joining',   emp.dateOfJoining ? new Date(emp.dateOfJoining).toLocaleDateString('en-IN') : 'N/A'],
-              ['PAN Number',        emp.panCard     || 'N/A'],
-              ['Bank Account',      emp.bankAccountNumber || 'N/A'],
-              ['Bank Name',         emp.bankName    || 'N/A'],
-              ['Total Working Days', b.workingDays  || 0],
+              ['Email',             emp.email        || 'N/A'],
+              ['Mobile',            emp.contact|| 'N/A'],
+              ['PAN Number',        emp.panCard || emp.pan  || 'N/A'],
+              ['Bank Name',         emp.bankName        || 'N/A'],
+              ['Account Number',    emp.bankAccountNumber || emp.accountNumber || 'N/A'],
+              ['IFSC Code',         emp.ifscCode        || emp.bankIfsc || 'N/A'],
+               ['Total Working Days', b.workingDays  || 0],
               ['Days Attended',     att.presentDays || 0],
-              // ['Paid Leaves',       att.paidLeaveDays || 0],
               ['Leaves Taken',      (lv.casualLeavesTaken || 0) + (lv.sickLeavesTaken || 0) + (lv.earnedLeavesTaken || 0)],
             ].map(([label, val]) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', fontSize: 12.5, borderBottom: '1px solid #f0f0f0' }}>
@@ -146,18 +148,19 @@ const PayslipView = ({ payroll, employee, breakdown }) => {
             <div>
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: '#e53935' }}>DEDUCTIONS</div>
               {[
-                ['PF (12% of Basic)',    pf],
-                ['Professional Tax',     pt],
-                ['TDS',                  tds],
-                ['Absent Deduction',     ded.absentDeduction       || 0],
-                ['Unpaid Leave Dedn.',   ded.unpaidLeaveDeduction  || 0],
-                ['Half Day Deduction',   ded.halfDayDeduction      || 0],
-                ['Late Deduction',       ded.lateDeduction         || 0],
-              ].filter(([, v]) => v > 0).map(([l, v]) => (
-                <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13, borderBottom: '1px dashed #e0e0e0' }}>
-                  <span>{l}</span><span>{fmt(v)}</span>
-                </div>
-              ))}
+                ['PF (12% of Basic)',    'N/A'], // pf],
+                ['Professional Tax',     'N/A'],
+                ['TDS',                  'N/A'],
+                ['Absent Deduction',     fmt(totalDed)       || 'N/A'],
+                // ['Unpaid Leave Dedn.',   ded.unpaidLeaveDeduction  || 0],
+                // ['Half Day Deduction',   ded.halfDayDeduction      || 0],
+                // ['Late Deduction',       ded.lateDeduction         || 0],
+              ].filter(([, v]) => v).map(([label, val]) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', fontSize: 12.5, borderBottom: '1px solid #f0f0f0' }}>
+                <span style={{ color: '#666' }}>{label}</span>
+                <span style={{ fontWeight: 600 }}>{val}</span>
+              </div>
+            ))}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 4px', fontWeight: 700, fontSize: 14, borderTop: '2px solid #e53935', marginTop: 4, color: '#e53935' }}>
                 <span>Total Deductions</span><span>{fmt(totalDed)}</span>
               </div>
@@ -234,6 +237,18 @@ function Payroll() {
     } catch (e) { console.error('Failed to fetch employees:', e); }
   };
 
+  // Helper: safely call getById (not all API configs expose it)
+  // Falls back gracefully if the method doesn't exist
+  if (!employeeAPI.getById) {
+    employeeAPI.getById = async (id) => {
+      // Try common REST patterns
+      const res = await employeeAPI.getAll();
+      const found = (res.data || []).find(e => e._id === id || e.id === id);
+      if (found) return { data: found };
+      throw new Error('Employee not found');
+    };
+  }
+
   // ── Generate single employee payroll ──────────────────────────────────────
   const handleGenerateSingle = async () => {
     if (!genEmployee) return showError('Please select an employee');
@@ -263,21 +278,34 @@ function Payroll() {
     } finally { setGenAllLoading(false); }
   };
 
-  // ── View payslip — fetch live breakdown from server ───────────────────────
+  // ── View payslip — fetch live breakdown + full employee details from server ─
   const handleViewPayslip = async (payroll) => {
     setShowPayslip(true);
     setPayslipLoading(true);
     setPayslipData({ payroll, employee: payroll.employee, breakdown: null });
     try {
-      const res = await payrollAPI.getBreakdown(payroll._id);
+      // Fetch breakdown and full employee details in parallel
+      const employeeId = payroll.employee?._id || payroll.employee;
+      const [breakdownRes, employeeRes] = await Promise.allSettled([
+        payrollAPI.getBreakdown(payroll._id),
+        employeeId ? employeeAPI.getById(employeeId) : Promise.reject('no id'),
+      ]);
+
+      const breakdown = breakdownRes.status === 'fulfilled' ? breakdownRes.value.data : null;
+      // Prefer full employee record (has bank details), fall back to breakdown employee
+      const fullEmployee =
+        employeeRes.status === 'fulfilled'
+          ? employeeRes.value.data
+          : breakdown?.employee || payroll.employee;
+
       setPayslipData({
-        payroll:   res.data.payroll,
-        employee:  res.data.employee,
-        breakdown: res.data.breakdown
+        payroll:   breakdown?.payroll   || payroll,
+        employee:  fullEmployee,
+        breakdown: breakdown?.breakdown || null,
       });
     } catch (e) {
-      // fallback to stored data if breakdown fails
-      console.error('Breakdown fetch failed:', e);
+      // fallback to stored data if both fetches fail
+      console.error('Payslip fetch failed:', e);
     } finally { setPayslipLoading(false); }
   };
 
