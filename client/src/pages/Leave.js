@@ -308,21 +308,7 @@ function Leave() {
   const filteredLeaves = getFilteredLeaves();
 
   // ── Holiday Management State ──────────────────────────────────────────────
-  const [holidays, setHolidays] = useState([
-    { id: 1, name: 'New Year', date: '1st January 2026', day: 'Thursday' },
-    { id: 2, name: 'Republic Day', date: '26th January 2026', day: 'Monday' },
-    { id: 3, name: 'Mahashivratri', date: '15th February 2026', day: 'Sunday' },
-    { id: 4, name: 'Holi', date: '4th March 2026', day: 'Wednesday' },
-    { id: 5, name: 'Independence Day', date: '15th August 2026', day: 'Saturday' },
-    { id: 6, name: 'Rakshabandhan', date: '28th August 2026', day: 'Thursday' },
-    { id: 7, name: 'Janmashtami', date: '4th September 2026', day: 'Friday' },
-    { id: 8, name: 'Gandhi Jayanti', date: '2nd October 2026', day: 'Friday' },
-    { id: 9, name: 'Dussehra (Vijayadashami)', date: '20th October 2026', day: 'Tuesday' },
-    { id: 10, name: 'Diwali', date: '8th – 11th November 2026', day: 'Sunday – Wednesday' },
-    { id: 11, name: 'Govardhan Puja', date: '8th – 11th November 2026', day: 'Sunday – Wednesday' },
-    { id: 12, name: 'Bhai Dooj', date: '8th – 11th November 2026', day: 'Sunday – Wednesday' },
-    { id: 13, name: 'Christmas Day', date: '25th December 2026', day: 'Friday' },
-  ]);
+  const [holidays, setHolidays] = useState([]);
 
   const [showHolidayView, setShowHolidayView] = useState(false);
   const [showHolidayEdit, setShowHolidayEdit] = useState(false);
