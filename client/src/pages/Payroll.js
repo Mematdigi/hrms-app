@@ -62,10 +62,10 @@ const PayslipView = ({ payroll, employee, breakdown }) => {
 
   // Salary component split (standard Indian payroll structure)
   const basic      = Math.round((b.baseSalary || 0) * 0.50);
-  const hra        = Math.round((b.baseSalary || 0) * 0.20);
+  const hra        = Math.round((b.baseSalary || 0) * 0.25);
   const conveyance = Math.round((b.baseSalary || 0) * 0.05);
-  const special    = Math.round((b.baseSalary || 0) * 0.15);
-  const medical    = Math.round((b.baseSalary || 0) * 0.10);
+  const special    = Math.round((b.baseSalary || 0) * 0.08);
+  const medical    = Math.round((b.baseSalary || 0) * 0.12);
   const totalGross = basic + hra + conveyance + special + medical;
 
   // Statutory deductions
@@ -73,7 +73,7 @@ const PayslipView = ({ payroll, employee, breakdown }) => {
   const pt  = 200;
   const tds = Math.round(totalGross * 0.10);
   const otherDed = ded.totalDeductions || 0;
-  const totalDed = pf + pt + tds + otherDed;
+  const totalDed = otherDed;
   const netSalary = Math.max(totalGross - totalDed, 0);
 
   return (
@@ -146,18 +146,19 @@ const PayslipView = ({ payroll, employee, breakdown }) => {
             <div>
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: '#e53935' }}>DEDUCTIONS</div>
               {[
-                ['PF (12% of Basic)',    pf],
-                ['Professional Tax',     pt],
-                ['TDS',                  tds],
-                ['Absent Deduction',     ded.absentDeduction       || 0],
-                ['Unpaid Leave Dedn.',   ded.unpaidLeaveDeduction  || 0],
-                ['Half Day Deduction',   ded.halfDayDeduction      || 0],
-                ['Late Deduction',       ded.lateDeduction         || 0],
-              ].filter(([, v]) => v > 0).map(([l, v]) => (
-                <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13, borderBottom: '1px dashed #e0e0e0' }}>
-                  <span>{l}</span><span>{fmt(v)}</span>
-                </div>
-              ))}
+                ['PF (12% of Basic)',    'N/A'], // pf],
+                ['Professional Tax',     'N/A'],
+                ['TDS',                  'N/A'],
+                ['Absent Deduction',     fmt(totalDed)       || 'N/A'],
+                // ['Unpaid Leave Dedn.',   ded.unpaidLeaveDeduction  || 0],
+                // ['Half Day Deduction',   ded.halfDayDeduction      || 0],
+                // ['Late Deduction',       ded.lateDeduction         || 0],
+              ].filter(([, v]) => v).map(([label, val]) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', fontSize: 12.5, borderBottom: '1px solid #f0f0f0' }}>
+                <span style={{ color: '#666' }}>{label}</span>
+                <span style={{ fontWeight: 600 }}>{val}</span>
+              </div>
+            ))}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 4px', fontWeight: 700, fontSize: 14, borderTop: '2px solid #e53935', marginTop: 4, color: '#e53935' }}>
                 <span>Total Deductions</span><span>{fmt(totalDed)}</span>
               </div>
