@@ -864,21 +864,27 @@ function Leave() {
                 onClick={() => { setAddHolidayForm({ name: '', date: '' }); setShowAddHoliday(true); }}
                 style={{ background: '#e8f5e9', color: '#2e7d32', border: '1px solid #a5d6a7', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
               >➕ Add</button> */}
-              <button
+              {isHR && (
+                <button
                 title="Bulk Upload via Excel"
                 onClick={() => { setUploadError(''); setUploadSuccess(''); setShowHolidayUpload(true); }}
                 style={{ background: '#e3f2fd', color: '#1565c0', border: '1px solid #90caf9', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
               >⬆ Upload</button>
-              <button
-                title="View All Holidays"
-                onClick={() => setShowHolidayView(true)}
-                style={{ background: '#f3e5f5', color: '#6a1b9a', border: '1px solid #ce93d8', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-              >👁 View</button>
+              )}
+
+              {isHR && (
               <button
                 title="Edit Holidays"
                 onClick={openHolidayEdit}
                 style={{ background: '#fff3e0', color: '#e65100', border: '1px solid #ffcc80', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
               >✏️ Edit</button>
+              )}
+              
+              <button
+                title="View All Holidays"
+                onClick={() => setShowHolidayView(true)}
+                style={{ background: '#f3e5f5', color: '#6a1b9a', border: '1px solid #ce93d8', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+              >👁 View All</button>
             </div>
             <div className="holiday-list">
               {holidays.length === 0 ? (
@@ -1191,7 +1197,7 @@ function Leave() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                   <thead>
                     <tr style={{ background: '#e8eaf6' }}>
-                      {['#', 'Holiday Name', 'Date', 'Day', 'Action'].map(h => (
+                      {['#', 'Holiday Name', 'Date', 'Day'].map(h => (
                         <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: '#1a237e', borderBottom: '2px solid #c5cae9', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -1205,13 +1211,6 @@ function Leave() {
                         <td style={{ padding: '9px 12px' }}>
                           <span style={{ background: '#e8eaf6', color: '#3949ab', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>{h.day}</span>
                         </td>
-                        <td style={{ padding: '9px 12px' }}>
-                          <button
-                            onClick={() => handleDeleteHolidayFromView(h)}
-                            title="Delete holiday"
-                            style={{ background: '#fde8e8', color: '#c62828', border: '1px solid #ef9a9a', borderRadius: 5, padding: '3px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}
-                          >🗑 Delete</button>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1222,10 +1221,7 @@ function Leave() {
               </div>
             </div>
             <div style={{ padding: '12px 20px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <button
-                onClick={() => { setShowHolidayView(false); setAddHolidayForm({ name: '', date: '' }); setShowAddHoliday(true); }}
-                style={{ background: '#e8f5e9', color: '#2e7d32', border: '1px solid #a5d6a7', borderRadius: 7, padding: '8px 16px', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
-              >➕ Add Holiday</button>
+              
               <button onClick={() => setShowHolidayView(false)} style={{ background: '#1a237e', color: 'white', border: 'none', borderRadius: 7, padding: '8px 20px', fontWeight: 600, cursor: 'pointer' }}>Close</button>
             </div>
           </div>
