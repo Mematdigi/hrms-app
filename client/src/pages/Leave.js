@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { leaveAPI } from '../services/api';
+import { leaveAPI, holidayAPI } from '../services/api';
 import {
   FileText,
   HourglassSplit,
@@ -18,7 +18,6 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'react-bootstrap-icons';
-import { json } from 'react-router-dom';
 
 function Leave() {
 
@@ -28,11 +27,12 @@ function Leave() {
   const [activeTab, setActiveTab] = useState('my-leaves');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [holidays, setHolidays] = useState([]);
 
   // ✅ FIX: leaveType now uses DB enum values (lowercase)
   const [formData, setFormData] = useState({
-    leaveType: 'casual',   // enum: 'casual' | 'sick' | 'earned' | ...
-    category: 'Full',     // 'Short' | 'Full'
+    leaveType: 'casual',
+    category: 'Full',
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
     fromTime: '',
@@ -64,6 +64,7 @@ function Leave() {
   useEffect(() => {
     fetchLeaves();
     fetchLeaveDefaults();
+    fetchHolidays();
     if (user?.role === 'employee') fetchBalances();
   }, [user]);
 
@@ -78,6 +79,29 @@ function Leave() {
       setErrorMessage('Failed to fetch leave requests');
     } finally {
       setLoading(false);
+    }
+  };
+
+
+  const fetchHolidays = async () => {
+    try {
+      const currentYear = new Date().getFullYear();
+      const res = await holidayAPI.getAll({ year: currentYear });
+      const data = res.data.holidays || res.data || [];
+      setHolidays(data.map((h, i) => {
+        const rawDate = h.date ? new Date(h.date) : null;
+        return {
+          ...h,
+          id: h._id || String(i),
+          isoDate: rawDate ? rawDate.toISOString().split('T')[0] : '',
+          displayDate: rawDate
+            ? rawDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+            : (h.date || ''),
+          day: h.day || (rawDate ? rawDate.toLocaleDateString('en-GB', { weekday: 'long' }) : ''),
+        };
+      }));
+    } catch (err) {
+      console.error('Failed to fetch holidays', err);
     }
   };
 
@@ -268,16 +292,19 @@ function Leave() {
   // ── Calendar ──
   const renderCalendar = () => {
     const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
+    const currentMonth = calendarMonth;
+    const currentYear = calendarYear;
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+
+    // Holiday set for O(1) lookups
+    const holidayMap = {};
+    holidays.forEach(h => { if (h.isoDate) holidayMap[h.isoDate] = h.name; });
 
     const days = [];
     for (let i = 0; i < firstDayOfMonth; i++) {
       days.push(<div key={`empty-${i}`} className="cal-cell empty"></div>);
     }
-
     for (let d = 1; d <= daysInMonth; d++) {
       const dateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const daysLeave = leaves.find(l => {
@@ -286,19 +313,27 @@ function Leave() {
         const curr = new Date(dateString);
         return curr >= start && curr <= end;
       });
-
+      const isHoliday = !!holidayMap[dateString];
+      const holidayName = holidayMap[dateString] || '';
       let statusClass = '';
       if (daysLeave) {
         if (daysLeave.status === 'approved') statusClass = 'dot-green';
         else if (daysLeave.status === 'pending') statusClass = 'dot-orange';
         else if (daysLeave.status === 'rejected') statusClass = 'dot-red';
       }
-
-      const isToday = d === today.getDate() ? 'today' : '';
+      const isToday = (d === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear()) ? 'today' : '';
       days.push(
-        <div key={d} className={`cal-cell ${isToday}`}>
-          <span>{d}</span>
-          {statusClass && <div className={`status-dot ${statusClass}`}></div>}
+        <div
+          key={d}
+          className={`cal-cell ${isToday}${isHoliday ? ' holiday-cell' : ''}`}
+          title={isHoliday ? holidayName : undefined}
+          style={isHoliday ? { background: '#fff8e1', borderRadius: 6 } : {}}
+        >
+          <span style={isHoliday ? { color: '#e65100', fontWeight: 700 } : {}}>{d}</span>
+          {isHoliday
+            ? <div className="status-dot" style={{ background: '#ff9800' }}></div>
+            : statusClass && <div className={`status-dot ${statusClass}`}></div>
+          }
         </div>
       );
     }
@@ -308,87 +343,215 @@ function Leave() {
   const filteredLeaves = getFilteredLeaves();
 
   // ── Holiday Management State ──────────────────────────────────────────────
-  const [holidays, setHolidays] = useState([]);
-
   const [showHolidayView, setShowHolidayView] = useState(false);
   const [showHolidayEdit, setShowHolidayEdit] = useState(false);
   const [showHolidayUpload, setShowHolidayUpload] = useState(false);
+  const [showAddHoliday, setShowAddHoliday] = useState(false);
   const [editHolidays, setEditHolidays] = useState([]);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [holidayLoading, setHolidayLoading] = useState(false);
+  const [addHolidayForm, setAddHolidayForm] = useState({ name: '', date: '' });
+
+  // Calendar navigation state
+  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
+  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+
+  const prevMonth = () => {
+    if (calendarMonth === 0) { setCalendarMonth(11); setCalendarYear(y => y - 1); }
+    else setCalendarMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y => y + 1); }
+    else setCalendarMonth(m => m + 1);
+  };
 
   const openHolidayEdit = () => {
-    setEditHolidays(holidays.map(h => ({ ...h })));
+    setEditHolidays(holidays.map(h => ({ ...h, dateInput: h.isoDate || '' })));
     setShowHolidayEdit(true);
   };
 
   const handleEditHolidayChange = (id, field, value) => {
-    setEditHolidays(prev => prev.map(h => h.id === id ? { ...h, [field]: value } : h));
+    setEditHolidays(prev => prev.map(h => {
+      if (h.id !== id) return h;
+      if (field === 'dateInput') {
+        const d = value ? new Date(value) : null;
+        return {
+          ...h,
+          dateInput: value,
+          date: value,
+          isoDate: value,
+          day: d ? d.toLocaleDateString('en-GB', { weekday: 'long' }) : h.day,
+        };
+      }
+      return { ...h, [field]: value };
+    }));
   };
 
   const handleAddHolidayRow = () => {
-    const newId = Math.max(0, ...editHolidays.map(h => h.id)) + 1;
-    setEditHolidays(prev => [...prev, { id: newId, name: '', date: '', day: '' }]);
+    const tempId = `new-${Date.now()}`;
+    setEditHolidays(prev => [...prev, { id: tempId, name: '', dateInput: '', date: '', isoDate: '', day: '', isNew: true }]);
   };
 
-  const handleDeleteHolidayRow = (id) => {
-    setEditHolidays(prev => prev.filter(h => h.id !== id));
+  // Delete a single holiday from DB
+  const handleDeleteHolidayRow = async (id) => {
+    const holiday = editHolidays.find(h => h.id === id);
+    if (!holiday) return;
+    if (holiday.isNew) {
+      setEditHolidays(prev => prev.filter(h => h.id !== id));
+      return;
+    }
+    try {
+      await holidayAPI.delete(holiday._id || id);
+      setEditHolidays(prev => prev.filter(h => h.id !== id));
+    } catch (err) {
+      setErrorMessage('Failed to delete holiday');
+      setTimeout(() => setErrorMessage(''), 3000);
+    }
   };
 
-  const saveEditedHolidays = () => {
-    setHolidays(editHolidays.filter(h => h.name.trim()));
-    setShowHolidayEdit(false);
+  // Delete holiday from View modal
+  const handleDeleteHolidayFromView = async (holiday) => {
+    if (!window.confirm(`Delete "${holiday.name}"?`)) return;
+    try {
+      await holidayAPI.delete(holiday._id || holiday.id);
+      await fetchHolidays();
+      setSuccessMessage('✅ Holiday deleted');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setErrorMessage('Failed to delete holiday');
+      setTimeout(() => setErrorMessage(''), 3000);
+    }
   };
 
-  const handleHolidayFileUpload = (e) => {
+  const saveEditedHolidays = async () => {
+    setHolidayLoading(true);
+    try {
+      for (const h of editHolidays) {
+        if (!h.name || !h.dateInput) continue;
+        const payload = { name: h.name, date: h.dateInput, day: h.day };
+        if (h.isNew) {
+          await holidayAPI.create(payload);
+        } else {
+          await holidayAPI.update(h._id || h.id, payload);
+        }
+      }
+      await fetchHolidays();
+      setSuccessMessage('✅ Holiday calendar saved successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      setShowHolidayEdit(false);
+    } catch (err) {
+      setErrorMessage('Failed to save holiday changes');
+      setTimeout(() => setErrorMessage(''), 3000);
+    } finally {
+      setHolidayLoading(false);
+    }
+  };
+
+  // Add a single holiday
+  const handleAddSingleHoliday = async (e) => {
+    e.preventDefault();
+    if (!addHolidayForm.name || !addHolidayForm.date) return;
+    try {
+      const d = new Date(addHolidayForm.date);
+      const day = d.toLocaleDateString('en-GB', { weekday: 'long' });
+      await holidayAPI.create({ name: addHolidayForm.name, date: addHolidayForm.date, day });
+      await fetchHolidays();
+      setAddHolidayForm({ name: '', date: '' });
+      setShowAddHoliday(false);
+      setSuccessMessage('✅ Holiday added!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setErrorMessage('Failed to add holiday');
+      setTimeout(() => setErrorMessage(''), 3000);
+    }
+  };
+
+  // Excel-only bulk upload — parses client-side with SheetJS then sends to bulkCreate
+  const handleHolidayFileUpload = async (e) => {
     setUploadError('');
     setUploadSuccess('');
     const file = e.target.files[0];
-    if (!file) return;
-    const ext = file.name.split('.').pop().toLowerCase();
-
-    if (ext === 'json') {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        try {
-          const parsed = JSON.parse(ev.target.result);
-          const arr = Array.isArray(parsed) ? parsed : parsed.holidays || [];
-          if (!arr.length) { setUploadError('No holidays found in JSON.'); return; }
-          const mapped = arr.map((h, i) => ({
-            id: i + 1,
-            name: h.name || h.holiday || h.Holiday || '',
-            date: h.date || h.Date || '',
-            day: h.day || h.Day || '',
-          }));
-          setHolidays(mapped);
-          setUploadSuccess('\u2705 ' + mapped.length + ' holidays imported from JSON!');
-        } catch { setUploadError('Invalid JSON format.'); }
-      };
-      reader.readAsText(file);
-    } else if (ext === 'csv') {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        try {
-          const lines = ev.target.result.split('\n').filter(l => l.trim());
-          const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
-          const nameIdx = headers.findIndex(h => h.includes('name') || h.includes('holiday'));
-          const dateIdx = headers.findIndex(h => h.includes('date'));
-          const dayIdx = headers.findIndex(h => h.includes('day'));
-          const rows = lines.slice(1).map((line, i) => {
-            const cols = line.split(',').map(c => c.trim().replace(/"/g, ''));
-            return { id: i + 1, name: cols[nameIdx] || '', date: cols[dateIdx] || '', day: cols[dayIdx] || '' };
-          }).filter(r => r.name);
-          setHolidays(rows);
-          setUploadSuccess('\u2705 ' + rows.length + ' holidays imported from CSV!');
-        } catch { setUploadError('Failed to parse CSV.'); }
-      };
-      reader.readAsText(file);
-    } else if (ext === 'xlsx' || ext === 'xls') {
-      setUploadError('For Excel files, please convert to CSV or JSON first, then re-upload.');
-    } else {
-      setUploadError('Unsupported file. Upload .xlsx, .csv, or .json');
-    }
     e.target.value = '';
+    if (!file) return;
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext !== 'xlsx' && ext !== 'xls') {
+      setUploadError('❌ Only Excel files (.xlsx or .xls) are accepted.');
+      return;
+    }
+
+    setUploadLoading(true);
+    try {
+      // Dynamically load SheetJS
+      const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs');
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      if (!rows.length) { setUploadError('❌ No data found in the Excel file.'); setUploadLoading(false); return; }
+
+      // Flexible column mapping
+      const mapped = rows.map((row, i) => {
+        const keys = Object.keys(row).map(k => k.trim().toLowerCase());
+        const getVal = (...names) => {
+          for (const n of names) {
+            const k = Object.keys(row).find(k => k.trim().toLowerCase().includes(n));
+            if (k && row[k] !== '') return row[k];
+          }
+          return '';
+        };
+
+        let rawDate = getVal('date');
+        let isoDate = '';
+        let day = getVal('day', 'weekday');
+
+        if (rawDate instanceof Date) {
+          isoDate = rawDate.toISOString().split('T')[0];
+        } else if (typeof rawDate === 'number') {
+          // Excel serial date
+          const d = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
+          isoDate = d.toISOString().split('T')[0];
+        } else if (typeof rawDate === 'string' && rawDate) {
+          const parsed = new Date(rawDate);
+          if (!isNaN(parsed)) isoDate = parsed.toISOString().split('T')[0];
+          else isoDate = rawDate; // keep as-is
+        }
+
+        // Auto-derive day if blank
+        if (!day && isoDate) {
+          const d = new Date(isoDate);
+          if (!isNaN(d)) day = d.toLocaleDateString('en-GB', { weekday: 'long' });
+        }
+
+        return {
+          name: String(getVal('name', 'holiday', 'title', 'occasion') || '').trim(),
+          date: isoDate,
+          day: String(day).trim(),
+        };
+      }).filter(r => r.name && r.date);
+
+      if (!mapped.length) {
+        setUploadError('❌ Could not find valid holiday rows. Ensure columns: Name, Date (and optionally Day).');
+        setUploadLoading(false);
+        return;
+      }
+
+      // Send to backend as multipart FormData via bulkCreate
+      const formData = new FormData();
+      formData.append('file', file);
+      await holidayAPI.bulkCreate(formData);
+
+      await fetchHolidays();
+      setUploadSuccess(`✅ ${mapped.length} holidays uploaded successfully!`);
+    } catch (err) {
+      console.error('Upload error', err);
+      setUploadError(err?.response?.data?.message || '❌ Upload failed. Check the file format and try again.');
+    } finally {
+      setUploadLoading(false);
+    }
   };
 
   const isHR = user?.role === 'hr' || user?.role === 'admin' || user?.role === 'manager';
@@ -670,11 +833,11 @@ function Leave() {
             <div className="mini-calendar">
               <div className="month-nav">
                 <div className="month-label">
-                  {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+                  {new Date(calendarYear, calendarMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
                 </div>
                 <div className="nav-arrows">
-                  <ChevronLeft size={12} />
-                  <ChevronRight size={12} />
+                  <ChevronLeft size={12} style={{ cursor: 'pointer' }} onClick={prevMonth} />
+                  <ChevronRight size={12} style={{ cursor: 'pointer' }} onClick={nextMonth} />
                 </div>
               </div>
               <div className="cal-header">
@@ -688,48 +851,68 @@ function Leave() {
               <span><span className="dot dot-green"></span> Approved</span>
               <span><span className="dot dot-orange"></span> Pending</span>
               <span><span className="dot dot-red"></span> Rejected</span>
+              <span><span className="dot" style={{ background: '#ff9800', width: 8, height: 8, borderRadius: '50%', display: 'inline-block', marginRight: 4 }}></span> Holiday</span>
             </div>
           </div>
 
           {/* Holidays Widget */}
           <div className="widget">
             <h3 className='m-3 text-center'>📅 Upcoming Holidays</h3>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 20, borderBottom: '1px solid #eee' }} className='d-flex justify-content-center'>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button
-                  title="Upload Holidays"
-                  onClick={() => { setUploadError(''); setUploadSuccess(''); setShowHolidayUpload(true); }}
-                  style={{ background: '#e8f5e9', color: '#2e7d32', border: '1px solid #a5d6a7', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-                >⬆ Upload</button>
-                <button
-                  title="View All Holidays"
-                  onClick={() => setShowHolidayView(true)}
-                  style={{ background: '#e3f2fd', color: '#1565c0', border: '1px solid #90caf9', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-                >👁 View</button>
-                <button
-                  title="Edit Holidays"
-                  onClick={openHolidayEdit}
-                  style={{ background: '#fff3e0', color: '#e65100', border: '1px solid #ffcc80', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-                >✏️ Edit</button>
-              </div>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 10, paddingBottom: 12, borderBottom: '1px solid #eee', flexWrap: 'wrap', gap: 6 }}>
+              {/* <button
+                title="Add Holiday"
+                onClick={() => { setAddHolidayForm({ name: '', date: '' }); setShowAddHoliday(true); }}
+                style={{ background: '#e8f5e9', color: '#2e7d32', border: '1px solid #a5d6a7', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+              >➕ Add</button> */}
+              <button
+                title="Bulk Upload via Excel"
+                onClick={() => { setUploadError(''); setUploadSuccess(''); setShowHolidayUpload(true); }}
+                style={{ background: '#e3f2fd', color: '#1565c0', border: '1px solid #90caf9', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+              >⬆ Upload</button>
+              <button
+                title="View All Holidays"
+                onClick={() => setShowHolidayView(true)}
+                style={{ background: '#f3e5f5', color: '#6a1b9a', border: '1px solid #ce93d8', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+              >👁 View</button>
+              <button
+                title="Edit Holidays"
+                onClick={openHolidayEdit}
+                style={{ background: '#fff3e0', color: '#e65100', border: '1px solid #ffcc80', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+              >✏️ Edit</button>
             </div>
             <div className="holiday-list">
-              {holidays.slice(0, 5).map((h) => (
-                <div key={h.id} className="holiday-item">
-                  <div>
-                    <strong>{h.name}</strong>
-                    <span>{h.day}</span>
-                  </div>
-                  <span className="h-date">{h.date}</span>
+              {holidays.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: 13, padding: '16px 0' }}>
+                  <div style={{ fontSize: 28, marginBottom: 6 }}>🏖️</div>
+                  No holidays found
                 </div>
-              ))}
-              {holidays.length > 5 && (
-                <div style={{ textAlign: 'center', marginTop: 8 }}>
-                  <button onClick={() => setShowHolidayView(true)} style={{ background: 'none', border: 'none', color: '#1565c0', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
-                    +{holidays.length - 5} more holidays →
-                  </button>
-                </div>
-              )}
+              ) : (() => {
+                const todayISO = new Date().toISOString().split('T')[0];
+                const upcoming = holidays
+                  .filter(h => h.isoDate >= todayISO)
+                  .sort((a, b) => a.isoDate.localeCompare(b.isoDate));
+                const display = upcoming.length > 0 ? upcoming.slice(0, 5) : holidays.slice(-5);
+                return (
+                  <>
+                    {display.map((h) => (
+                      <div key={h.id} className="holiday-item">
+                        <div>
+                          <strong>{h.name}</strong>
+                          <span>{h.day}</span>
+                        </div>
+                        <span className="h-date">{h.displayDate || h.date}</span>
+                      </div>
+                    ))}
+                    {upcoming.length > 5 && (
+                      <div style={{ textAlign: 'center', marginTop: 8 }}>
+                        <button onClick={() => setShowHolidayView(true)} style={{ background: 'none', border: 'none', color: '#1565c0', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                          +{upcoming.length - 5} more holidays →
+                        </button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
 
@@ -992,38 +1175,57 @@ function Leave() {
       {/* ═══════════════════════════════════════ */}
       {showHolidayView && (
         <div className="modal-overlay" onClick={() => setShowHolidayView(false)}>
-          <div className="modal-content" style={{ maxWidth: 700, width: '95%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header" style={{ background: '#1a237e', color: 'white', borderRadius: '8px 8px 0 0' }}>
-              <h2 style={{ margin: 0, fontSize: 17 }} className='text-white p-3'>📅 Holiday Calendar 2026</h2>
-              <button className="close-btn m-2" style={{ color: '#1a237e' }} onClick={() => setShowHolidayView(false)}>✕</button>
+          <div className="modal-content" style={{ maxWidth: 740, width: '95%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ background: '#1a237e', color: 'white', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ margin: 0, fontSize: 17 }} className='text-white p-3'>📅 Holiday Calendar {new Date().getFullYear()}</h2>
+              <button className="close-btn m-2" style={{ color: 'white', background: 'none', border: 'none', fontSize: 18, cursor: 'pointer' }} onClick={() => setShowHolidayView(false)}>✕</button>
             </div>
             <div style={{ overflowY: 'auto', padding: '16px 20px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-                <thead>
-                  <tr style={{ background: '#e8eaf6' }}>
-                    {['#', 'Holiday Name', 'Date', 'Day'].map(h => (
-                      <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: '#1a237e', borderBottom: '2px solid #c5cae9', whiteSpace: 'nowrap' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {holidays.map((h, i) => (
-                    <tr key={h.id} style={{ background: i % 2 === 0 ? '#fff' : '#f5f5ff' }}>
-                      <td style={{ padding: '9px 12px', color: '#888', width: 36 }}>{i + 1}</td>
-                      <td style={{ padding: '9px 12px', fontWeight: 600, color: '#1a237e' }}>{h.name}</td>
-                      <td style={{ padding: '9px 12px', color: '#374151' }}>{h.date}</td>
-                      <td style={{ padding: '9px 12px' }}>
-                        <span style={{ background: '#e8eaf6', color: '#3949ab', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>{h.day}</span>
-                      </td>
+              {holidays.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px', color: '#9ca3af' }}>
+                  <div style={{ fontSize: 40 }}>🏖️</div>
+                  <p>No holidays added yet.</p>
+                  <button onClick={() => { setShowHolidayView(false); setShowAddHoliday(true); }} style={{ background: '#1a237e', color: 'white', border: 'none', borderRadius: 7, padding: '8px 20px', fontWeight: 600, cursor: 'pointer', marginTop: 8 }}>+ Add First Holiday</button>
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                  <thead>
+                    <tr style={{ background: '#e8eaf6' }}>
+                      {['#', 'Holiday Name', 'Date', 'Day', 'Action'].map(h => (
+                        <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: '#1a237e', borderBottom: '2px solid #c5cae9', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {[...holidays].sort((a, b) => a.isoDate?.localeCompare(b.isoDate)).map((h, i) => (
+                      <tr key={h.id} style={{ background: i % 2 === 0 ? '#fff' : '#f5f5ff' }}>
+                        <td style={{ padding: '9px 12px', color: '#888', width: 36 }}>{i + 1}</td>
+                        <td style={{ padding: '9px 12px', fontWeight: 600, color: '#1a237e' }}>{h.name}</td>
+                        <td style={{ padding: '9px 12px', color: '#374151' }}>{h.displayDate || h.date}</td>
+                        <td style={{ padding: '9px 12px' }}>
+                          <span style={{ background: '#e8eaf6', color: '#3949ab', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>{h.day}</span>
+                        </td>
+                        <td style={{ padding: '9px 12px' }}>
+                          <button
+                            onClick={() => handleDeleteHolidayFromView(h)}
+                            title="Delete holiday"
+                            style={{ background: '#fde8e8', color: '#c62828', border: '1px solid #ef9a9a', borderRadius: 5, padding: '3px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}
+                          >🗑 Delete</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
               <div style={{ marginTop: 12, fontSize: 12, color: '#888', textAlign: 'center' }}>
                 Total: <strong>{holidays.length}</strong> holidays
               </div>
             </div>
-            <div style={{ padding: '12px 20px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button
+                onClick={() => { setShowHolidayView(false); setAddHolidayForm({ name: '', date: '' }); setShowAddHoliday(true); }}
+                style={{ background: '#e8f5e9', color: '#2e7d32', border: '1px solid #a5d6a7', borderRadius: 7, padding: '8px 16px', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
+              >➕ Add Holiday</button>
               <button onClick={() => setShowHolidayView(false)} style={{ background: '#1a237e', color: 'white', border: 'none', borderRadius: 7, padding: '8px 20px', fontWeight: 600, cursor: 'pointer' }}>Close</button>
             </div>
           </div>
@@ -1035,23 +1237,23 @@ function Leave() {
       {/* ═══════════════════════════════════════ */}
       {showHolidayEdit && (
         <div className="modal-overlay" onClick={() => setShowHolidayEdit(false)}>
-          <div className="modal-content" style={{ maxWidth: 760, width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header" style={{ background: '#e65100', color: 'white', borderRadius: '8px 8px 0 0' }}>
+          <div className="modal-content" style={{ maxWidth: 800, width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ background: '#e65100', color: 'white', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ margin: 0, fontSize: 17 }} className='text-white p-3'>✏️ Edit Holiday Calendar</h2>
-              <button className="close-btn m-2" style={{ color: '#e65100' }} onClick={() => setShowHolidayEdit(false)}>✕</button>
+              <button className="close-btn m-2" style={{ color: 'white', background: 'none', border: 'none', fontSize: 18, cursor: 'pointer' }} onClick={() => setShowHolidayEdit(false)}>✕</button>
             </div>
             <div style={{ overflowY: 'auto', padding: '16px 20px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: '#fff3e0' }}>
-                    {['#', 'Holiday Name', 'Date', 'Day', ''].map((h, i) => (
+                    {['#', 'Holiday Name', 'Date', 'Day (auto)', 'Delete'].map((h, i) => (
                       <th key={i} style={{ padding: '9px 10px', textAlign: 'left', fontWeight: 700, color: '#e65100', borderBottom: '2px solid #ffcc80' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {editHolidays.map((h, i) => (
-                    <tr key={h.id} style={{ background: i % 2 === 0 ? '#fff' : '#fffde7' }}>
+                    <tr key={h.id} style={{ background: h.isNew ? '#fffde7' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
                       <td style={{ padding: '6px 8px', color: '#aaa', width: 30 }}>{i + 1}</td>
                       <td style={{ padding: '6px 8px' }}>
                         <input
@@ -1063,26 +1265,21 @@ function Leave() {
                       </td>
                       <td style={{ padding: '6px 8px' }}>
                         <input
-                          value={h.date}
-                          onChange={e => handleEditHolidayChange(h.id, 'date', e.target.value)}
-                          placeholder="e.g. 1st January 2026"
-                          style={{ width: '100%', border: '1px solid #ddd', borderRadius: 5, padding: '5px 8px', fontSize: 13, outline: 'none' }}
+                          type="date"
+                          value={h.dateInput || ''}
+                          onChange={e => handleEditHolidayChange(h.id, 'dateInput', e.target.value)}
+                          style={{ border: '1px solid #ddd', borderRadius: 5, padding: '5px 8px', fontSize: 13, outline: 'none' }}
                         />
                       </td>
-                      <td style={{ padding: '6px 8px' }}>
-                        <input
-                          value={h.day}
-                          onChange={e => handleEditHolidayChange(h.id, 'day', e.target.value)}
-                          placeholder="e.g. Monday"
-                          style={{ width: '120px', border: '1px solid #ddd', borderRadius: 5, padding: '5px 8px', fontSize: 13, outline: 'none' }}
-                        />
+                      <td style={{ padding: '6px 8px', color: '#555', fontSize: 12 }}>
+                        {h.day || <span style={{ color: '#ccc' }}>–</span>}
                       </td>
                       <td style={{ padding: '6px 8px', textAlign: 'center' }}>
                         <button
                           onClick={() => handleDeleteHolidayRow(h.id)}
-                          title="Delete row"
+                          title="Delete"
                           style={{ background: '#fde8e8', color: '#c62828', border: '1px solid #ef9a9a', borderRadius: 5, padding: '3px 10px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
-                        >✕</button>
+                        >🗑</button>
                       </td>
                     </tr>
                   ))}
@@ -1095,58 +1292,146 @@ function Leave() {
             </div>
             <div style={{ padding: '12px 20px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button onClick={() => setShowHolidayEdit(false)} style={{ background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 7, padding: '8px 18px', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={saveEditedHolidays} style={{ background: '#e65100', color: 'white', border: 'none', borderRadius: 7, padding: '8px 22px', fontWeight: 600, cursor: 'pointer' }}>💾 Save Changes</button>
+              <button onClick={saveEditedHolidays} disabled={holidayLoading} style={{ background: '#e65100', color: 'white', border: 'none', borderRadius: 7, padding: '8px 22px', fontWeight: 600, cursor: 'pointer', opacity: holidayLoading ? 0.7 : 1 }}>
+                {holidayLoading ? '⏳ Saving...' : '💾 Save Changes'}
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* ═══════════════════════════════════════ */}
-      {/* MODAL: BULK UPLOAD HOLIDAYS             */}
+      {/* MODAL: BULK UPLOAD HOLIDAYS (Excel)     */}
       {/* ═══════════════════════════════════════ */}
       {showHolidayUpload && (
-        <div className="modal-overlay" onClick={() => setShowHolidayUpload(false)}>
-          <div className="modal-content" style={{ maxWidth: 520, width: '95%' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header" style={{ background: '#2e7d32', color: 'white', borderRadius: '8px 8px 0 0' }}>
-              <h2 style={{ margin: 0, fontSize: 17 }}>⬆ Bulk Upload Holidays</h2>
-              <button className="close-btn" style={{ color: 'white' }} onClick={() => setShowHolidayUpload(false)}>✕</button>
+        <div className="modal-overlay" onClick={() => { if (!uploadLoading) setShowHolidayUpload(false); }}>
+          <div className="modal-content" style={{ maxWidth: 540, width: '95%' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ background: '#2e7d32', color: 'white', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ margin: 0, fontSize: 17, padding: '14px 20px' }}>⬆ Bulk Upload Holidays</h2>
+              <button className="close-btn" style={{ color: 'white', background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', marginRight: 12 }} onClick={() => setShowHolidayUpload(false)}>✕</button>
             </div>
             <div style={{ padding: '20px 24px' }}>
-              {uploadError && <div style={{ background: '#fee2e2', color: '#991b1b', borderRadius: 7, padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>❌ {uploadError}</div>}
-              {uploadSuccess && <div style={{ background: '#d1fae5', color: '#065f46', borderRadius: 7, padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>{uploadSuccess}</div>}
+              {uploadError && (
+                <div style={{ background: '#fee2e2', color: '#991b1b', borderRadius: 7, padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>
+                  {uploadError}
+                </div>
+              )}
+              {uploadSuccess && (
+                <div style={{ background: '#d1fae5', color: '#065f46', borderRadius: 7, padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>
+                  {uploadSuccess}
+                </div>
+              )}
 
               <p style={{ fontSize: 14, color: '#374151', marginBottom: 16 }}>
-                Upload your holiday list as <strong>CSV</strong> or <strong>JSON</strong>. Your current holidays will be replaced.
+                Upload holidays from an <strong>Excel file</strong> (.xlsx or .xls). Existing holidays will be replaced.
               </p>
 
-              {/* Upload zone */}
-              <label style={{ display: 'block', border: '2px dashed #a5d6a7', borderRadius: 10, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', background: '#f1f8f2', marginBottom: 18 }}>
-                <div style={{ fontSize: 36, marginBottom: 8 }}>📂</div>
-                <div style={{ fontWeight: 600, color: '#2e7d32', marginBottom: 4 }}>Click to browse file</div>
-                <div style={{ fontSize: 12, color: '#888' }}>Accepts .csv or .json files</div>
-                <input type="file" accept=".csv,.json,.xlsx,.xls" style={{ display: 'none' }} onChange={handleHolidayFileUpload} />
+              {/* Upload dropzone */}
+              <label style={{
+                display: 'block', border: `2px dashed ${uploadLoading ? '#ccc' : '#a5d6a7'}`,
+                borderRadius: 10, padding: '32px 20px', textAlign: 'center',
+                cursor: uploadLoading ? 'not-allowed' : 'pointer',
+                background: uploadLoading ? '#f9f9f9' : '#f1f8f2', marginBottom: 18, transition: 'all 0.2s'
+              }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>
+                  {uploadLoading ? '⏳' : '📊'}
+                </div>
+                <div style={{ fontWeight: 700, color: uploadLoading ? '#888' : '#2e7d32', marginBottom: 4, fontSize: 15 }}>
+                  {uploadLoading ? 'Uploading...' : 'Click to browse Excel file'}
+                </div>
+                <div style={{ fontSize: 12, color: '#888' }}>Accepts .xlsx and .xls files only</div>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  style={{ display: 'none' }}
+                  disabled={uploadLoading}
+                  onChange={handleHolidayFileUpload}
+                />
               </label>
 
               {/* Format guide */}
-              <div style={{ background: '#f8f9fa', borderRadius: 8, padding: '12px 16px', fontSize: 12, color: '#555' }}>
-                <strong style={{ display: 'block', marginBottom: 6, color: '#2e7d32' }}>📋 Expected Format</strong>
-                <div style={{ marginBottom: 8 }}>
-                  <strong>CSV columns:</strong> <code>name, date, day</code>
-                  <pre style={{ margin: '4px 0', background: '#eee', padding: '6px 10px', borderRadius: 5, overflowX: 'auto' }}>{`name,date,day
-Holi,4th March 2026,Wednesday`}</pre>
+              <div style={{ background: '#f8f9fa', borderRadius: 8, padding: '14px 16px', fontSize: 12, color: '#555' }}>
+                <strong style={{ display: 'block', marginBottom: 8, color: '#2e7d32', fontSize: 13 }}>📋 Required Excel Format</strong>
+                <div style={{ marginBottom: 6 }}>Your Excel file must have these column headers in row 1:</div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                  {['Name', 'Date', 'Day (optional)'].map(col => (
+                    <span key={col} style={{ background: '#e8f5e9', color: '#2e7d32', border: '1px solid #a5d6a7', borderRadius: 5, padding: '2px 10px', fontWeight: 600, fontSize: 12 }}>{col}</span>
+                  ))}
                 </div>
-                <div>
-                  <strong>JSON format:</strong>
-                  <pre style={{ margin: '4px 0', background: '#eee', padding: '6px 10px', borderRadius: 5, overflowX: 'auto' }}>{`[{"name":"Holi","date":"4th March 2026","day":"Wednesday"}]`}</pre>
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: '#f0fdf4' }}>
+                        {['Name', 'Date', 'Day'].map(h => <th key={h} style={{ padding: '5px 10px', borderBottom: '1px solid #e5e7eb', textAlign: 'left', color: '#2e7d32', fontWeight: 700 }}>{h}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[['Republic Day', '2026-01-26', 'Monday'], ['Holi', '2026-03-04', 'Wednesday']].map((row, i) => (
+                        <tr key={i}>
+                          {row.map((cell, j) => <td key={j} style={{ padding: '5px 10px', borderBottom: '1px solid #f3f4f6', color: '#374151' }}>{cell}</td>)}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ marginTop: 8, color: '#6b7280' }}>
+                  💡 <strong>Day</strong> column is optional — it will be auto-calculated from the date.
                 </div>
               </div>
             </div>
             <div style={{ padding: '12px 24px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 onClick={() => { setShowHolidayUpload(false); setUploadError(''); setUploadSuccess(''); }}
-                style={{ background: '#2e7d32', color: 'white', border: 'none', borderRadius: 7, padding: '8px 20px', fontWeight: 600, cursor: 'pointer' }}
-              >Done</button>
+                disabled={uploadLoading}
+                style={{ background: '#2e7d32', color: 'white', border: 'none', borderRadius: 7, padding: '8px 20px', fontWeight: 600, cursor: uploadLoading ? 'not-allowed' : 'pointer', opacity: uploadLoading ? 0.7 : 1 }}
+              >{uploadSuccess ? '✓ Done' : 'Close'}</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════ */}
+      {/* MODAL: ADD SINGLE HOLIDAY               */}
+      {/* ═══════════════════════════════════════ */}
+      {showAddHoliday && (
+        <div className="modal-overlay" onClick={() => setShowAddHoliday(false)}>
+          <div className="modal-content" style={{ maxWidth: 440, width: '95%' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ background: '#2e7d32', color: 'white', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ margin: 0, fontSize: 17, padding: '14px 20px' }}>➕ Add Holiday</h2>
+              <button style={{ color: 'white', background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', marginRight: 12 }} onClick={() => setShowAddHoliday(false)}>✕</button>
+            </div>
+            <form onSubmit={handleAddSingleHoliday} style={{ padding: '20px 24px' }}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 13, color: '#374151' }}>Holiday Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Republic Day"
+                  value={addHolidayForm.name}
+                  onChange={e => setAddHolidayForm(f => ({ ...f, name: e.target.value }))}
+                  style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: 7, padding: '9px 12px', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 13, color: '#374151' }}>Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={addHolidayForm.date}
+                  onChange={e => setAddHolidayForm(f => ({ ...f, date: e.target.value }))}
+                  style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: 7, padding: '9px 12px', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                />
+                {addHolidayForm.date && (
+                  <div style={{ marginTop: 6, fontSize: 12, color: '#6b7280' }}>
+                    📅 {new Date(addHolidayForm.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button type="button" onClick={() => setShowAddHoliday(false)} style={{ background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 7, padding: '9px 18px', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" style={{ background: '#2e7d32', color: 'white', border: 'none', borderRadius: 7, padding: '9px 22px', fontWeight: 600, cursor: 'pointer' }}>Save Holiday</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

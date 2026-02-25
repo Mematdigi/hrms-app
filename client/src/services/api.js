@@ -74,11 +74,17 @@ export const performanceAPI = {
   submit: (data) => api.post('/performance/submit', data),
 };
 
-export const holidayCalenderAPI = {
-  create: (data) => api.post('/holiday-calender/create', data),
-  getReviews: (params) => api.get('/holiday-calender', { params }),
-  update: (id, data) => api.put(`/holiday-calender/${id}`, data),
-  submit: (data) => api.post('/holiday-calender/submit', data),
+export const holidayAPI = {
+  getAll: (params) => api.get('/holidays', { params }),
+  getById: (id) => api.get(`/holidays/${id}`),
+  create: (data) => api.post('/holidays', data),
+  bulkCreate: (formData) => api.post('/holidays/bulk', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  update: (id, data) => api.put(`/holidays/${id}`, data),
+  delete: (id) => api.delete(`/holidays/${id}`),
+  check: (date) => api.get('/holidays/check', { params: { date } }),
+  getStats: (year) => api.get('/holidays/stats', { params: { year } }),
 };
 
 export default api;
