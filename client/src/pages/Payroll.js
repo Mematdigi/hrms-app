@@ -326,6 +326,7 @@ function Payroll() {
           <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, color: '#1a237e' }}>
             {isHR ? '💰 Payroll Management' : '📄 My Payslip'}
           </h1>
+          {/* <pre>{JSON.stringify(myPayroll || filtered[0], null, 2)}</pre> */}
           <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: 14 }}>
             {isHR
               ? 'Payroll is auto-calculated from attendance & leave records'
