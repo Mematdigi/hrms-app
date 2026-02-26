@@ -477,8 +477,8 @@ function Leave() {
     if (!file) return;
 
     const ext = file.name.split('.').pop().toLowerCase();
-    if (ext !== 'xlsx' && ext !== 'xls') {
-      setUploadError('❌ Only Excel files (.xlsx or .xls) are accepted.');
+    if (ext !== 'xlsx' && ext !== 'xls' && ext !== '.xlsx' && ext !== '.xls') {
+      setUploadError('❌ Only Excel files (.xlsx) or .xls) are accepted.');
       return;
     }
 
@@ -493,51 +493,51 @@ function Leave() {
 
       if (!rows.length) { setUploadError('❌ No data found in the Excel file.'); setUploadLoading(false); return; }
 
-      // Flexible column mapping
-      const mapped = rows.map((row, i) => {
-        const keys = Object.keys(row).map(k => k.trim().toLowerCase());
-        const getVal = (...names) => {
-          for (const n of names) {
-            const k = Object.keys(row).find(k => k.trim().toLowerCase().includes(n));
-            if (k && row[k] !== '') return row[k];
-          }
-          return '';
-        };
+      // // Flexible column mapping
+      // const mapped = rows.map((row, i) => {
+      //   const keys = Object.keys(row).map(k => k.trim().toLowerCase());
+      //   const getVal = (...names) => {
+      //     for (const n of names) {
+      //       const k = Object.keys(row).find(k => k.trim().toLowerCase().includes(n));
+      //       if (k && row[k] !== '') return row[k];
+      //     }
+      //     return '';
+      //   };
 
-        let rawDate = getVal('date');
-        let isoDate = '';
-        let day = getVal('day', 'weekday');
+      //   let rawDate = getVal('date');
+      //   let isoDate = '';
+      //   let day = getVal('day', 'weekday');
 
-        if (rawDate instanceof Date) {
-          isoDate = rawDate.toISOString().split('T')[0];
-        } else if (typeof rawDate === 'number') {
-          // Excel serial date
-          const d = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
-          isoDate = d.toISOString().split('T')[0];
-        } else if (typeof rawDate === 'string' && rawDate) {
-          const parsed = new Date(rawDate);
-          if (!isNaN(parsed)) isoDate = parsed.toISOString().split('T')[0];
-          else isoDate = rawDate; // keep as-is
-        }
+      //   if (rawDate instanceof Date) {
+      //     isoDate = rawDate.toISOString().split('T')[0];
+      //   } else if (typeof rawDate === 'number') {
+      //     // Excel serial date
+      //     const d = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
+      //     isoDate = d.toISOString().split('T')[0];
+      //   } else if (typeof rawDate === 'string' && rawDate) {
+      //     const parsed = new Date(rawDate);
+      //     if (!isNaN(parsed)) isoDate = parsed.toISOString().split('T')[0];
+      //     else isoDate = rawDate; // keep as-is
+      //   }
 
-        // Auto-derive day if blank
-        if (!day && isoDate) {
-          const d = new Date(isoDate);
-          if (!isNaN(d)) day = d.toLocaleDateString('en-GB', { weekday: 'long' });
-        }
+      //   // Auto-derive day if blank
+      //   if (!day && isoDate) {
+      //     const d = new Date(isoDate);
+      //     if (!isNaN(d)) day = d.toLocaleDateString('en-GB', { weekday: 'long' });
+      //   }
 
-        return {
-          name: String(getVal('name', 'holiday', 'title', 'occasion') || '').trim(),
-          date: isoDate,
-          day: String(day).trim(),
-        };
-      }).filter(r => r.name && r.date);
+      //   return {
+      //     name: String(getVal('name', 'holiday', 'title', 'occasion') || '').trim(),
+      //     date: isoDate,
+      //     day: String(day).trim(),
+      //   };
+      // }).filter(r => r.name && r.date);
 
-      if (!mapped.length) {
-        setUploadError('❌ Could not find valid holiday rows. Ensure columns: Name, Date (and optionally Day).');
-        setUploadLoading(false);
-        return;
-      }
+      // if (!mapped.length) {
+      //   setUploadError('❌ Could not find valid holiday rows. Ensure columns: Name, Date (and optionally Day).');
+      //   setUploadLoading(false);
+      //   return;
+      // }
 
       // Send to backend as multipart FormData via bulkCreate
       const formData = new FormData();
@@ -548,7 +548,7 @@ function Leave() {
       setUploadSuccess(`✅ ${mapped.length} holidays uploaded successfully!`);
     } catch (err) {
       console.error('Upload error', err);
-      setUploadError(err?.response?.data?.message || '❌ Upload failed. Check the file format and try again.');
+      // setUploadError(err?.response?.data?.message || '❌ Upload failed. Check the file format and try again.');
     } finally {
       setUploadLoading(false);
     }
@@ -867,7 +867,8 @@ function Leave() {
               {isHR && (
                 <button
                 title="Bulk Upload via Excel"
-                onClick={() => { setUploadError(''); setUploadSuccess(''); setShowHolidayUpload(true); }}
+                onClick={() => { setUploadError('')
+                  ; setUploadSuccess(''); setShowHolidayUpload(true); }}
                 style={{ background: '#e3f2fd', color: '#1565c0', border: '1px solid #90caf9', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
               >⬆ Upload</button>
               )}
