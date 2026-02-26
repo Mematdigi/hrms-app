@@ -98,6 +98,7 @@ const Navbar = () => {
         ...baseItems,
         { label: "Attendance", path: "/attendance" },
         { label: "Leaves", path: "/leave" },
+        { label: 'Payroll', path: '/payroll' },
         profileItem
       ];
     }
