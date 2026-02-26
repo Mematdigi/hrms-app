@@ -24,6 +24,6 @@ const payrollSchema = new mongoose.Schema({
 });
 
 // One record per employee per month per year
-payrollSchema.index({ employee: 1, month: 1, year: 1 }, { unique: true });
+// payrollSchema.index({ employee: 1, month: 1, year: 1 }, { unique: true });
 
 module.exports = mongoose.model('Payroll', payrollSchema);
