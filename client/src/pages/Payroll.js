@@ -123,6 +123,9 @@ const PayslipView = ({ payroll, employee, breakdown, canDownload }) => {
               ['IFSC Code', emp.ifscCode || emp.bankIfsc || 'N/A'],
               ['Total Working Days', b.workingDays || 0],
               ['Days Attended', att.presentDays || 0],
+              ['Absent Days',      att.absentDays  || 0],
+              ['Holidays', att.holidayDays || 0],
+              ['weekOffDays', att.weekOffDays || 0],
               ['Leaves Taken', (lv.casualLeavesTaken || 0) + (lv.sickLeavesTaken || 0) + (lv.earnedLeavesTaken || 0)],
             ].map(([label, val]) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', fontSize: 12.5, borderBottom: '1px solid #f0f0f0' }}>
