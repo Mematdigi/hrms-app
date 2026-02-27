@@ -97,14 +97,14 @@ const PayslipView = ({ payroll, employee, breakdown, canDownload }) => {
 
       <div ref={printRef}>
         {/* Header */}
-        <div style={{ background: '#1a237e', color: 'white', padding: '18px 24px', textAlign: 'center', borderRadius: '8px 8px 0 0' }}>
+        <div style={{ background: '#1a237e', color: 'white', padding: '18px 24px', textAlign: 'center', borderRadius: '8px 8px 0 0'}}>
           <h2 style={{ fontSize: 20, letterSpacing: 1 }}>MEMAT DIGI PVT. LTD.</h2>
           <p style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>
             Payslip for {MONTHS[(payroll?.month || NOW_MONTH) - 1]} {payroll?.year || NOW_YEAR}
           </p>
         </div>
 
-        <div style={{ border: '1px solid #ddd', borderTop: 'none', padding: '20px 24px', borderRadius: '0 0 8px 8px' }}>
+        <div style={{ border: '1px solid #ddd', borderTop: 'none', padding: '20px 24px', borderRadius: '0 0 8px 8px', background: '#f0f0f0', padding: 24, minHeight: '80vh', margin: '0 auto' }}>
 
           {/* Employee Details */}
           <div style={{ color: '#1a237e', fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 8px', borderBottom: '2px solid #1a237e', paddingBottom: 4 }}>Employee Details</div>
@@ -124,9 +124,9 @@ const PayslipView = ({ payroll, employee, breakdown, canDownload }) => {
               ['Total Working Days', b.workingDays || 0],
               ['Days Attended', att.presentDays || 0],
               ['Absent Days',      att.absentDays  || 0],
-              ['Holidays', att.holidayDays || 0],
-              ['weekOffDays', att.weekOffDays || 0],
-              ['Leaves Taken', (lv.casualLeavesTaken || 0) + (lv.sickLeavesTaken || 0) + (lv.earnedLeavesTaken || 0)],
+              // ['Holidays', att.holidayDays || 0],
+              // ['weekOffDays', att.weekOffDays || 0],
+              // ['Leaves Taken', (lv.casualLeavesTaken || 0) + (lv.sickLeavesTaken || 0) + (lv.earnedLeavesTaken || 0)],
             ].map(([label, val]) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', fontSize: 12.5, borderBottom: '1px solid #f0f0f0' }}>
                 <span style={{ color: '#666' }}>{label}</span>
@@ -577,9 +577,9 @@ function Payroll() {
           {loading ? (
             <div style={loadingStyle}>Loading your payslip...</div>
           ) : myPayroll ? (
-            <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 2px 16px rgba(26,35,126,0.1)', overflow: 'hidden' }}>
+            <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 2px 16px rgba(26,35,126,0.1)', overflow: 'hidden', maxWidth: 700, margin: '0 auto'  }}>
               {/* Card header */}
-              <div style={{ background: '#1a237e', color: 'white', padding: '20px 24px' }}>
+              <div style={{ background: '#1a237e', color: 'white', padding: '20px 24px'}}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <h2 style={{ margin: 0, fontSize: 18, letterSpacing: 0.5 }}>MEMAT DIGI PVT. LTD.</h2>
@@ -624,15 +624,15 @@ function Payroll() {
                 </div>
 
                 {/* Days info */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, marginBottom: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
                   {[
                     ['Working Days', myPayroll.workingDays],
                     ['Worked Days', myPayroll.workedDays],
                     ['Month', MONTHS[myPayroll.month - 1]],
                     ['Year', myPayroll.year],
                   ].map(([l, v]) => (
-                    <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #f0f0f0', fontSize: 13 }}>
-                      <span style={{ color: '#6b7280' }}>{l}</span>
+                    <div key={l} style={{padding: '7px 0', borderBottom: '1px solid #f0f0f0', fontSize: 13 }}>
+                      <span style={{ color: '#6b7280', marginRight:10 }}>{l} : </span>
                       <span style={{ fontWeight: 600 }}>{v}</span>
                     </div>
                   ))}
@@ -845,8 +845,8 @@ function Payroll() {
       </Modal>
 
       {/* ── Payslip View Modal ── */}
-      <Modal show={showPayslip} onHide={() => setShowPayslip(false)} size="xl" centered>
-        <Modal.Header closeButton style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
+      <Modal show={showPayslip} onHide={() => setShowPayslip(false)} size="s" centered>
+        <Modal.Header closeButton style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb'}} centered>
           <Modal.Title style={{ fontSize: 16, color: '#1a237e' }}>
             📄 Payslip
             {payslipData.employee && ` — ${payslipData.employee.firstName} ${payslipData.employee.lastName}`}
