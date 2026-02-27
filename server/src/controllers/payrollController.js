@@ -84,8 +84,7 @@ class PayrollController {
 
   // ───────────────────────────────────────────────────────────────────────────
   // CORE CALCULATION ENGINE
-  // ───────────────────────────────────────────────────────────────────────────
-  static async _computeAndSave(employeeId, month, year) {
+ static async _computeAndSave(employeeId, month, year) {
 
     // 1. Employee record (source of baseSalary)
     const employee = await User.findById(employeeId).select(
@@ -97,43 +96,41 @@ class PayrollController {
       throw new Error(`Base salary not configured for ${employee.firstName} ${employee.lastName}`);
     }
 
-    const baseSalary = employee.baseSalary;
+    const baseSalary  = employee.baseSalary;
+    const workingDays = 30; // fixed 30 for salary & deduction calculation every month
+    const startDate   = new Date(year, month - 1, 1);
+    const endDate     = new Date(year, month, 0, 23, 59, 59);
 
-    // ── Use UTC-based start/end to avoid local-timezone date drift ────────────
-    const startDate = new Date(Date.UTC(year, month - 1, 1));
-    const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59));
+    // fetch public holidays for this month from DB
+    const holidayDocs = await Holiday.find({ year, month, isActive: true }).select('date');
+    const holidaySet  = new Set(holidayDocs.map(h => {
+      const d = new Date(h.date);
+      // ── timezone-safe: use local year/month/day to build the key ────────────
+      const yyyy = d.getFullYear();
+      const mm   = String(d.getMonth() + 1).padStart(2, '0');
+      const dd   = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }));
 
-    // ── Fetch public holidays for this month from DB ──────────────────────────
-    const holidayDocs = await Holiday.find({
-      year,
-      month,
-      isActive: true
-    }).select('date');
-    // Normalize holiday dates to UTC date strings (YYYY-MM-DD)
-    const holidaySet = new Set(
-      holidayDocs.map(h => new Date(h.date).toISOString().split('T')[0])
-    );
-
-    // ── Helper: is this date a weekly off (Sunday or 2nd/4th Saturday)? ───────
-    // Uses UTC day/date to avoid timezone-shift issues
-    const isWeekOff = (utcDate) => {
-      const day = utcDate.getUTCDay();
-      if (day === 0) return true; // Sunday — always off
+    // helper — Sunday always off, 2nd & 4th Saturday off
+    const isWeekOff = (date) => {
+      const day = date.getDay();
+      if (day === 0) return true;                          // Sunday
       if (day === 6) {
-        const saturdayIndex = Math.ceil(utcDate.getUTCDate() / 7);
-        return saturdayIndex === 2 || saturdayIndex === 4; // 2nd & 4th Saturday off
+        const saturdayIndex = Math.ceil(date.getDate() / 7);
+        return saturdayIndex === 2 || saturdayIndex === 4; // 2nd & 4th Saturday
       }
       return false;
     };
 
-    // ── Count actual working days in the month (UTC-safe) ─────────────────────
-    const totalDaysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-    let workingDays = 0;
-    for (let d = 1; d <= totalDaysInMonth; d++) {
-      const date = new Date(Date.UTC(year, month - 1, d));
-      const dateKey = date.toISOString().split('T')[0]; // always YYYY-MM-DD in UTC
-      if (!isWeekOff(date) && !holidaySet.has(dateKey)) workingDays++;
-    }
+    // ── timezone-safe date key helper ─────────────────────────────────────────
+    // Always produces "YYYY-MM-DD" in LOCAL time so loop key === attendance key
+    const toDateKey = (date) => {
+      const yyyy = date.getFullYear();
+      const mm   = String(date.getMonth() + 1).padStart(2, '0');
+      const dd   = String(date.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
 
     // 2. Attendance records for the month
     const attendanceRecords = await Attendance.find({
@@ -147,83 +144,97 @@ class PayrollController {
       status: 'approved',
       $or: [
         { startDate: { $gte: startDate, $lte: endDate } },
-        { endDate: { $gte: startDate, $lte: endDate } },
+        { endDate:   { $gte: startDate, $lte: endDate } },
         { startDate: { $lte: startDate }, endDate: { $gte: endDate } }
       ]
     });
 
-    // 4. Build date → leaveType map (clipped to this month, UTC-safe)
+    // 4. Build date → leaveType map (clipped to this month)
     const leaveDateMap = new Map();
     approvedLeaves.forEach(leave => {
-      const lStart = new Date(Math.max(new Date(leave.startDate).getTime(), startDate.getTime()));
-      const lEnd = new Date(Math.min(new Date(leave.endDate).getTime(), endDate.getTime()));
+      const lStart = new Date(Math.max(new Date(leave.startDate), startDate));
+      const lEnd   = new Date(Math.min(new Date(leave.endDate),   endDate));
       getDatesBetween(lStart, lEnd).forEach(ds => leaveDateMap.set(ds, leave.leaveType));
     });
 
-    // 5. Build date → attendance status map (UTC date key)
+    // 5. Build date → attendance status map
+    //    Use toDateKey() so the key format matches what the loop produces
     const attendanceMap = new Map();
     attendanceRecords.forEach(r => {
-      // Use UTC date string so it matches dateKey below
-      attendanceMap.set(new Date(r.date).toISOString().split('T')[0], r.status);
+      const key = toDateKey(new Date(r.date));
+      attendanceMap.set(key, r.status);
     });
 
-    // 6. Walk every calendar day of the month (UTC-safe)
-    let presentDays = 0;
-    let halfDays = 0;
-    let paidLeaveDays = 0;
-    let unpaidLeaveDays = 0;
-    let absentDays = 0;
-    let lateDays = 0;
-    let shortLeaveDays = 0;
-    let holidayDays = 0; // NEW: track paid holidays
+    // 6. Walk every calendar day of the month
+    const totalDaysInMonth = new Date(year, month, 0).getDate();
+
+    let presentDays       = 0;
+    let halfDays          = 0;
+    let paidLeaveDays     = 0;
+    let unpaidLeaveDays   = 0;
+    let absentDays        = 0;
+    let lateDays          = 0;
+    let shortLeaveDays    = 0;  // approved short leave (≤ 2 hr, leaveType === 'short')
+    let earlyGoDays       = 0;  // early departure (≤ 2 hr, attendance status 'early-go')
     let casualLeavesTaken = 0;
-    let sickLeavesTaken = 0;
+    let sickLeavesTaken   = 0;
     let earnedLeavesTaken = 0;
+    let holidayDays       = 0;  // public holidays from DB  (paid, no work)
+    let weekOffDays       = 0;  // Sundays + 2nd/4th Saturdays  (paid, no work)
 
     for (let d = 1; d <= totalDaysInMonth; d++) {
-      const date = new Date(Date.UTC(year, month - 1, d)); // UTC — no timezone drift
-      const dateKey = date.toISOString().split('T')[0];
+      const date    = new Date(year, month - 1, d);
+      const dateKey = toDateKey(date); // ← always local-time "YYYY-MM-DD"
 
-      // ── SKIP: Sunday, 2nd/4th Saturday ──────────────────────────────────────
+      // ── WEEK OFF: Sunday or 2nd/4th Saturday ────────────────────────────────
       if (isWeekOff(date)) {
-        console.log(`Skipping ${dateKey} (${date.getUTCDay() === 0 ? 'Sunday' : '2nd/4th Saturday'})`);
+        weekOffDays++;
+        console.log(`Week off: ${dateKey} (${date.getDay() === 0 ? 'Sunday' : '2nd/4th Saturday'})`);
         continue;
       }
 
-      // ── Public Holiday: counts as a paid day, no deduction ──────────────────
+      // ── PUBLIC HOLIDAY ───────────────────────────────────────────────────────
       if (holidaySet.has(dateKey)) {
-        console.log(`Skipping ${dateKey} (Public Holiday)`);
         holidayDays++;
+        console.log(`Holiday: ${dateKey}`);
         continue;
       }
 
+      // ── Regular working day — check attendance & leave ─────────────────────
       const attStatus = attendanceMap.get(dateKey);
       const leaveType = leaveDateMap.get(dateKey);
 
+      // ── No attendance record for this working day ──────────────────────────
       if (!attStatus) {
-        // No attendance record for this working day
         if (leaveType) {
+          // Has an approved leave — classify by leave type
           if (leaveType === 'unpaid') {
             unpaidLeaveDays++;
+          } else if (leaveType === 'short') {
+            // Short leave applied via leave module — counts as present, 0.25 day deduction
+            shortLeaveDays++;
+            presentDays++;
           } else {
+            // casual / sick / earned / maternity / paternity — paid leave
             paidLeaveDays++;
-            if (leaveType === 'casual') casualLeavesTaken++;
-            else if (leaveType === 'sick') sickLeavesTaken++;
+            if (leaveType === 'casual')      casualLeavesTaken++;
+            else if (leaveType === 'sick')   sickLeavesTaken++;
             else if (leaveType === 'earned') earnedLeavesTaken++;
           }
         } else {
+          // ── NO attendance + NO leave + NOT a holiday/weekend = ABSENT ─────
           absentDays++;
+          console.log(`Absent (no attendance, no leave): ${dateKey}`);
         }
         continue;
       }
 
+      // ── Attendance record exists ───────────────────────────────────────────
       switch (attStatus) {
-        case 'present':
-          presentDays++;
-          break;
 
-        case 'half-day':
-          halfDays++;
+        case 'present':
+        case 'working':
+          presentDays++;
           break;
 
         case 'late':
@@ -231,74 +242,104 @@ class PayrollController {
           lateDays++;
           break;
 
+        // Short leave — employee applied via leave module (leaveType === 'short')
+        // Present for the day; 0.25 day deduction for the 2 hr absence
         case 'short-leave':
+          if (leaveType === 'short') {
+            presentDays++;
+            shortLeaveDays++;
+          } else {
+            // Marked short-leave on attendance but no approved short leave → treat as late
+            presentDays++;
+            lateDays++;
+          }
+          break;
+
+        // Early-go — full-time employee left ≤ 2 hr early, no leave applied
+        // Present for the day; 0.25 day deduction for early departure
+        case 'early-go':
           presentDays++;
-          shortLeaveDays++;
+          earlyGoDays++;
+          break;
+
+        case 'half-day':
+          halfDays++;
           break;
 
         case 'leave':
           if (leaveType) {
-            if (leaveType === 'unpaid') { unpaidLeaveDays++; }
-            else {
+            if (leaveType === 'unpaid') {
+              unpaidLeaveDays++;
+            } else if (leaveType === 'short') {
+              shortLeaveDays++;
+              presentDays++;
+            } else {
               paidLeaveDays++;
-              if (leaveType === 'casual') casualLeavesTaken++;
-              else if (leaveType === 'sick') sickLeavesTaken++;
+              if (leaveType === 'casual')      casualLeavesTaken++;
+              else if (leaveType === 'sick')   sickLeavesTaken++;
               else if (leaveType === 'earned') earnedLeavesTaken++;
             }
           } else {
-            unpaidLeaveDays++; // leave without approval = unpaid
+            // Attendance says 'leave' but no approved leave record = unpaid
+            unpaidLeaveDays++;
           }
           break;
 
         case 'absent':
           if (leaveType) {
-            if (leaveType === 'unpaid') { unpaidLeaveDays++; }
-            else {
+            if (leaveType === 'unpaid') {
+              unpaidLeaveDays++;
+            } else if (leaveType === 'short') {
+              shortLeaveDays++;
+              presentDays++;
+            } else {
               paidLeaveDays++;
-              if (leaveType === 'casual') casualLeavesTaken++;
-              else if (leaveType === 'sick') sickLeavesTaken++;
+              if (leaveType === 'casual')      casualLeavesTaken++;
+              else if (leaveType === 'sick')   sickLeavesTaken++;
               else if (leaveType === 'earned') earnedLeavesTaken++;
             }
           } else {
+            // Attendance explicitly says absent + no approved leave = absent
             absentDays++;
+            console.log(`Absent (attendance=absent, no leave): ${dateKey}`);
           }
           break;
 
         default:
+          // Any unrecognised status — treat as present (safe fallback)
           presentDays++;
       }
     }
 
-    // 7. Worked days (present + paid leaves + half days × 0.5)
-    const workedDays = presentDays + paidLeaveDays + (halfDays * 0.5);
+    // 7. Worked days — holidayDays and weekOffDays both included so employee
+    //    gets full pay for public holidays, Sundays, and 2nd/4th Saturdays
+    const workedDays = presentDays + paidLeaveDays + (halfDays * 0.5)  ;
 
-    // 8. Per-day salary
+    // 8. Per-day salary (always based on fixed 30)
     const perDaySalary = baseSalary / workingDays;
 
-    // 9. Calculate all deductions
+    // 9. Calculate deductions
     let deductions = 0;
 
-    // Absent without leave — full day deduction
-    deductions += (workingDays - workedDays) * perDaySalary;
+    // Absent / unpaid days — full day deduction each
+    deductions += (workingDays - workedDays - weekOffDays - holidayDays) * perDaySalary;
 
-    // Unpaid leave — full day deduction per unpaid leave day
-    deductions += unpaidLeaveDays * perDaySalary;
+    // Short leave — 0.25 day deduction per occurrence (2 hr out of ~8 hr day)
+    deductions += shortLeaveDays * (perDaySalary * 0.25);
 
-    // Half day — half day deduction
-    deductions += halfDays * (perDaySalary * 0.5);
+    // Early-go — 0.25 day deduction per occurrence (left ≤ 2 hr early)
+    deductions += earlyGoDays * (perDaySalary * 0.25);
 
-    // Late arrival — 0.25 day per late instance
-    deductions += lateDays * (perDaySalary * 0.25);
-
-    // Holiday deduction: public holidays are PAID — no deduction (tracked for breakdown only)
+    // // Late arrival — 0.25 day per late (uncomment to enable)
+    // deductions += lateDays * (perDaySalary * 0.25);
 
     // Excess casual/sick leaves beyond employee balance
     const leaveBalance = await Leave.findOne({ employee: employeeId, leaveType: 'Initial Allocation' });
     let excessCasualDeduction = 0;
-    let excessSickDeduction = 0;
+    let excessSickDeduction   = 0;
     if (leaveBalance) {
       const availCasual = leaveBalance.casualLeave || 0;
-      const availSick = leaveBalance.sickLeave || 0;
+      const availSick   = leaveBalance.sickLeave   || 0;
       if (casualLeavesTaken > availCasual) {
         excessCasualDeduction = (casualLeavesTaken - availCasual) * perDaySalary;
         deductions += excessCasualDeduction;
@@ -321,7 +362,7 @@ class PayrollController {
         $set: {
           baseSalary,
           workingDays,
-          workedDays: Math.round(workedDays * 100) / 100,
+          workedDays:  Math.round(workedDays * 100) / 100,
           deductions,
           netSalary,
           status: 'draft',
@@ -334,17 +375,19 @@ class PayrollController {
     const breakdown = {
       baseSalary,
       workingDays,
-      workedDays: Math.round(workedDays * 100) / 100,
+      workedDays:   Math.round(workedDays * 100) / 100,
       perDaySalary: Math.round(perDaySalary * 100) / 100,
       attendance: {
         presentDays,
         halfDays,
         lateDays,
         shortLeaveDays,
+        earlyGoDays,
         paidLeaveDays,
         unpaidLeaveDays,
         absentDays,
-        holidayDays       // NEW: public holidays shown in breakdown
+        holidayDays,   // public holidays count
+        weekOffDays    // Sundays + 2nd/4th Saturdays count
       },
       leaves: {
         casualLeavesTaken,
@@ -353,20 +396,21 @@ class PayrollController {
         totalApprovedLeaves: paidLeaveDays
       },
       deductions: {
-        absentDeduction: Math.round(absentDays * perDaySalary),
-        unpaidLeaveDeduction: Math.round(unpaidLeaveDays * perDaySalary),
-        halfDayDeduction: Math.round(halfDays * perDaySalary * 0.5),
-        lateDeduction: Math.round(lateDays * perDaySalary * 0.25),
+        absentDeduction:       Math.round((workingDays - workedDays) * perDaySalary),
+        unpaidLeaveDeduction:  Math.round(unpaidLeaveDays * perDaySalary),
+        halfDayDeduction:      Math.round(halfDays * perDaySalary * 0.5),
+        lateDeduction:         Math.round(lateDays * perDaySalary * 0.25),
+        shortLeaveDeduction:   Math.round(shortLeaveDays * perDaySalary * 0.25),
+        earlyGoDeduction:      Math.round(earlyGoDays * perDaySalary * 0.25),
         excessCasualDeduction: Math.round(excessCasualDeduction),
-        excessSickDeduction: Math.round(excessSickDeduction),
-        totalDeductions: deductions
+        excessSickDeduction:   Math.round(excessSickDeduction),
+        totalDeductions:       deductions
       },
       netSalary
     };
 
     return { payroll: payrollDoc, breakdown };
   }
-
   // ───────────────────────────────────────────────────────────────────────────
   // GET payroll records
   // ───────────────────────────────────────────────────────────────────────────

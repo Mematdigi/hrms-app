@@ -63,6 +63,7 @@ const PayslipView = ({ payroll, employee, breakdown, canDownload }) => {
   const ded = b.deductions || {};
   const lv = b.leaves || {};
 
+
   // Salary component split (standard Indian payroll structure)
   const basic = Math.round((b.baseSalary || 0) * 0.50);
   const hra = Math.round((b.baseSalary || 0) * 0.25);
@@ -724,7 +725,7 @@ function Payroll() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr style={{ background: '#f1f5f9' }}>
-                    {['Employee', 'Department', 'Month / Year', 'Working Days', 'Worked Days', 'Base Salary', 'Deductions', 'Net Salary', 'Status', 'Actions'].map(h => (
+                    {['Employee', 'Department', 'Month / Year', 'Working Days', 'Worked Days','Base Salary', 'Deductions', 'Net Salary', 'Status', 'Actions'].map(h => (
                       <th key={h} style={{ padding: '13px 16px', textAlign: 'left', fontWeight: 600, color: '#374151', borderBottom: '2px solid #e5e7eb', whiteSpace: 'nowrap', fontSize: 13 }}>{h}</th>
                     ))}
                   </tr>
