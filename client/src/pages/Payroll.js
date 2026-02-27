@@ -60,6 +60,7 @@ const PayslipView = ({ payroll, employee, breakdown }) => {
   const ded = b.deductions || {};
   const lv  = b.leaves     || {};
 
+
   // Salary component split (standard Indian payroll structure)
   const basic      = Math.round((b.baseSalary || 0) * 0.50);
   const hra        = Math.round((b.baseSalary || 0) * 0.25);
@@ -113,6 +114,9 @@ const PayslipView = ({ payroll, employee, breakdown }) => {
               ['IFSC Code',         emp.ifscCode        || emp.bankIfsc || 'N/A'],
                ['Total Working Days', b.workingDays  || 0],
               ['Days Attended',     att.presentDays || 0],
+              ['Absent Days',      att.absentDays  || 0],
+              ['Holidays', att.holidayDays || 0],
+              ['weekOffDays', att.weekOffDays || 0],
               ['Leaves Taken',      (lv.casualLeavesTaken || 0) + (lv.sickLeavesTaken || 0) + (lv.earnedLeavesTaken || 0)],
             ].map(([label, val]) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', fontSize: 12.5, borderBottom: '1px solid #f0f0f0' }}>
@@ -533,7 +537,7 @@ function Payroll() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr style={{ background: '#f1f5f9' }}>
-                    {['Employee', 'Department', 'Month / Year', 'Working Days', 'Worked Days', 'Base Salary', 'Deductions', 'Net Salary', 'Status', 'Actions'].map(h => (
+                    {['Employee', 'Department', 'Month / Year', 'Working Days', 'Worked Days','Base Salary', 'Deductions', 'Net Salary', 'Status', 'Actions'].map(h => (
                       <th key={h} style={{ padding: '13px 16px', textAlign: 'left', fontWeight: 600, color: '#374151', borderBottom: '2px solid #e5e7eb', whiteSpace: 'nowrap', fontSize: 13 }}>{h}</th>
                     ))}
                   </tr>
