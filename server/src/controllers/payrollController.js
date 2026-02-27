@@ -1,5 +1,5 @@
 const Payroll = require('../models/Payroll');
-const PayslipRequest = require('../models/PayslipRequest');
+const PayslipRequest = require('../models/PayslipReq');
 const Attendance = require('../models/Attendance');
 const User = require('../models/User');
 const Leave = require('../models/Leave');

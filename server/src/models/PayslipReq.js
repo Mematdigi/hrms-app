@@ -38,4 +38,4 @@ const payslipRequestSchema = new mongoose.Schema({
 // (they can re-request after rejection)
 payslipRequestSchema.index({ employee: 1, payroll: 1, status: 1 });
 
-module.exports = mongoose.model('PayslipRequest', payslipRequestSchema);
+module.exports = mongoose.model('PayslipReq', payslipRequestSchema);

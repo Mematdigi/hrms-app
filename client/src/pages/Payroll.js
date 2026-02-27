@@ -5,19 +5,19 @@ import { Modal } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const MONTHS = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December'
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
 const NOW_MONTH = new Date().getMonth() + 1;
-const NOW_YEAR  = new Date().getFullYear();
+const NOW_YEAR = new Date().getFullYear();
 const fmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
 
 const STATUS_COLOR = { draft: '#f59e0b', processed: '#3b82f6', paid: '#10b981' };
-const STATUS_BG    = { draft: '#fef3c7', processed: '#dbeafe', paid: '#d1fae5' };
+const STATUS_BG = { draft: '#fef3c7', processed: '#dbeafe', paid: '#d1fae5' };
 
 const REQUEST_COLOR = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
-const REQUEST_BG    = { pending: '#fef3c7', approved: '#d1fae5', rejected: '#fee2e2' };
+const REQUEST_BG = { pending: '#fef3c7', approved: '#d1fae5', rejected: '#fee2e2' };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Payslip View (printable)
@@ -58,21 +58,21 @@ const PayslipView = ({ payroll, employee, breakdown, canDownload }) => {
   };
 
   const emp = employee || {};
-  const b   = breakdown || {};
+  const b = breakdown || {};
   const att = b.attendance || {};
   const ded = b.deductions || {};
-  const lv  = b.leaves     || {};
+  const lv = b.leaves || {};
 
   // Salary component split (standard Indian payroll structure)
-  const basic      = Math.round((b.baseSalary || 0) * 0.50);
-  const hra        = Math.round((b.baseSalary || 0) * 0.25);
+  const basic = Math.round((b.baseSalary || 0) * 0.50);
+  const hra = Math.round((b.baseSalary || 0) * 0.25);
   const conveyance = Math.round((b.baseSalary || 0) * 0.05);
-  const special    = Math.round((b.baseSalary || 0) * 0.08);
-  const medical    = Math.round((b.baseSalary || 0) * 0.12);
+  const special = Math.round((b.baseSalary || 0) * 0.08);
+  const medical = Math.round((b.baseSalary || 0) * 0.12);
   const totalGross = basic + hra + conveyance + special + medical;
 
-  const otherDed  = ded.totalDeductions || 0;
-  const totalDed  = otherDed;
+  const otherDed = ded.totalDeductions || 0;
+  const totalDed = otherDed;
   const netSalary = Math.max(totalGross - totalDed, 0);
 
   return (
@@ -109,20 +109,20 @@ const PayslipView = ({ payroll, employee, breakdown, canDownload }) => {
           <div style={{ color: '#1a237e', fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 8px', borderBottom: '2px solid #1a237e', paddingBottom: 4 }}>Employee Details</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
             {[
-              ['Employee Name',     `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'N/A'],
-              ['Employee ID',       emp.employeeId ? `EMP${emp.employeeId}` : 'N/A'],
-              ['Designation',       emp.designation || 'N/A'],
-              ['Department',        emp.department  || 'N/A'],
-              ['Date of Joining',   emp.dateOfJoining ? new Date(emp.dateOfJoining).toLocaleDateString('en-IN') : 'N/A'],
-              ['Email',             emp.email        || 'N/A'],
-              ['Mobile',            emp.contact|| 'N/A'],
-              ['PAN Number',        emp.panCard || emp.pan  || 'N/A'],
-              ['Bank Name',         emp.bankName        || 'N/A'],
-              ['Account Number',    emp.bankAccountNumber || emp.accountNumber || 'N/A'],
-              ['IFSC Code',         emp.ifscCode        || emp.bankIfsc || 'N/A'],
-               ['Total Working Days', b.workingDays  || 0],
-              ['Days Attended',     att.presentDays || 0],
-              ['Leaves Taken',      (lv.casualLeavesTaken || 0) + (lv.sickLeavesTaken || 0) + (lv.earnedLeavesTaken || 0)],
+              ['Employee Name', `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'N/A'],
+              ['Employee ID', emp.employeeId ? `EMP${emp.employeeId}` : 'N/A'],
+              ['Designation', emp.designation || 'N/A'],
+              ['Department', emp.department || 'N/A'],
+              ['Date of Joining', emp.dateOfJoining ? new Date(emp.dateOfJoining).toLocaleDateString('en-IN') : 'N/A'],
+              ['Email', emp.email || 'N/A'],
+              ['Mobile', emp.contact || 'N/A'],
+              ['PAN Number', emp.panCard || emp.pan || 'N/A'],
+              ['Bank Name', emp.bankName || 'N/A'],
+              ['Account Number', emp.bankAccountNumber || emp.accountNumber || 'N/A'],
+              ['IFSC Code', emp.ifscCode || emp.bankIfsc || 'N/A'],
+              ['Total Working Days', b.workingDays || 0],
+              ['Days Attended', att.presentDays || 0],
+              ['Leaves Taken', (lv.casualLeavesTaken || 0) + (lv.sickLeavesTaken || 0) + (lv.earnedLeavesTaken || 0)],
             ].map(([label, val]) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', fontSize: 12.5, borderBottom: '1px solid #f0f0f0' }}>
                 <span style={{ color: '#666' }}>{label}</span>
@@ -138,11 +138,11 @@ const PayslipView = ({ payroll, employee, breakdown, canDownload }) => {
             <div>
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>INCOME</div>
               {[
-                ['Basic Salary',       basic],
-                ['HRA',                hra],
-                ['Conveyance Allow.',  conveyance],
-                ['Special Allowance',  special],
-                ['Medical Allowance',  medical],
+                ['Basic Salary', basic],
+                ['HRA', hra],
+                ['Conveyance Allow.', conveyance],
+                ['Special Allowance', special],
+                ['Medical Allowance', medical],
               ].map(([l, v]) => (
                 <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13, borderBottom: '1px dashed #e0e0e0' }}>
                   <span>{l}</span><span>{fmt(v)}</span>
@@ -157,10 +157,10 @@ const PayslipView = ({ payroll, employee, breakdown, canDownload }) => {
             <div>
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: '#e53935' }}>DEDUCTIONS</div>
               {[
-                ['PF (12% of Basic)',    'N/A'],
-                ['Professional Tax',     'N/A'],
-                ['TDS',                  'N/A'],
-                ['Absent Deduction',     fmt(totalDed) || 'N/A'],
+                ['PF (12% of Basic)', 'N/A'],
+                ['Professional Tax', 'N/A'],
+                ['TDS', 'N/A'],
+                ['Absent Deduction', fmt(totalDed) || 'N/A'],
               ].filter(([, v]) => v).map(([label, val]) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', fontSize: 12.5, borderBottom: '1px solid #f0f0f0' }}>
                   <span style={{ color: '#666' }}>{label}</span>
@@ -195,40 +195,40 @@ function Payroll() {
   const { user } = useSelector((state) => state.auth);
   const isHR = user?.role === 'admin' || user?.role === 'hr';
 
-  const [payrolls,       setPayrolls]       = useState([]);
-  const [employees,      setEmployees]      = useState([]);
-  const [loading,        setLoading]        = useState(true);
-  const [generating,     setGenerating]     = useState(false);
-  const [genAllLoading,  setGenAllLoading]  = useState(false);
-  const [successMsg,     setSuccessMsg]     = useState('');
-  const [errorMsg,       setErrorMsg]       = useState('');
-  const [selectedMonth,  setSelectedMonth]  = useState(NOW_MONTH);
-  const [selectedYear,   setSelectedYear]   = useState(NOW_YEAR);
-  const [searchQuery,    setSearchQuery]    = useState('');
+  const [payrolls, setPayrolls] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [genAllLoading, setGenAllLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(NOW_MONTH);
+  const [selectedYear, setSelectedYear] = useState(NOW_YEAR);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Generate single modal
-  const [showGenModal,   setShowGenModal]   = useState(false);
-  const [genEmployee,    setGenEmployee]    = useState('');
+  const [showGenModal, setShowGenModal] = useState(false);
+  const [genEmployee, setGenEmployee] = useState('');
 
   // Payslip modal
-  const [showPayslip,    setShowPayslip]    = useState(false);
-  const [payslipData,    setPayslipData]    = useState({ payroll: null, employee: null, breakdown: null });
+  const [showPayslip, setShowPayslip] = useState(false);
+  const [payslipData, setPayslipData] = useState({ payroll: null, employee: null, breakdown: null });
   const [payslipLoading, setPayslipLoading] = useState(false);
-  const [canDownload,    setCanDownload]    = useState(false);
+  const [canDownload, setCanDownload] = useState(false);
 
   // ── Download Request: Employee ─────────────────────────────────────────────
-  const [showRequestModal,  setShowRequestModal]  = useState(false);
-  const [requestPayrollId,  setRequestPayrollId]  = useState('');
-  const [requestReason,     setRequestReason]     = useState('');
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestPayrollId, setRequestPayrollId] = useState('');
+  const [requestReason, setRequestReason] = useState('');
   const [requestSubmitting, setRequestSubmitting] = useState(false);
-  const [myRequests,        setMyRequests]        = useState([]); // { payrollId → request }
+  const [myRequests, setMyRequests] = useState([]); // { payrollId → request }
 
   // ── Download Request: HR ───────────────────────────────────────────────────
   const [showHRRequestsModal, setShowHRRequestsModal] = useState(false);
-  const [hrRequests,           setHRRequests]          = useState([]);
-  const [hrRequestsLoading,    setHRRequestsLoading]   = useState(false);
-  const [rejectModal,          setRejectModal]         = useState({ open: false, requestId: '', reason: '' });
-  const [reviewSubmitting,     setReviewSubmitting]    = useState(false);
+  const [hrRequests, setHRRequests] = useState([]);
+  const [hrRequestsLoading, setHRRequestsLoading] = useState(false);
+  const [rejectModal, setRejectModal] = useState({ open: false, requestId: '', reason: '' });
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   useEffect(() => {
     fetchPayrolls();
@@ -243,7 +243,7 @@ function Payroll() {
   }, [payrolls]);
 
   const showSuccess = (msg) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(''), 4000); };
-  const showError   = (msg) => { setErrorMsg(msg);   setTimeout(() => setErrorMsg(''),   5000); };
+  const showError = (msg) => { setErrorMsg(msg); setTimeout(() => setErrorMsg(''), 5000); };
 
   const fetchPayrolls = async () => {
     setLoading(true);
@@ -339,8 +339,8 @@ function Payroll() {
       const [breakdownRes, employeeRes, permRes] = await Promise.all(promises);
 
       setPayslipData({
-        payroll:   breakdownRes.data?.payroll  || payroll,
-        employee:  employeeRes?.data           || payroll.employee,
+        payroll: breakdownRes.data?.payroll || payroll,
+        employee: employeeRes?.data || payroll.employee,
         breakdown: breakdownRes.data?.breakdown || null,
       });
 
@@ -446,10 +446,10 @@ function Payroll() {
   }) : [];
 
   const stats = isHR ? {
-    total:       payrolls.length,
-    draft:       payrolls.filter(p => p.status === 'draft').length,
-    processed:   payrolls.filter(p => p.status === 'processed').length,
-    paid:        payrolls.filter(p => p.status === 'paid').length,
+    total: payrolls.length,
+    draft: payrolls.filter(p => p.status === 'draft').length,
+    processed: payrolls.filter(p => p.status === 'processed').length,
+    paid: payrolls.filter(p => p.status === 'paid').length,
     totalPayout: payrolls.reduce((s, p) => s + (p.netSalary || 0), 0)
   } : null;
 
@@ -503,9 +503,34 @@ function Payroll() {
               <button onClick={handleGenerateAll} disabled={genAllLoading} style={btnStyle('#059669')}>
                 {genAllLoading ? '⏳ Generating...' : '🚀 Generate All Employees'}
               </button>
-              <button onClick={handleOpenHRRequests} style={btnStyle('#7c3aed')}>
+              {/* <button onClick={handleOpenHRRequests} style={btnStyle('#7c3aed')}>
                 📥 Download Requests
-              </button>
+              </button> */}
+              <div style={{ position: 'relative', display: 'inline-block' }}>
+                <button onClick={handleOpenHRRequests} style={btnStyle('#7c3aed')}>
+                  📥 Download Requests
+                </button>
+
+                {/* Notification Badge */}
+                <span style={{
+                  position: 'absolute',
+                  top: '-8px',          // Button ke thoda upar
+                  right: '-8px',        // Button ke thoda bahar
+                  backgroundColor: '#ef4444', // Red alert color
+                  color: 'white',
+                  borderRadius: '50%',
+                  padding: '2px 6px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  border: '2px solid white', // Isse badge alag se highlight hota hai
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  minWidth: '18px',
+                  textAlign: 'center',
+                  lineHeight: '1'
+                }}>
+                  {hrRequests.filter(r => r.status === 'pending').length || ''}
+                </span>
+              </div>
             </>
           )}
         </div>
@@ -548,7 +573,7 @@ function Payroll() {
           {loading ? (
             <div style={loadingStyle}>Loading your payslip...</div>
           ) : myPayroll ? (
-            <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 2px 16px rgba(26,35,126,0.1)', overflow: 'hidden'}}>
+            <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 2px 16px rgba(26,35,126,0.1)', overflow: 'hidden' }}>
               {/* Card header */}
               <div style={{ background: '#1a237e', color: 'white', padding: '20px 24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -584,8 +609,8 @@ function Payroll() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
                   {[
                     { label: 'Base Salary', value: fmt(myPayroll.baseSalary), color: '#1a237e' },
-                    { label: 'Deductions',  value: fmt(myPayroll.deductions),  color: '#dc2626' },
-                    { label: 'Net Salary',  value: fmt(myPayroll.netSalary),   color: '#059669' },
+                    { label: 'Deductions', value: fmt(myPayroll.deductions), color: '#dc2626' },
+                    { label: 'Net Salary', value: fmt(myPayroll.netSalary), color: '#059669' },
                   ].map(s => (
                     <div key={s.label} style={{ background: '#f8fafc', borderRadius: 10, padding: '14px 16px', textAlign: 'center' }}>
                       <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>{s.label}</div>
@@ -598,9 +623,9 @@ function Payroll() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, marginBottom: 20 }}>
                   {[
                     ['Working Days', myPayroll.workingDays],
-                    ['Worked Days',  myPayroll.workedDays],
-                    ['Month',        MONTHS[myPayroll.month - 1]],
-                    ['Year',         myPayroll.year],
+                    ['Worked Days', myPayroll.workedDays],
+                    ['Month', MONTHS[myPayroll.month - 1]],
+                    ['Year', myPayroll.year],
                   ].map(([l, v]) => (
                     <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #f0f0f0', fontSize: 13 }}>
                       <span style={{ color: '#6b7280' }}>{l}</span>
@@ -899,7 +924,7 @@ function Payroll() {
               <tbody>
                 {hrRequests.map((r, i) => {
                   const emp = r.employee || {};
-                  const pr  = r.payroll  || {};
+                  const pr = r.payroll || {};
                   return (
                     <tr key={r._id} style={{ background: i % 2 === 0 ? 'white' : '#fafafa' }}>
                       <td style={{ padding: '12px 16px' }}>
