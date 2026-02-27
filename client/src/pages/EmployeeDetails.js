@@ -72,13 +72,13 @@ const EmployeeDetails = () => {
               <span className="info-label">Email Address</span>
               <span className="info-value">{employee.email}</span>
             </div>
-
+{/* <pre>{JSON.stringify(employee, null, 2)}</pre> */}
             {/* Status (Using the badge style) */}
             <div className="info-group">
               <span className="info-label">Status</span>
               <div>
-                <span className={`status-badge ${employee.isActive ? 'active' : 'inactive'}`}>
-                  {employee.isActive ? 'Active' : 'Inactive'}
+                <span className={`status-badge ${employee.status === 'Active' ? 'active' : 'inactive'}`}>
+                  {employee.status  }
                 </span>
               </div>
             </div>

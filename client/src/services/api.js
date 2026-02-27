@@ -54,17 +54,35 @@ export const leaveAPI = {
 };
 
 export const payrollAPI = {
+  // ── Payroll Generation ────────────────────────────────────────────────────
   // Auto-generate for one employee — reads attendance + leaves from DB
   generate: (data) => api.post('/payroll/generate', data),
   // Auto-generate for ALL active employees
   generateAll: (data) => api.post('/payroll/generate-all', data),
+
+  // ── Payroll Records ───────────────────────────────────────────────────────
   // Fetch payroll records with optional filters
   getPayroll: (params) => api.get('/payroll', { params }),
   // Fetch single payroll with full live breakdown (for payslip)
   getBreakdown: (payrollId) => api.get(`/payroll/breakdown/${payrollId}`),
-  // Status transitions
+
+  // ── Status Transitions ────────────────────────────────────────────────────
   process: (data) => api.post('/payroll/process', data),
   pay: (data) => api.post('/payroll/pay', data),
+
+  // ── Payslip Download Requests ─────────────────────────────────────────────
+  // Employee: submit a new download request { payrollId, reason }
+  requestDownload: (data) => api.post('/payroll/download-requests', data),
+  // Employee: get own request history
+  getMyDownloadRequests: () => api.get('/payroll/download-requests/my'),
+  // Employee: check if download is permitted for a given payroll
+  checkDownloadPermission: (payrollId) => api.get(`/payroll/download-requests/check/${payrollId}`),
+  // HR: get pending requests (pass { status: 'all' } for full history)
+  getPendingDownloadRequests: (params) => api.get('/payroll/download-requests', { params }),
+  // HR: approve a request { requestId }
+  approveDownloadRequest: (data) => api.post('/payroll/download-requests/approve', data),
+  // HR: reject a request { requestId, hrResponse }
+  rejectDownloadRequest: (data) => api.post('/payroll/download-requests/reject', data),
 };
 
 export const performanceAPI = {
