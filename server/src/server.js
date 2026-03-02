@@ -8,6 +8,8 @@ const statusCodes = require('http-status');
 const ApiError = require('./utils/ApiError');
 const { errorConverter, errorHandler } = require('./middleware/error');
 const morgan = require('morgan');
+const path = require('path');
+
 
 const startAttendanceStatusCron = require('./jobs/schedulars')
 
@@ -72,4 +74,10 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../client/build')));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+  });
+}
 // startAttendanceStatusCron()
