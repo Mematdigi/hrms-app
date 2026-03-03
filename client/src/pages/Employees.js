@@ -24,7 +24,7 @@ function Employees() {
 
     // --- Main Form Data (Used for BOTH Add and Edit) ---
     const [formData, setFormData] = useState({
-        employeeId: '',
+        employeeId: 'MMD-',
         firstName: '',
         lastName: '',
         email: '',
@@ -80,7 +80,7 @@ function Employees() {
         setEditingId(employee._id);
 
         setFormData({
-            employeeId: `MMD-${employee.employeeId}` || '',
+            employeeId: `${employee.employeeId}` || '',
             firstName: employee.firstName || '',
             lastName: employee.lastName || '',
             email: employee.email || '',
