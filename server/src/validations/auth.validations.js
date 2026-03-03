@@ -6,9 +6,6 @@ const signUp = {
   body: Joi.object({
     name: Joi.string().trim().min(2).max(80).required(),
     email: Joi.string().trim().lowercase().email({ tlds: { allow: false } }).required(),
-    contactNumber: JoiPhoneNumber.string()
-      .phoneNumber({ defaultCountry: "IN", format: "e164" }) // e.g. +919876543210
-      .required(),
     password: Joi.string()
       .min(8)
       .max(64)
