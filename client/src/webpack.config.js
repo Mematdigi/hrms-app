@@ -81,7 +81,7 @@ module.exports = {
           historyApiFallback: true,
           static: { directory: path.join(__dirname, 'public') },
           proxy: {
-            '/api': { target: 'http://localhost:3000', changeOrigin: true },
+            '/api': { target: 'https://hrms-app-wtlz.onrender.com', changeOrigin: true },
           },
         },
       }),
