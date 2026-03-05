@@ -131,7 +131,7 @@ $border: #e5e7eb;
 
 // Calendar Side Widget
 .calendar-section {
-  background: white; border-radius: 12px; border: 1px solid $border; padding: 20px;
+  background: white; border-radius: 12px; border: 1px solid $border; padding: 20px; height: fit-content;
   
   h5 { margin: 0 0 20px; font-size: 15px; font-weight: 700; }
 

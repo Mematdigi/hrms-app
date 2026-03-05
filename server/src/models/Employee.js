@@ -26,28 +26,50 @@ const employeeSchema = new mongoose.Schema({
     required: true
   },
   address: {
-    type: String
+    type: String,
+    default: ''
+  },
+  currentAddress: {
+    type: String,
+    default: ''
   },
   password: {
     type: String,
     required: true
   },
   department: {
-    type: String
+    type: String,
+    default: ''
   },
   designation: {
-    type: String
+    type: String,
+    default: ''
   },
   dateOfJoining: {
-    type: Date
+    type: Date,
+    default: null
+  },
+  dateOfBirth: {
+    type: Date,
+    default: null
+  },
+  lastWorkingDay: {
+    type: Date,
+    default: null
   },
   baseSalary: {
-    type: Number
+    type: Number,
+    default: 0
   },
   status: {
     type: String,
-    enum: ['Full Time', 'Probation', 'Internship'],
+    enum: ['Full Time', 'Internship'],
     default: 'Full Time'
+  },
+  periodType: {
+    type: String,
+    enum: ['Probation', 'Permanent', 'Contractual'],
+    default: 'Permanent'
   },
   isActive: {
     type: Boolean,
@@ -56,6 +78,30 @@ const employeeSchema = new mongoose.Schema({
   role: {
     type: String,
     default: 'employee'
+  },
+
+  // Gender — NO enum so empty string / any value is accepted
+  gender: {
+    type: String,
+    default: ''
+  },
+  maritalStatus: {
+    type: String,
+    default: ''
+  },
+  nationality: {
+    type: String,
+    default: ''
+  },
+
+  // Identity
+  panNumber: {
+    type: String,
+    default: ''
+  },
+  aadharNumber: {
+    type: String,
+    default: ''
   },
 
   // Work Mode
@@ -93,15 +139,15 @@ const employeeSchema = new mongoose.Schema({
     default: ''
   },
 
-  // Document Paths (Storing URLs/Paths)
-  profilePhoto: { type: String },
+  // Document Paths
+  profilePhoto: { type: String, default: null },
   documents: {
-    adharCard: { type: String },
-    panCard: { type: String },
-    salarySlip: { type: String },
-    relievingLetter: { type: String },
-    experienceLetter: { type: String },
-    offerLetter: { type: String }
+    adharCard: { type: String, default: null },
+    panCard: { type: String, default: null },
+    salarySlip: { type: String, default: null },
+    relievingLetter: { type: String, default: null },
+    experienceLetter: { type: String, default: null },
+    offerLetter: { type: String, default: null }
   }
 }, { timestamps: true });
 

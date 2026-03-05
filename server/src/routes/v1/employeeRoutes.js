@@ -6,10 +6,10 @@ const path = require('path');
 
 const router = express.Router();
 
-// --- Multer Config ---
+// --- Multer Config for Documents (disk storage) ---
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/documents/'); // Ensure this folder exists!
+    cb(null, 'uploads/documents/');
   },
   filename: (req, file, cb) => {
     cb(null, `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`);
@@ -17,6 +17,20 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage: storage });
+
+// --- Multer Config for Bulk Import (memory storage) ---
+const excelUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext === '.xlsx' || ext === '.xls') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only Excel files (.xlsx, .xls) are allowed'));
+    }
+  },
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
 
 const uploadFields = upload.fields([
   { name: 'profilePhoto', maxCount: 1 },
@@ -28,20 +42,54 @@ const uploadFields = upload.fields([
   { name: 'offerLetter', maxCount: 1 }
 ]);
 
-// --- Routes ---
-router.get('/', authMiddleware, employeeController.getAllEmployees);
-router.get('/:id', authMiddleware, employeeController.getEmployeeById);
+// =============================================================
+// IMPORTANT: Static routes MUST come before /:id dynamic routes
+// =============================================================
 
-// Create Employee (With File Uploads)
-router.post('/', 
-  authMiddleware, 
-  roleMiddleware(['admin', 'hr','manager','employee']), 
-  uploadFields, 
+// Bulk Import (POST /employees/bulk-import)
+router.post(
+  '/bulk-import',
+  authMiddleware,
+  roleMiddleware(['admin', 'hr']),
+  excelUpload.single('excelFile'),
+  employeeController.bulkImportEmployees
+);
+
+// Payrolls (GET /employees/all/payrolls)
+router.get(
+  '/all/payrolls',
+  authMiddleware,
+  roleMiddleware(['admin', 'hr', 'manager']),
+  employeeController.getEmployeePayrolls
+);
+
+// Standard CRUD
+router.get('/', authMiddleware, employeeController.getAllEmployees);
+
+router.post(
+  '/',
+  authMiddleware,
+  roleMiddleware(['admin', 'hr', 'manager', 'employee']),
+  uploadFields,
   employeeController.createEmployee
 );
 
-router.put('/:id', authMiddleware, roleMiddleware(['admin', 'hr','manager','employee']), uploadFields, employeeController.updateEmployee);
-router.delete('/:id', authMiddleware, roleMiddleware(['admin','manager']), employeeController.deleteEmployee);
-router.get('/all/payrolls', authMiddleware, roleMiddleware(['admin','hr','manager']), employeeController.getEmployeePayrolls);
+// Dynamic /:id routes — ALWAYS LAST
+router.get('/:id', authMiddleware, employeeController.getEmployeeById);
+
+router.put(
+  '/:id',
+  authMiddleware,
+  roleMiddleware(['admin', 'hr', 'manager', 'employee']),
+  uploadFields,
+  employeeController.updateEmployee
+);
+
+router.delete(
+  '/:id',
+  authMiddleware,
+  roleMiddleware(['admin', 'manager']),
+  employeeController.deleteEmployee
+);
 
 module.exports = router;

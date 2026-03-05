@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://hrms-app-wtlz.onrender.com/v1';
+const API_BASE_URL = 'http://localhost:5000/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -27,6 +27,9 @@ export const employeeAPI = {
   update: (id, data) => api.put(`/employees/${id}`, data),
   delete: (id) => api.delete(`/employees/${id}`),
   getPayrolls: () => api.get('/employees/all/payrolls'),
+  bulkImport: (formData) => api.post('/employees/bulk-import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };
 
 export const attendanceAPI = {
@@ -54,34 +57,17 @@ export const leaveAPI = {
 };
 
 export const payrollAPI = {
-  // ── Payroll Generation ────────────────────────────────────────────────────
-  // Auto-generate for one employee — reads attendance + leaves from DB
   generate: (data) => api.post('/payroll/generate', data),
-  // Auto-generate for ALL active employees
   generateAll: (data) => api.post('/payroll/generate-all', data),
-
-  // ── Payroll Records ───────────────────────────────────────────────────────
-  // Fetch payroll records with optional filters
   getPayroll: (params) => api.get('/payroll', { params }),
-  // Fetch single payroll with full live breakdown (for payslip)
   getBreakdown: (payrollId) => api.get(`/payroll/breakdown/${payrollId}`),
-
-  // ── Status Transitions ────────────────────────────────────────────────────
   process: (data) => api.post('/payroll/process', data),
   pay: (data) => api.post('/payroll/pay', data),
-
-  // ── Payslip Download Requests ─────────────────────────────────────────────
-  // Employee: submit a new download request { payrollId, reason }
   requestDownload: (data) => api.post('/payroll/download-requests', data),
-  // Employee: get own request history
   getMyDownloadRequests: () => api.get('/payroll/download-requests/my'),
-  // Employee: check if download is permitted for a given payroll
   checkDownloadPermission: (payrollId) => api.get(`/payroll/download-requests/check/${payrollId}`),
-  // HR: get pending requests (pass { status: 'all' } for full history)
   getPendingDownloadRequests: (params) => api.get('/payroll/download-requests', { params }),
-  // HR: approve a request { requestId }
   approveDownloadRequest: (data) => api.post('/payroll/download-requests/approve', data),
-  // HR: reject a request { requestId, hrResponse }
   rejectDownloadRequest: (data) => api.post('/payroll/download-requests/reject', data),
 };
 

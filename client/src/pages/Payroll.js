@@ -111,7 +111,7 @@ const PayslipView = ({ payroll, employee, breakdown, canDownload }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
             {[
               ['Employee Name', `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'N/A'],
-              ['Employee ID', emp.employeeId ? `EMP${emp.employeeId}` : 'N/A'],
+              ['Employee ID', emp.employeeId ? `${emp.employeeId}` : 'N/A'],
               ['Designation', emp.designation || 'N/A'],
               ['Department', emp.department || 'N/A'],
               ['Date of Joining', emp.dateOfJoining ? new Date(emp.dateOfJoining).toLocaleDateString('en-IN') : 'N/A'],
@@ -755,7 +755,7 @@ function Payroll() {
                             </div>
                             <div>
                               <div style={{ fontWeight: 600, color: '#111827' }}>{name}</div>
-                              <div style={{ fontSize: 12, color: '#9ca3af' }}>{emp.employeeId ? `EMP${emp.employeeId}` : emp.email || ''}</div>
+                              <div style={{ fontSize: 12, color: '#9ca3af' }}>{emp.employeeId ? `${emp.employeeId}` : emp.email || ''}</div>
                             </div>
                           </div>
                         </td>

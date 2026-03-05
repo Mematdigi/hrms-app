@@ -91,9 +91,9 @@ function Login() {
           </button>
         </form>
 
-        <p>
+        {/* <p>
           Don&apos;t have an account? <Link to="/register">Register here</Link>
-        </p>
+        </p> */}
       </div>
     </div>
   );
