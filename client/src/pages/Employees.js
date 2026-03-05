@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { employeeAPI } from '../services/api';
@@ -6,23 +6,24 @@ import { employeeAPI } from '../services/api';
 function Employees() {
     const navigate = useNavigate();
 
-    // --- State Management ---
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(true);
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
 
-    // View Mode: 'grid', 'list', 'add', 'edit'
+    // View Mode: 'grid', 'list', 'add', 'edit', 'bulk'
     const [viewMode, setViewMode] = useState('grid');
 
-    // --- Search & Filter State ---
+    // Search & Filter
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterDepartment, setFilterDepartment] = useState('');
-    const [filterDesignation, setFilterDesignation] = useState('');
-    const [filterStatus, setFilterStatus] = useState('');
-    const [filterJoinDate, setFilterJoinDate] = useState('');
 
-    // --- Main Form Data (Used for BOTH Add and Edit) ---
+    // Bulk Import State
+    const [bulkFile, setBulkFile] = useState(null);
+    const [bulkLoading, setBulkLoading] = useState(false);
+    const [bulkResult, setBulkResult] = useState(null);
+    const bulkFileRef = useRef(null);
+
+    // Main Form Data
     const [formData, setFormData] = useState({
         employeeId: 'MMD-',
         firstName: '',
@@ -30,14 +31,23 @@ function Employees() {
         email: '',
         contact: '',
         address: '',
+        currentAddress: '',
         password: '',
         department: '',
         designation: '',
         dateOfJoining: '',
+        dateOfBirth: '',
+        lastWorkingDay: '',
         baseSalary: '',
         status: 'Full Time',
+        periodType: 'Permanent',
         isActive: true,
         workMode: 'Work From Office',
+        gender: '',
+        maritalStatus: '',
+        nationality: '',
+        panNumber: '',
+        aadharNumber: '',
         // Bank Details
         bankName: '',
         bankAccountNumber: '',
@@ -56,7 +66,6 @@ function Employees() {
         profilePhoto: null
     });
 
-    // Edit State
     const [editingId, setEditingId] = useState(null);
     const [photoPreview, setPhotoPreview] = useState(null);
     const [existingDocs, setExistingDocs] = useState({});
@@ -75,10 +84,8 @@ function Employees() {
         } finally { setLoading(false); }
     };
 
-    // --- Handlers ---
     const handleEditClick = (employee) => {
         setEditingId(employee._id);
-
         setFormData({
             employeeId: `${employee.employeeId}` || '',
             firstName: employee.firstName || '',
@@ -86,23 +93,29 @@ function Employees() {
             email: employee.email || '',
             contact: employee.contact || '',
             address: employee.address || '',
+            currentAddress: employee.currentAddress || '',
             password: '',
             department: employee.department || '',
             designation: employee.designation || '',
             dateOfJoining: employee.dateOfJoining ? new Date(employee.dateOfJoining).toISOString().split('T')[0] : '',
+            dateOfBirth: employee.dateOfBirth ? new Date(employee.dateOfBirth).toISOString().split('T')[0] : '',
+            lastWorkingDay: employee.lastWorkingDay ? new Date(employee.lastWorkingDay).toISOString().split('T')[0] : '',
             baseSalary: employee.baseSalary || '',
             status: employee.status || 'Full Time',
+            periodType: employee.periodType || 'Permanent',
             isActive: employee.isActive,
             workMode: employee.workMode || 'Work From Office',
-            // Bank Details
+            gender: employee.gender || '',
+            maritalStatus: employee.maritalStatus || '',
+            nationality: employee.nationality || '',
+            panNumber: employee.panNumber || '',
+            aadharNumber: employee.aadharNumber || '',
             bankName: employee.bankName || '',
             bankAccountNumber: employee.bankAccountNumber || '',
             ifscCode: employee.ifscCode || '',
-            // Emergency Contact
             emergencyContactName: employee.emergencyContactName || '',
             emergencyContactPhone: employee.emergencyContactPhone || '',
             emergencyContactRelation: employee.emergencyContactRelation || '',
-            // Reset files
             adharCard: null, panCard: null, salarySlip: null,
             relievingLetter: null, experienceLetter: null, offerLetter: null, profilePhoto: null
         });
@@ -127,7 +140,6 @@ function Employees() {
         if (files && files[0]) {
             const file = files[0];
             setFormData({ ...formData, [name]: file });
-
             if (name === 'profilePhoto') {
                 const reader = new FileReader();
                 reader.onloadend = () => setPhotoPreview(reader.result);
@@ -136,7 +148,6 @@ function Employees() {
         }
     };
 
-    // ✅ Unified Submit for Add and Update
     const handleSubmit = async (e) => {
         e.preventDefault();
         setErrorMessage('');
@@ -177,10 +188,11 @@ function Employees() {
 
     const resetForm = () => {
         setFormData({
-            employeeId: '', firstName: '', lastName: '', email: '', contact: '', address: '',
-            password: '', department: '', designation: '', dateOfJoining: '', baseSalary: '',
-            status: 'Full Time', isActive: true,
-            workMode: 'Work From Office',
+            employeeId: '', firstName: '', lastName: '', email: '', contact: '',
+            address: '', currentAddress: '', password: '', department: '', designation: '',
+            dateOfJoining: '', dateOfBirth: '', lastWorkingDay: '', baseSalary: '',
+            status: 'Full Time', periodType: 'Permanent', isActive: true, workMode: 'Work From Office',
+            gender: '', maritalStatus: '', nationality: '', panNumber: '', aadharNumber: '',
             bankName: '', bankAccountNumber: '', ifscCode: '',
             emergencyContactName: '', emergencyContactPhone: '', emergencyContactRelation: '',
             adharCard: null, panCard: null, salarySlip: null,
@@ -201,24 +213,81 @@ function Employees() {
         } catch (error) { setErrorMessage(error?.response?.data?.message || 'Error deleting employee'); }
     };
 
-    // --- Helper Functions ---
+    // --- Bulk Import Handlers ---
+    const handleBulkFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setBulkFile(file);
+            setBulkResult(null);
+        }
+    };
+
+    const handleBulkImport = async () => {
+        if (!bulkFile) { setErrorMessage('Please select an Excel file first.'); return; }
+        setBulkLoading(true);
+        setBulkResult(null);
+        setErrorMessage('');
+        setSuccessMessage('');
+
+        try {
+            const data = new FormData();
+            data.append('excelFile', bulkFile);
+            const response = await employeeAPI.bulkImport(data);
+            setBulkResult(response.data);
+            if (response.data.success?.length > 0) {
+                setSuccessMessage(`✅ ${response.data.success.length} employees imported successfully!`);
+                fetchEmployees();
+            }
+            if (response.data.failed?.length > 0) {
+                setErrorMessage(`⚠️ ${response.data.failed.length} rows failed. See details below.`);
+            }
+        } catch (error) {
+            setErrorMessage(error?.response?.data?.message || 'Bulk import failed.');
+        } finally {
+            setBulkLoading(false);
+        }
+    };
+
+    const handleDownloadTemplate = () => {
+        // Generate a CSV template for download
+        const headers = [
+            'Employee ID', 'DATE OF JOINING', 'Name', 'Department', 'Designation',
+            'Employee Type', 'Contact Number', 'Email', 'Date of Birth',
+            'Gender', 'PAN Number', 'Aadhar Number', 'Bank Account No', 'IFSC Code',
+            'Salary', 'Office mail id ', 'Bank Name', 'Last Working Day',
+            'Permanent Address', 'Current Address', 'Marital Status',
+            'Emergency contact Name ', 'Emeregncy Contact Number ', 'Nationality'
+        ];
+        const sampleRow = [
+            'MMD-001', '01/01/2024', 'John Doe', 'Development Team', 'Software Engineer',
+            'Full Time', '9876543210', 'john.doe@company.com', '01/01/1995',
+            'Male', 'ABCDE1234F', '123456789012', '1234567890', 'SBIN0001234',
+            '50000', 'john.doe@company.com', 'State Bank of India', '',
+            '123 Main St, City', '456 Other St, City', 'Single',
+            'Jane Doe', '9876543211', 'Indian'
+        ];
+        const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'employee_import_template.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     useEffect(() => {
         if (successMessage || errorMessage) {
-            const timer = setTimeout(() => { setSuccessMessage(''); setErrorMessage(''); }, 5000);
+            const timer = setTimeout(() => { setSuccessMessage(''); setErrorMessage(''); }, 6000);
             return () => clearTimeout(timer);
         }
     }, [successMessage, errorMessage]);
-
-    const handleResetFilters = () => {
-        setSearchQuery(''); setFilterDepartment(''); setFilterDesignation(''); setFilterStatus(''); setFilterJoinDate('');
-    };
 
     const filteredEmployees = useMemo(() => {
         return employees.filter((emp) => {
             const searchLower = searchQuery.toLowerCase();
             const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
-            const matchesSearch = fullName.includes(searchLower) || emp.email.toLowerCase().includes(searchLower);
-            return matchesSearch;
+            return fullName.includes(searchLower) || emp.email.toLowerCase().includes(searchLower);
         });
     }, [employees, searchQuery]);
 
@@ -239,14 +308,30 @@ function Employees() {
             {/* Header */}
             <div className="page-header">
                 <div>
-                    <h1>{viewMode === 'add' ? 'Add New Employee' : viewMode === 'edit' ? 'Edit Details' : 'Employees'}</h1>
-                    <p>{viewMode === 'grid' || viewMode === 'list' ? 'Manage your team members.' : 'Manage employee information and documents.'}</p>
+                    <h1>
+                        {viewMode === 'add' ? 'Add New Employee'
+                            : viewMode === 'edit' ? 'Edit Details'
+                            : viewMode === 'bulk' ? 'Bulk Import Employees'
+                            : 'Employees'}
+                    </h1>
+                    <p>
+                        {viewMode === 'grid' || viewMode === 'list'
+                            ? 'Manage your team members.'
+                            : viewMode === 'bulk'
+                            ? 'Import multiple employees at once using an Excel sheet.'
+                            : 'Manage employee information and documents.'}
+                    </p>
                 </div>
                 {(user?.role === 'admin' || user?.role === 'hr') && (
                     viewMode === 'grid' || viewMode === 'list' ? (
-                        <button className="btn-primary-add" onClick={() => { resetForm(); setViewMode('add'); }}>
-                            + Add Employee
-                        </button>
+                        <div className="header-actions">
+                            <button className="btn-secondary-add" onClick={() => { setBulkResult(null); setBulkFile(null); setViewMode('bulk'); }}>
+                                <i className="bi bi-file-earmark-spreadsheet me-2"></i>Bulk Import
+                            </button>
+                            <button className="btn-primary-add" onClick={() => { resetForm(); setViewMode('add'); }}>
+                                + Add Employee
+                            </button>
+                        </div>
                     ) : (
                         <div className="form-footer-actions">
                             <button type="button" className="btn-primary-add" onClick={resetForm}>Cancel</button>
@@ -255,11 +340,147 @@ function Employees() {
                 )}
             </div>
 
-            {/* --- ADD / EDIT FORM VIEW (FULL PAGE) --- */}
+            {/* --- BULK IMPORT VIEW --- */}
+            {viewMode === 'bulk' && (
+                <div className="bulk-import-container fade-in">
+                    <div className="bulk-import-card">
+                        <div className="bulk-header">
+                            <div className="bulk-icon"><i className="bi bi-file-earmark-spreadsheet"></i></div>
+                            <div>
+                                <h3>Import Employees via Excel</h3>
+                                <p className="text-muted">Upload an Excel file (.xlsx) with employee data. Default password will be set as <strong>EmployeeID@123</strong>.</p>
+                            </div>
+                        </div>
+
+                        <div className="bulk-template-row">
+                            <span><i className="bi bi-info-circle me-2 text-primary"></i>Download the template to see the required column format.</span>
+                            <button className="btn-download-template" onClick={handleDownloadTemplate}>
+                                <i className="bi bi-download me-2"></i>Download Template
+                            </button>
+                        </div>
+
+                        <div className="bulk-columns-info">
+                            <h5><i className="bi bi-table me-2"></i>Expected Excel Columns (Sheet 1)</h5>
+                            <div className="columns-grid">
+                                {[
+                                    'Employee ID*', 'DATE OF JOINING', 'Name*', 'Department', 'Designation',
+                                    'Employee Type', 'Contact Number', 'Email*', 'Date of Birth',
+                                    'Gender', 'PAN Number', 'Aadhar Number', 'Bank Account No',
+                                    'IFSC Code', 'Salary', 'Bank Name', 'Last Working Day',
+                                    'Permanent Address', 'Current Address', 'Marital Status',
+                                    'Emergency contact Name ', 'Emeregncy Contact Number ', 'Nationality'
+                                ].map((col) => (
+                                    <span key={col} className={`col-tag ${col.includes('*') ? 'required' : ''}`}>
+                                        {col}
+                                    </span>
+                                ))}
+                            </div>
+                            <p className="text-muted mt-2"><span className="col-tag required" style={{fontSize:'11px'}}>*</span> = Required fields</p>
+                        </div>
+
+                        <div className="bulk-upload-area">
+                            <label htmlFor="bulkFileInput" className={`drop-zone ${bulkFile ? 'has-file' : ''}`}>
+                                <input
+                                    type="file"
+                                    id="bulkFileInput"
+                                    ref={bulkFileRef}
+                                    accept=".xlsx,.xls"
+                                    onChange={handleBulkFileChange}
+                                    hidden
+                                />
+                                <i className={`bi ${bulkFile ? 'bi-file-earmark-check' : 'bi-cloud-upload'}`}></i>
+                                <span>{bulkFile ? bulkFile.name : 'Click to select Excel file (.xlsx, .xls)'}</span>
+                                {bulkFile && <small className="text-muted">{(bulkFile.size / 1024).toFixed(1)} KB</small>}
+                            </label>
+                        </div>
+
+                        <div className="bulk-actions">
+                            {bulkFile && (
+                                <button
+                                    className="btn-clear-file"
+                                    onClick={() => { setBulkFile(null); setBulkResult(null); if (bulkFileRef.current) bulkFileRef.current.value = ''; }}
+                                >
+                                    <i className="bi bi-x me-1"></i>Clear
+                                </button>
+                            )}
+                            <button
+                                className="btn-primary-add"
+                                onClick={handleBulkImport}
+                                disabled={!bulkFile || bulkLoading}
+                            >
+                                {bulkLoading ? (
+                                    <><span className="spinner-border spinner-border-sm me-2" role="status"></span>Importing...</>
+                                ) : (
+                                    <><i className="bi bi-upload me-2"></i>Import Employees</>
+                                )}
+                            </button>
+                        </div>
+
+                        {/* Bulk Import Results */}
+                        {bulkResult && (
+                            <div className="bulk-results">
+                                <div className="result-summary">
+                                    <div className="result-stat success">
+                                        <i className="bi bi-check-circle-fill"></i>
+                                        <div><span className="count">{bulkResult.success?.length || 0}</span><span className="label">Imported</span></div>
+                                    </div>
+                                    <div className="result-stat failed">
+                                        <i className="bi bi-x-circle-fill"></i>
+                                        <div><span className="count">{bulkResult.failed?.length || 0}</span><span className="label">Failed</span></div>
+                                    </div>
+                                    <div className="result-stat total">
+                                        <i className="bi bi-people-fill"></i>
+                                        <div><span className="count">{bulkResult.totalProcessed || 0}</span><span className="label">Total</span></div>
+                                    </div>
+                                </div>
+
+                                {bulkResult.success?.length > 0 && (
+                                    <div className="result-table-wrap">
+                                        <h6 className="text-success"><i className="bi bi-check-circle me-2"></i>Successfully Imported</h6>
+                                        <table className="modern-table">
+                                            <thead><tr><th>Row</th><th>Name</th><th>Employee ID</th><th>Email</th></tr></thead>
+                                            <tbody>
+                                                {bulkResult.success.map((item, idx) => (
+                                                    <tr key={idx}>
+                                                        <td>{item.row}</td>
+                                                        <td>{item.name}</td>
+                                                        <td>{item.employeeId}</td>
+                                                        <td>{item.email}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {bulkResult.failed?.length > 0 && (
+                                    <div className="result-table-wrap mt-3">
+                                        <h6 className="text-danger"><i className="bi bi-x-circle me-2"></i>Failed Rows</h6>
+                                        <table className="modern-table">
+                                            <thead><tr><th>Row</th><th>Name</th><th>Reason</th></tr></thead>
+                                            <tbody>
+                                                {bulkResult.failed.map((item, idx) => (
+                                                    <tr key={idx}>
+                                                        <td>{item.row}</td>
+                                                        <td>{item.name || '-'}</td>
+                                                        <td className="text-danger">{item.reason}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* --- ADD / EDIT FORM VIEW --- */}
             {(viewMode === 'add' || viewMode === 'edit') ? (
                 <form className="add-employee-container fade-in" onSubmit={handleSubmit} encType="multipart/form-data">
 
-                    {/* Left Sidebar: Profile Photo & Basic Info */}
+                    {/* Left Sidebar */}
                     <div className="left-sidebar">
                         <div className="profile-upload-card">
                             <div className="avatar-preview">
@@ -272,18 +493,11 @@ function Employees() {
 
                             <div className="divider"></div>
 
-                            <div className="mini-info-row">
-                                <i className="bi bi-envelope"></i> <span>{formData.email || 'email@company.com'}</span>
-                            </div>
-                            <div className="mini-info-row">
-                                <i className="bi bi-telephone"></i> <span>{formData.contact || 'Contact No.'}</span>
-                            </div>
-                            <div className="mini-info-row">
-                                <i className="bi bi-geo-alt"></i> <span>{formData.address || 'Location'}</span>
-                            </div>
+                            <div className="mini-info-row"><i className="bi bi-envelope"></i> <span>{formData.email || 'email@company.com'}</span></div>
+                            <div className="mini-info-row"><i className="bi bi-telephone"></i> <span>{formData.contact || 'Contact No.'}</span></div>
+                            <div className="mini-info-row"><i className="bi bi-geo-alt"></i> <span>{formData.address || 'Location'}</span></div>
                         </div>
 
-                        {/* Quick Settings */}
                         <div className="form-section-card mt-3">
                             <h4>Quick Settings</h4>
                             <div className="input-group checkbox mt-2">
@@ -293,7 +507,7 @@ function Employees() {
                         </div>
                     </div>
 
-                    {/* Right Side: Form Sections */}
+                    {/* Right Side */}
                     <div className="right-form-area">
 
                         {/* Personal Information */}
@@ -307,7 +521,44 @@ function Employees() {
                                 <div className="input-group"><label>Last Name <span className="req">*</span></label><input type="text" name="lastName" value={formData.lastName} onChange={handleChange} required /></div>
                                 <div className="input-group"><label>Email Address <span className="req">*</span></label><input type="email" name="email" value={formData.email} onChange={handleChange} required disabled={viewMode === 'edit'} /></div>
                                 <div className="input-group"><label>Contact Number <span className="req">*</span></label><input type="tel" name="contact" value={formData.contact} onChange={handleChange} required /></div>
-                                <div className="input-group full-width"><label>Address</label><input type="text" name="address" value={formData.address} onChange={handleChange} /></div>
+                                <div className="input-group">
+                                    <label>Gender</label>
+                                    <select name="gender" value={formData.gender} onChange={handleChange}>
+                                        <option value="">Select Gender</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div className="input-group">
+                                    <label>Marital Status</label>
+                                    <select name="maritalStatus" value={formData.maritalStatus} onChange={handleChange}>
+                                        <option value="">Select Status</option>
+                                        <option value="Single">Single</option>
+                                        <option value="Married">Married</option>
+                                        <option value="Divorced">Divorced</option>
+                                        <option value="Widowed">Widowed</option>
+                                    </select>
+                                </div>
+                                <div className="input-group"><label>Date of Birth</label><input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} /></div>
+                                <div className="input-group"><label>Nationality</label><input type="text" name="nationality" value={formData.nationality} onChange={handleChange} placeholder="e.g. Indian" /></div>
+                                <div className="input-group full-width"><label>Permanent Address</label><input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="Permanent address" /></div>
+                                <div className="input-group full-width"><label>Current Address</label><input type="text" name="currentAddress" value={formData.currentAddress} onChange={handleChange} placeholder="Current address (if different)" /></div>
+                            </div>
+                        </div>
+
+                        {/* Identity Documents */}
+                        <div className="form-section-card">
+                            <h4><i className="bi bi-person-vcard me-2"></i>Identity Details</h4>
+                            <div className="form-row-grid">
+                                <div className="input-group">
+                                    <label>PAN Number</label>
+                                    <input type="text" name="panNumber" value={formData.panNumber} onChange={handleChange} placeholder="e.g. ABCDE1234F" style={{ textTransform: 'uppercase' }} maxLength={10} />
+                                </div>
+                                <div className="input-group">
+                                    <label>Aadhar Number</label>
+                                    <input type="text" name="aadharNumber" value={formData.aadharNumber} onChange={handleChange} placeholder="12-digit Aadhar number" maxLength={12} />
+                                </div>
                             </div>
                         </div>
 
@@ -334,13 +585,22 @@ function Employees() {
                                 </div>
                                 <div className="input-group"><label>Designation</label><input type="text" name="designation" value={formData.designation} onChange={handleChange} /></div>
                                 <div className="input-group"><label>Joining Date</label><input type="date" name="dateOfJoining" value={formData.dateOfJoining} onChange={handleChange} /></div>
+                                <div className="input-group"><label>Last Working Day</label><input type="date" name="lastWorkingDay" value={formData.lastWorkingDay} onChange={handleChange} /></div>
                                 <div className="input-group">
                                     <label>Employment Status</label>
                                     <select name="status" value={formData.status} onChange={handleChange}>
-                                        <option value=" " disabled>Select Employee Type</option>
+                                        <option value="" disabled>Select Employee Type</option>
                                         <option value="Full Time">Full Time</option>
-                                        <option value="Probation">Probation</option>
                                         <option value="Internship">Internship</option>
+                                    </select>
+                                </div>
+                                <div className="input-group">
+                                    <label>Period Type</label>
+                                    <select name="periodType" value={formData.periodType} onChange={handleChange}>
+                                        <option value="" disabled>Select Period Type</option>
+                                        <option value="Probation">Probation</option>
+                                        <option value="Permanent">Permanent</option>
+                                        <option value="Contractual">Contractual</option>
                                     </select>
                                 </div>
                                 <div className="input-group">
@@ -356,37 +616,22 @@ function Employees() {
                             </div>
                         </div>
 
-                        {/* ✅ NEW: Bank Details Section */}
+                        {/* Bank Details */}
                         <div className="form-section-card">
                             <h4><i className="bi bi-bank me-2"></i>Bank Details</h4>
                             <div className="form-row-grid">
-                                <div className="input-group">
-                                    <label>Bank Name</label>
-                                    <input type="text" name="bankName" value={formData.bankName} onChange={handleChange} placeholder="e.g. State Bank of India" />
-                                </div>
-                                <div className="input-group">
-                                    <label>Account Number</label>
-                                    <input type="text" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleChange} placeholder="Enter account number" />
-                                </div>
-                                <div className="input-group">
-                                    <label>IFSC Code</label>
-                                    <input type="text" name="ifscCode" value={formData.ifscCode} onChange={handleChange} placeholder="e.g. SBIN0001234" style={{ textTransform: 'uppercase' }} />
-                                </div>
+                                <div className="input-group"><label>Bank Name</label><input type="text" name="bankName" value={formData.bankName} onChange={handleChange} placeholder="e.g. State Bank of India" /></div>
+                                <div className="input-group"><label>Account Number</label><input type="text" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleChange} placeholder="Enter account number" /></div>
+                                <div className="input-group"><label>IFSC Code</label><input type="text" name="ifscCode" value={formData.ifscCode} onChange={handleChange} placeholder="e.g. SBIN0001234" style={{ textTransform: 'uppercase' }} /></div>
                             </div>
                         </div>
 
-                        {/* ✅ NEW: Emergency Contact Section */}
+                        {/* Emergency Contact */}
                         <div className="form-section-card">
                             <h4><i className="bi bi-telephone-plus me-2"></i>Emergency Contact</h4>
                             <div className="form-row-grid">
-                                <div className="input-group">
-                                    <label>Contact Name</label>
-                                    <input type="text" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange} placeholder="Full name" />
-                                </div>
-                                <div className="input-group">
-                                    <label>Contact Phone</label>
-                                    <input type="tel" name="emergencyContactPhone" value={formData.emergencyContactPhone} onChange={handleChange} placeholder="Phone number" />
-                                </div>
+                                <div className="input-group"><label>Contact Name</label><input type="text" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange} placeholder="Full name" /></div>
+                                <div className="input-group"><label>Contact Phone</label><input type="tel" name="emergencyContactPhone" value={formData.emergencyContactPhone} onChange={handleChange} placeholder="Phone number" /></div>
                                 <div className="input-group">
                                     <label>Relationship</label>
                                     <select name="emergencyContactRelation" value={formData.emergencyContactRelation} onChange={handleChange}>
@@ -436,12 +681,11 @@ function Employees() {
                         </div>
                     </div>
                 </form>
-            ) : (
+            ) : viewMode !== 'bulk' ? (
                 /* --- NORMAL VIEW (Grid/List) --- */
                 <>
                     <div className="filter-bar">
                         <div className="search-wrapper"><i className="bi bi-search search-icon"></i><input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div>
-                        <button className="btn-icon-filter" onClick={handleResetFilters}><i className="bi bi-funnel"></i> Filter</button>
                         <div className="view-toggles">
                             <button className={`toggle-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')}><i className="bi bi-grid-fill"></i></button>
                             <button className={`toggle-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')}><i className="bi bi-list-ul"></i></button>
@@ -506,7 +750,7 @@ function Employees() {
                         </div>
                     )}
                 </>
-            )}
+            ) : null}
         </div>
     );
 }

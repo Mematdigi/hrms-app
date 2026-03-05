@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://hrms-app-wtlz.onrender.com/v1';
+const API_BASE_URL = 'http://localhost:5000/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -27,6 +27,9 @@ export const employeeAPI = {
   update: (id, data) => api.put(`/employees/${id}`, data),
   delete: (id) => api.delete(`/employees/${id}`),
   getPayrolls: () => api.get('/employees/all/payrolls'),
+  bulkImport: (formData) => api.post('/employees/bulk-import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };
 
 export const attendanceAPI = {
