@@ -113,12 +113,8 @@ class EmployeeController {
         dateOfBirth:    safeDate(b.dateOfBirth),
         lastWorkingDay: safeDate(b.lastWorkingDay),
         baseSalary:     b.baseSalary ? parseFloat(b.baseSalary) : 0,
-<<<<<<< HEAD
         status:         b.status     || 'Full Time',
         periodType:     b.periodType || 'Permanent',
-=======
-        status:         b.status    || 'Full Time',
->>>>>>> 2e2bb6ca0357cb4c41d298f9a66df3811040bb76
         workMode:       b.workMode  || 'Work From Office',
         gender:         safe(b.gender),
         maritalStatus:  safe(b.maritalStatus),
@@ -271,7 +267,6 @@ class EmployeeController {
         const baseSalary  = parseFloat(row['Salary']) || 0;
         const gender      = String(safe(row['Gender'])).trim();
 
-<<<<<<< HEAD
         const rawStatus = String(safe(row['Employee Type'])).trim().toLowerCase();
         let empStatus = 'Full Time';
         if (rawStatus.includes('intern')) empStatus = 'Internship';
@@ -280,12 +275,6 @@ class EmployeeController {
         let empPeriodType = 'Permanent';
         if (rawPeriodType.includes('probation')) empPeriodType = 'Probation';
         else if (rawPeriodType.includes('contract')) empPeriodType = 'Contractual';
-=======
-        const rawStatus = String(safe(row['Employee Type'] || row['Employee period type'])).trim().toLowerCase();
-        let empStatus = 'Full Time';
-        if (rawStatus.includes('probation')) empStatus = 'Probation';
-        else if (rawStatus.includes('intern')) empStatus = 'Internship';
->>>>>>> 2e2bb6ca0357cb4c41d298f9a66df3811040bb76
 
         const panNumber           = String(safe(row['PAN Number'])).trim();
         const aadharNumber        = String(safe(row['Aadhar Number'])).trim();
@@ -342,10 +331,7 @@ class EmployeeController {
           dateOfJoining, dateOfBirth, lastWorkingDay,
           baseSalary,
           status:   empStatus,
-<<<<<<< HEAD
           periodType: empPeriodType,
-=======
->>>>>>> 2e2bb6ca0357cb4c41d298f9a66df3811040bb76
           workMode: 'Work From Office',
           gender, maritalStatus, nationality,
           panNumber, aadharNumber,
@@ -439,12 +425,8 @@ class EmployeeController {
         dateOfBirth:    safeDate(b.dateOfBirth)     || e.dateOfBirth,
         lastWorkingDay: b.lastWorkingDay !== undefined ? safeDate(b.lastWorkingDay) : e.lastWorkingDay,
         baseSalary:    b.baseSalary ? parseFloat(b.baseSalary) : e.baseSalary,
-<<<<<<< HEAD
         status:        b.status      || e.status,
         periodType:    b.periodType !== undefined ? b.periodType : e.periodType,
-=======
-        status:        b.status  || e.status,
->>>>>>> 2e2bb6ca0357cb4c41d298f9a66df3811040bb76
         isActive:      b.isActive !== undefined
                          ? (b.isActive === 'true' || b.isActive === true)
                          : e.isActive,
