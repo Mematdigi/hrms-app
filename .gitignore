@@ -8,10 +8,7 @@ yarn-error.log
 .env.local
 .env.*.local
 
-# Build outputs
-dist/
-build/
-*.bundle.js
+
 
 # IDE
 .vscode/
