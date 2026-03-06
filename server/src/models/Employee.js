@@ -21,6 +21,7 @@ const employeeSchema = new mongoose.Schema({
     unique: true,
     lowercase: true
   },
+  personalEmail: { type: String, default: '' },
   contact: {
     type: String,
     required: true
