@@ -260,7 +260,7 @@ class EmployeeController {
         const fullName = String(safe(row['Name'])).trim();
         const nameParts = fullName.split(' ');
         const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '-';
+        const lastName = nameParts.slice(1).join(' ') || ' ';
         const email = String(safe(row['Email'] )).trim().toLowerCase();
         const personalEmail = String(safe(row['Personal Email'|| row['Office mail id '] || row['Office mail id']])).trim().toLowerCase();
         const contact = String(safe(row['Contact Number'])).trim();
