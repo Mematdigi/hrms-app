@@ -29,6 +29,7 @@ function Employees() {
         firstName: '',
         lastName: '',
         email: '',
+        personalEmail: '',
         contact: '',
         address: '',
         currentAddress: '',
@@ -91,6 +92,7 @@ function Employees() {
             firstName: employee.firstName || '',
             lastName: employee.lastName || '',
             email: employee.email || '',
+            personalEmail: employee.personalEmail || '',
             contact: employee.contact || '',
             address: employee.address || '',
             currentAddress: employee.currentAddress || '',
@@ -188,7 +190,7 @@ function Employees() {
 
     const resetForm = () => {
         setFormData({
-            employeeId: '', firstName: '', lastName: '', email: '', contact: '',
+            employeeId: '', firstName: '', lastName: '', email: '', personalEmail: '', contact: '',
             address: '', currentAddress: '', password: '', department: '', designation: '',
             dateOfJoining: '', dateOfBirth: '', lastWorkingDay: '', baseSalary: '',
             status: 'Full Time', periodType: 'Permanent', isActive: true, workMode: 'Work From Office',
@@ -520,6 +522,7 @@ function Employees() {
                                 <div className="input-group"><label>First Name <span className="req">*</span></label><input type="text" name="firstName" value={formData.firstName} onChange={handleChange} required /></div>
                                 <div className="input-group"><label>Last Name <span className="req">*</span></label><input type="text" name="lastName" value={formData.lastName} onChange={handleChange} required /></div>
                                 <div className="input-group"><label>Email Address <span className="req">*</span></label><input type="email" name="email" value={formData.email} onChange={handleChange} required disabled={viewMode === 'edit'} /></div>
+                                <div className="input-group"><label>Personal Email</label><input type="email" name="personalEmail" value={formData.personalEmail} onChange={handleChange} placeholder="Personal email address" /></div>
                                 <div className="input-group"><label>Contact Number <span className="req">*</span></label><input type="tel" name="contact" value={formData.contact} onChange={handleChange} required /></div>
                                 <div className="input-group">
                                     <label>Gender</label>

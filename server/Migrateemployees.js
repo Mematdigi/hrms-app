@@ -39,6 +39,9 @@ async function migrate() {
           maritalStatus:            '',
           nationality:              '',
 
+          // Contact
+          personalEmail:            '',
+
           // Identity
           panNumber:                '',
           aadharNumber:             '',

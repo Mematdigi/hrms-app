@@ -75,18 +75,18 @@ class EmployeeController {
 
       // ── Build User object (must match User.js schema strictly) ──
       const userPayload = {
-        employeeId:   b.employeeId,
-        firstName:    b.firstName,
-        lastName:     b.lastName,
-        email:        b.email,
-        password:     b.password,
-        role:         'employee',
-        department:   safe(b.department)   || undefined,
-        designation:  safe(b.designation)  || undefined,
-        dateOfJoining:safeDate(b.dateOfJoining),
-        dateOfBirth:  safeDate(b.dateOfBirth),
-        baseSalary:   b.baseSalary ? parseFloat(b.baseSalary) : 0,
-        isActive:     true,
+        employeeId: b.employeeId,
+        firstName: b.firstName,
+        lastName: b.lastName,
+        email: b.email,
+        password: b.password,
+        role: 'employee',
+        department: safe(b.department) || undefined,
+        designation: safe(b.designation) || undefined,
+        dateOfJoining: safeDate(b.dateOfJoining),
+        dateOfBirth: safeDate(b.dateOfBirth),
+        baseSalary: b.baseSalary ? parseFloat(b.baseSalary) : 0,
+        isActive: true,
       };
 
       // Only set gender on User if it's a valid enum value
@@ -98,43 +98,44 @@ class EmployeeController {
 
       // ── Build Employee object (uses Employee.js schema — no strict gender enum) ──
       employee = new Employee({
-        _id:            user._id,         // same _id as User
-        employeeId:     b.employeeId,
-        firstName:      b.firstName,
-        lastName:       b.lastName,
-        email:          b.email,
-        password:       b.password,       // Employee pre-save hook hashes this independently
-        contact:        b.contact,
-        address:        safe(b.address),
+        _id: user._id,         // same _id as User
+        employeeId: b.employeeId,
+        firstName: b.firstName,
+        lastName: b.lastName,
+        email: b.email,
+        personalEmail: safe(b.personalEmail),
+        password: b.password,       // Employee pre-save hook hashes this independently
+        contact: b.contact,
+        address: safe(b.address),
         currentAddress: safe(b.currentAddress),
-        department:     safe(b.department),
-        designation:    safe(b.designation),
-        dateOfJoining:  safeDate(b.dateOfJoining),
-        dateOfBirth:    safeDate(b.dateOfBirth),
+        department: safe(b.department),
+        designation: safe(b.designation),
+        dateOfJoining: safeDate(b.dateOfJoining),
+        dateOfBirth: safeDate(b.dateOfBirth),
         lastWorkingDay: safeDate(b.lastWorkingDay),
-        baseSalary:     b.baseSalary ? parseFloat(b.baseSalary) : 0,
-        status:         b.status     || 'Full Time',
-        periodType:     b.periodType || 'Permanent',
-        workMode:       b.workMode  || 'Work From Office',
-        gender:         safe(b.gender),
-        maritalStatus:  safe(b.maritalStatus),
-        nationality:    safe(b.nationality),
-        panNumber:      safe(b.panNumber),
-        aadharNumber:   safe(b.aadharNumber),
-        bankName:               safe(b.bankName),
-        bankAccountNumber:      safe(b.bankAccountNumber),
-        ifscCode:               safe(b.ifscCode),
-        emergencyContactName:     safe(b.emergencyContactName),
-        emergencyContactPhone:    safe(b.emergencyContactPhone),
+        baseSalary: b.baseSalary ? parseFloat(b.baseSalary) : 0,
+        status: b.status || 'Full Time',
+        periodType: b.periodType || 'Permanent',
+        workMode: b.workMode || 'Work From Office',
+        gender: safe(b.gender),
+        maritalStatus: safe(b.maritalStatus),
+        nationality: safe(b.nationality),
+        panNumber: safe(b.panNumber),
+        aadharNumber: safe(b.aadharNumber),
+        bankName: safe(b.bankName),
+        bankAccountNumber: safe(b.bankAccountNumber),
+        ifscCode: safe(b.ifscCode),
+        emergencyContactName: safe(b.emergencyContactName),
+        emergencyContactPhone: safe(b.emergencyContactPhone),
         emergencyContactRelation: safe(b.emergencyContactRelation),
         profilePhoto: fp('profilePhoto'),
         documents: {
-          adharCard:        fp('adharCard'),
-          panCard:          fp('panCard'),
-          salarySlip:       fp('salarySlip'),
-          relievingLetter:  fp('relievingLetter'),
+          adharCard: fp('adharCard'),
+          panCard: fp('panCard'),
+          salarySlip: fp('salarySlip'),
+          relievingLetter: fp('relievingLetter'),
           experienceLetter: fp('experienceLetter'),
-          offerLetter:      fp('offerLetter')
+          offerLetter: fp('offerLetter')
         }
       });
       await employee.save();
@@ -145,36 +146,36 @@ class EmployeeController {
         if (req.files && req.files[docType]) {
           const file = req.files[docType][0];
           await new Documents({
-            employee:     employee._id,
+            employee: employee._id,
             documentType: docType,
-            filePath:     fp(docType),
+            filePath: fp(docType),
             originalName: file.originalname,
-            mimeType:     file.mimetype,
-            size:         file.size
+            mimeType: file.mimetype,
+            size: file.size
           }).save();
         }
       }
 
       // ── Create Leave Balance ──
-      const defaultLeave  = await Defaults.findOne({});
+      const defaultLeave = await Defaults.findOne({});
       const defaultCasual = defaultLeave ? defaultLeave.casualDefault : 12;
-      const defaultSick   = defaultLeave ? defaultLeave.sickDefault   : 10;
+      const defaultSick = defaultLeave ? defaultLeave.sickDefault : 10;
 
       let casualLeave = defaultCasual;
-      let sickLeave   = defaultSick;
+      let sickLeave = defaultSick;
 
       const joinDate = safeDate(b.dateOfJoining);
       if (joinDate) {
         const remainingMonths = 12 - joinDate.getMonth();
         casualLeave = Math.max(0, Math.ceil(defaultCasual * remainingMonths / 12));
-        sickLeave   = Math.max(0, Math.ceil(defaultSick   * remainingMonths / 12));
+        sickLeave = Math.max(0, Math.ceil(defaultSick * remainingMonths / 12));
       }
 
       leave = new Leave({
-        employee:    user._id,
-        leaveType:   'Initial Allocation',
+        employee: user._id,
+        leaveType: 'Initial Allocation',
         numberOfDays: 0,
-        status:      'approved',
+        status: 'approved',
         casualLeave,
         sickLeave,
         earnedLeave: 0
@@ -184,15 +185,15 @@ class EmployeeController {
       // ── Create Payroll record ──
       const now = new Date();
       payroll = new Payroll({
-        employee:    user._id,
-        month:       now.getMonth() + 1,
-        year:        now.getFullYear(),
-        baseSalary:  b.baseSalary ? parseFloat(b.baseSalary) : 0,
-        workedDays:  0,
-        deductions:  0,
+        employee: user._id,
+        month: now.getMonth() + 1,
+        year: now.getFullYear(),
+        baseSalary: b.baseSalary ? parseFloat(b.baseSalary) : 0,
+        workedDays: 0,
+        deductions: 0,
         workingDays: 24,
-        netSalary:   b.baseSalary ? parseFloat(b.baseSalary) : 0,
-        status:      'draft'
+        netSalary: b.baseSalary ? parseFloat(b.baseSalary) : 0,
+        status: 'draft'
       });
       await payroll.save();
 
@@ -201,11 +202,11 @@ class EmployeeController {
     } catch (error) {
       console.error('Create Employee Failed:', error);
       // Rollback everything
-      if (user)     await User.deleteOne({ _id: user._id }).catch(() => {});
-      if (employee) await Employee.deleteOne({ _id: employee._id }).catch(() => {});
-      if (leave)    await Leave.deleteOne({ _id: leave._id }).catch(() => {});
-      if (payroll)  await Payroll.deleteOne({ _id: payroll._id }).catch(() => {});
-      if (employee) await Documents.deleteMany({ employee: employee._id }).catch(() => {});
+      if (user) await User.deleteOne({ _id: user._id }).catch(() => { });
+      if (employee) await Employee.deleteOne({ _id: employee._id }).catch(() => { });
+      if (leave) await Leave.deleteOne({ _id: leave._id }).catch(() => { });
+      if (payroll) await Payroll.deleteOne({ _id: payroll._id }).catch(() => { });
+      if (employee) await Documents.deleteMany({ employee: employee._id }).catch(() => { });
       res.status(500).json({ message: error.message });
     }
   });
@@ -240,12 +241,12 @@ class EmployeeController {
       return isNaN(d.getTime()) ? null : d;
     };
 
-    const defaultLeave  = await Defaults.findOne({});
+    const defaultLeave = await Defaults.findOne({});
     const defaultCasual = defaultLeave ? defaultLeave.casualDefault : 12;
-    const defaultSick   = defaultLeave ? defaultLeave.sickDefault   : 10;
+    const defaultSick = defaultLeave ? defaultLeave.sickDefault : 10;
 
     for (let i = 0; i < rows.length; i++) {
-      const row    = rows[i];
+      const row = rows[i];
       const rowNum = i + 2;
 
       // Skip empty rows
@@ -255,17 +256,18 @@ class EmployeeController {
       let user = null, employee = null, leave = null, payroll = null;
 
       try {
-        const employeeId  = String(safe(row['Employee ID'])).trim();
-        const fullName    = String(safe(row['Name'])).trim();
-        const nameParts   = fullName.split(' ');
-        const firstName   = nameParts[0] || '';
-        const lastName    = nameParts.slice(1).join(' ') || '-';
-        const email       = String(safe(row['Email'] || row['Office mail id '] || row['Office mail id'])).trim().toLowerCase();
-        const contact     = String(safe(row['Contact Number'])).trim();
-        const department  = String(safe(row['Department'])).trim();
+        const employeeId = String(safe(row['Employee ID'])).trim();
+        const fullName = String(safe(row['Name'])).trim();
+        const nameParts = fullName.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '-';
+        const email = String(safe(row['Email'] )).trim().toLowerCase();
+        const personalEmail = String(safe(row['Personal Email'|| row['Office mail id '] || row['Office mail id']])).trim().toLowerCase();
+        const contact = String(safe(row['Contact Number'])).trim();
+        const department = String(safe(row['Department'])).trim();
         const designation = String(safe(row['Designation'])).trim();
-        const baseSalary  = parseFloat(row['Salary']) || 0;
-        const gender      = String(safe(row['Gender'])).trim();
+        const baseSalary = parseFloat(row['Salary']) || 0;
+        const gender = String(safe(row['Gender'])).trim();
 
         const rawStatus = String(safe(row['Employee Type'])).trim().toLowerCase();
         let empStatus = 'Full Time';
@@ -276,25 +278,25 @@ class EmployeeController {
         if (rawPeriodType.includes('probation')) empPeriodType = 'Probation';
         else if (rawPeriodType.includes('contract')) empPeriodType = 'Contractual';
 
-        const panNumber           = String(safe(row['PAN Number'])).trim();
-        const aadharNumber        = String(safe(row['Aadhar Number'])).trim();
-        const bankAccountNumber   = String(safe(row['Bank Account No'])).trim();
-        const ifscCode            = String(safe(row['IFSC Code'])).trim();
-        const bankName            = String(safe(row['Bank Name'])).trim();
-        const permanentAddress    = String(safe(row['Permanent Address'])).trim();
-        const currentAddress      = String(safe(row['Current Address'])).trim();
-        const maritalStatus       = String(safe(row['Marital Status'])).trim();
-        const emergencyContactName  = String(safe(row['Emergency contact Name '] || row['Emergency contact Name'])).trim();
+        const panNumber = String(safe(row['PAN Number'])).trim();
+        const aadharNumber = String(safe(row['Aadhar Number'])).trim();
+        const bankAccountNumber = String(safe(row['Bank Account No'])).trim();
+        const ifscCode = String(safe(row['IFSC Code'])).trim();
+        const bankName = String(safe(row['Bank Name'])).trim();
+        const permanentAddress = String(safe(row['Permanent Address'])).trim();
+        const currentAddress = String(safe(row['Current Address'])).trim();
+        const maritalStatus = String(safe(row['Marital Status'])).trim();
+        const emergencyContactName = String(safe(row['Emergency contact Name '] || row['Emergency contact Name'])).trim();
         const emergencyContactPhone = String(safe(row['Emeregncy Contact Number '] || row['Emergency Contact Number'])).trim();
-        const nationality         = String(safe(row['Nationality'])).trim();
+        const nationality = String(safe(row['Nationality'])).trim();
 
-        const dateOfJoining  = parseExcelDate(row['DATE OF JOINING']);
-        const dateOfBirth    = parseExcelDate(row['Date of Birth']);
+        const dateOfJoining = parseExcelDate(row['DATE OF JOINING']);
+        const dateOfBirth = parseExcelDate(row['Date of Birth']);
         const lastWorkingDay = parseExcelDate(row['Last Working Day']);
 
         if (!employeeId) { results.failed.push({ row: rowNum, name: fullName, reason: 'Employee ID is required' }); continue; }
-        if (!email)      { results.failed.push({ row: rowNum, name: fullName, reason: 'Email is required' }); continue; }
-        if (!firstName)  { results.failed.push({ row: rowNum, name: fullName, reason: 'Name is required' }); continue; }
+        if (!email) { results.failed.push({ row: rowNum, name: fullName, reason: 'Email is required' }); continue; }
+        if (!firstName) { results.failed.push({ row: rowNum, name: fullName, reason: 'Name is required' }); continue; }
 
         const existingUser = await User.findOne({ email });
         if (existingUser) { results.failed.push({ row: rowNum, name: fullName, reason: `Email ${email} already exists` }); continue; }
@@ -306,8 +308,8 @@ class EmployeeController {
 
         const userPayload = {
           employeeId, firstName, lastName, email,
-          password:     defaultPassword,
-          role:         'employee',
+          password: defaultPassword,
+          role: 'employee',
           department, designation,
           dateOfJoining,
           dateOfBirth,
@@ -322,7 +324,7 @@ class EmployeeController {
 
         employee = new Employee({
           _id: user._id,
-          employeeId, firstName, lastName, email,
+          employeeId, firstName, lastName, email,personalEmail,
           password: defaultPassword,
           contact,
           address: permanentAddress,
@@ -330,7 +332,7 @@ class EmployeeController {
           department, designation,
           dateOfJoining, dateOfBirth, lastWorkingDay,
           baseSalary,
-          status:   empStatus,
+          status: empStatus,
           periodType: empPeriodType,
           workMode: 'Work From Office',
           gender, maritalStatus, nationality,
@@ -342,11 +344,11 @@ class EmployeeController {
         await employee.save();
 
         let casualLeave = defaultCasual;
-        let sickLeave   = defaultSick;
+        let sickLeave = defaultSick;
         if (dateOfJoining) {
           const remainingMonths = 12 - dateOfJoining.getMonth();
           casualLeave = Math.max(0, Math.ceil(defaultCasual * remainingMonths / 12));
-          sickLeave   = Math.max(0, Math.ceil(defaultSick   * remainingMonths / 12));
+          sickLeave = Math.max(0, Math.ceil(defaultSick * remainingMonths / 12));
         }
 
         leave = new Leave({
@@ -362,7 +364,7 @@ class EmployeeController {
         payroll = new Payroll({
           employee: user._id,
           month: now.getMonth() + 1,
-          year:  now.getFullYear(),
+          year: now.getFullYear(),
           baseSalary, workedDays: 0, deductions: 0,
           workingDays: 24, netSalary: baseSalary, status: 'draft'
         });
@@ -372,10 +374,10 @@ class EmployeeController {
 
       } catch (error) {
         console.error(`Bulk import row ${rowNum} error:`, error.message);
-        if (user)     await User.deleteOne({ _id: user._id }).catch(() => {});
-        if (employee) await Employee.deleteOne({ _id: employee._id }).catch(() => {});
-        if (leave)    await Leave.deleteOne({ _id: leave._id }).catch(() => {});
-        if (payroll)  await Payroll.deleteOne({ _id: payroll._id }).catch(() => {});
+        if (user) await User.deleteOne({ _id: user._id }).catch(() => { });
+        if (employee) await Employee.deleteOne({ _id: employee._id }).catch(() => { });
+        if (leave) await Leave.deleteOne({ _id: leave._id }).catch(() => { });
+        if (payroll) await Payroll.deleteOne({ _id: payroll._id }).catch(() => { });
         results.failed.push({ row: rowNum, name: String(row['Name'] || ''), reason: error.message });
       }
     }
@@ -399,7 +401,7 @@ class EmployeeController {
 
       if (b.email && b.email !== e.email) {
         if (await Employee.findOne({ email: b.email })) return res.status(400).json({ message: 'Email already exists' });
-        if (await User.findOne({ email: b.email }))     return res.status(400).json({ message: 'Email already exists in system' });
+        if (await User.findOne({ email: b.email })) return res.status(400).json({ message: 'Email already exists in system' });
       }
 
       if (b.employeeId && b.employeeId !== e.employeeId) {
@@ -412,44 +414,45 @@ class EmployeeController {
           : null;
 
       const updateData = {
-        employeeId:    b.employeeId    || e.employeeId,
-        firstName:     b.firstName     || e.firstName,
-        lastName:      b.lastName      || e.lastName,
-        email:         b.email         || e.email,
-        contact:       b.contact       || e.contact,
-        address:              b.address        !== undefined ? b.address        : e.address,
-        currentAddress:       b.currentAddress !== undefined ? b.currentAddress : e.currentAddress,
-        department:    b.department    || e.department,
-        designation:   b.designation   || e.designation,
-        dateOfJoining:  safeDate(b.dateOfJoining)  || e.dateOfJoining,
-        dateOfBirth:    safeDate(b.dateOfBirth)     || e.dateOfBirth,
+        employeeId: b.employeeId || e.employeeId,
+        firstName: b.firstName || e.firstName,
+        lastName: b.lastName || e.lastName,
+        email: b.email || e.email,
+        personalEmail: b.personalEmail !== undefined ? b.personalEmail : e.personalEmail,
+        contact: b.contact || e.contact,
+        address: b.address !== undefined ? b.address : e.address,
+        currentAddress: b.currentAddress !== undefined ? b.currentAddress : e.currentAddress,
+        department: b.department || e.department,
+        designation: b.designation || e.designation,
+        dateOfJoining: safeDate(b.dateOfJoining) || e.dateOfJoining,
+        dateOfBirth: safeDate(b.dateOfBirth) || e.dateOfBirth,
         lastWorkingDay: b.lastWorkingDay !== undefined ? safeDate(b.lastWorkingDay) : e.lastWorkingDay,
-        baseSalary:    b.baseSalary ? parseFloat(b.baseSalary) : e.baseSalary,
-        status:        b.status      || e.status,
-        periodType:    b.periodType !== undefined ? b.periodType : e.periodType,
-        isActive:      b.isActive !== undefined
-                         ? (b.isActive === 'true' || b.isActive === true)
-                         : e.isActive,
-        workMode:      b.workMode || e.workMode || 'Work From Office',
-        gender:               b.gender        !== undefined ? b.gender        : e.gender,
-        maritalStatus:        b.maritalStatus  !== undefined ? b.maritalStatus  : e.maritalStatus,
-        nationality:          b.nationality    !== undefined ? b.nationality    : e.nationality,
-        panNumber:            b.panNumber      !== undefined ? b.panNumber      : e.panNumber,
-        aadharNumber:         b.aadharNumber   !== undefined ? b.aadharNumber   : e.aadharNumber,
-        bankName:             b.bankName               !== undefined ? b.bankName               : e.bankName,
-        bankAccountNumber:    b.bankAccountNumber      !== undefined ? b.bankAccountNumber      : e.bankAccountNumber,
-        ifscCode:             b.ifscCode               !== undefined ? b.ifscCode               : e.ifscCode,
-        emergencyContactName:     b.emergencyContactName     !== undefined ? b.emergencyContactName     : e.emergencyContactName,
-        emergencyContactPhone:    b.emergencyContactPhone    !== undefined ? b.emergencyContactPhone    : e.emergencyContactPhone,
+        baseSalary: b.baseSalary ? parseFloat(b.baseSalary) : e.baseSalary,
+        status: b.status || e.status,
+        periodType: b.periodType !== undefined ? b.periodType : e.periodType,
+        isActive: b.isActive !== undefined
+          ? (b.isActive === 'true' || b.isActive === true)
+          : e.isActive,
+        workMode: b.workMode || e.workMode || 'Work From Office',
+        gender: b.gender !== undefined ? b.gender : e.gender,
+        maritalStatus: b.maritalStatus !== undefined ? b.maritalStatus : e.maritalStatus,
+        nationality: b.nationality !== undefined ? b.nationality : e.nationality,
+        panNumber: b.panNumber !== undefined ? b.panNumber : e.panNumber,
+        aadharNumber: b.aadharNumber !== undefined ? b.aadharNumber : e.aadharNumber,
+        bankName: b.bankName !== undefined ? b.bankName : e.bankName,
+        bankAccountNumber: b.bankAccountNumber !== undefined ? b.bankAccountNumber : e.bankAccountNumber,
+        ifscCode: b.ifscCode !== undefined ? b.ifscCode : e.ifscCode,
+        emergencyContactName: b.emergencyContactName !== undefined ? b.emergencyContactName : e.emergencyContactName,
+        emergencyContactPhone: b.emergencyContactPhone !== undefined ? b.emergencyContactPhone : e.emergencyContactPhone,
         emergencyContactRelation: b.emergencyContactRelation !== undefined ? b.emergencyContactRelation : e.emergencyContactRelation,
         profilePhoto: fp('profilePhoto') || e.profilePhoto,
         documents: {
-          adharCard:        fp('adharCard')        || e.documents?.adharCard,
-          panCard:          fp('panCard')          || e.documents?.panCard,
-          salarySlip:       fp('salarySlip')       || e.documents?.salarySlip,
-          relievingLetter:  fp('relievingLetter')  || e.documents?.relievingLetter,
+          adharCard: fp('adharCard') || e.documents?.adharCard,
+          panCard: fp('panCard') || e.documents?.panCard,
+          salarySlip: fp('salarySlip') || e.documents?.salarySlip,
+          relievingLetter: fp('relievingLetter') || e.documents?.relievingLetter,
           experienceLetter: fp('experienceLetter') || e.documents?.experienceLetter,
-          offerLetter:      fp('offerLetter')      || e.documents?.offerLetter
+          offerLetter: fp('offerLetter') || e.documents?.offerLetter
         }
       };
 
@@ -473,14 +476,14 @@ class EmployeeController {
 
       // Sync User table — only fields User model has
       const userUpdate = {
-        email:        b.email        || e.email,
-        firstName:    b.firstName    || e.firstName,
-        lastName:     b.lastName     || e.lastName,
-        department:   b.department   || e.department,
-        designation:  b.designation  || e.designation,
-        dateOfJoining:safeDate(b.dateOfJoining) || e.dateOfJoining,
-        baseSalary:   b.baseSalary ? parseFloat(b.baseSalary) : e.baseSalary,
-        dateOfBirth:  safeDate(b.dateOfBirth) || e.dateOfBirth,
+        email: b.email || e.email,
+        firstName: b.firstName || e.firstName,
+        lastName: b.lastName || e.lastName,
+        department: b.department || e.department,
+        designation: b.designation || e.designation,
+        dateOfJoining: safeDate(b.dateOfJoining) || e.dateOfJoining,
+        baseSalary: b.baseSalary ? parseFloat(b.baseSalary) : e.baseSalary,
+        dateOfBirth: safeDate(b.dateOfBirth) || e.dateOfBirth,
       };
       const updatedGender = normalizeGender(b.gender);
       if (updatedGender) userUpdate.gender = updatedGender;
