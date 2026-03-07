@@ -4,9 +4,16 @@ const Leave = require('../models/Leave');
 const Defaults = require('../models/LeaveDefaults');
 const Documents = require('../models/Documents');
 const Payroll = require('../models/Payroll');
+const PreviousEmployment = require('../models/PreviousEmployment');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const xlsx = require('xlsx');
+const path = require('path');
+const fs = require('fs');
+
+// ── Store uploaded excel files reference in memory (or use DB if needed)
+// We save uploaded bulk excel files to disk so HR can re-download them
+const UPLOADED_EXCEL_DIR = path.join(__dirname, '../../uploads/bulk-excels/');
 
 // Helper: safely parse a date string — returns null if invalid/empty
 const safeDate = (val) => {
@@ -21,10 +28,24 @@ const safe = (val, fallback = '') =>
 
 // Helper: normalize gender to lowercase for User model enum
 const normalizeGender = (val) => {
-  if (!val || val === '') return undefined; // don't set if empty — avoids enum error
+  if (!val || val === '') return undefined;
   const lower = val.toLowerCase();
   if (['male', 'female', 'other'].includes(lower)) return lower;
   return undefined;
+};
+
+// Helper: parse excel date values
+const parseExcelDate = (val) => {
+  if (!val || val === '') return null;
+  if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+  if (typeof val === 'number') {
+    try {
+      const parsed = xlsx.SSF.parse_date_code(val);
+      if (parsed) return new Date(parsed.y, parsed.m - 1, parsed.d);
+    } catch { return null; }
+  }
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d;
 };
 
 class EmployeeController {
@@ -43,7 +64,11 @@ class EmployeeController {
       let employee = await Employee.findById(req.params.id).select('-password');
       if (!employee) employee = await User.findById(req.params.id).select('-password');
       if (!employee) return res.status(404).json({ message: 'Employee not found' });
-      res.json(employee);
+
+      // Also fetch previous employment data
+      const previousEmployment = await PreviousEmployment.findOne({ employee: req.params.id });
+
+      res.json({ ...employee.toObject(), previousEmployment: previousEmployment || null });
     } catch (error) {
       throw new ApiError(500, error.message);
     }
@@ -55,25 +80,22 @@ class EmployeeController {
     let employee = null;
     let leave = null;
     let payroll = null;
+    let prevEmp = null;
 
     try {
       const b = req.body;
 
-      // Check duplicate email
       const existingUser = await User.findOne({ email: b.email });
       if (existingUser) return res.status(400).json({ message: 'Email already exists in System' });
 
-      // Check duplicate employeeId
       const existingEmpId = await Employee.findOne({ employeeId: b.employeeId });
       if (existingEmpId) return res.status(400).json({ message: 'Employee ID already exists' });
 
-      // File path helper
       const fp = (fieldName) =>
         req.files && req.files[fieldName]
           ? req.files[fieldName][0].path.replace('uploads\\', '').replace('uploads/', '')
           : null;
 
-      // ── Build User object (must match User.js schema strictly) ──
       const userPayload = {
         employeeId: b.employeeId,
         firstName: b.firstName,
@@ -89,22 +111,20 @@ class EmployeeController {
         isActive: true,
       };
 
-      // Only set gender on User if it's a valid enum value
       const userGender = normalizeGender(b.gender);
       if (userGender) userPayload.gender = userGender;
 
       user = new User(userPayload);
       await user.save();
 
-      // ── Build Employee object (uses Employee.js schema — no strict gender enum) ──
       employee = new Employee({
-        _id: user._id,         // same _id as User
+        _id: user._id,
         employeeId: b.employeeId,
         firstName: b.firstName,
         lastName: b.lastName,
         email: b.email,
         personalEmail: safe(b.personalEmail),
-        password: b.password,       // Employee pre-save hook hashes this independently
+        password: b.password,
         contact: b.contact,
         address: safe(b.address),
         currentAddress: safe(b.currentAddress),
@@ -140,7 +160,31 @@ class EmployeeController {
       });
       await employee.save();
 
-      // ── Save Documents to Documents table ──
+      // ── Save Previous Employment if provided ──
+      const pe = b.prevEmp ? (typeof b.prevEmp === 'string' ? JSON.parse(b.prevEmp) : b.prevEmp) : null;
+      if (pe && (pe.employeeName || pe.department || pe.designation || pe.lastWorkingDay)) {
+        prevEmp = new PreviousEmployment({
+          employee: employee._id,
+          employeeName: safe(pe.employeeName),
+          department: safe(pe.department),
+          designation: safe(pe.designation),
+          joiningDate: safeDate(pe.joiningDate),
+          lastWorkingDay: safeDate(pe.lastWorkingDay),
+          exitType: safe(pe.exitType),
+          reasonForExit: safe(pe.reasonForExit),
+          managerName: safe(pe.managerName),
+          noticePeriodServed: safe(pe.noticePeriodServed),
+          finalSettlementDone: safe(pe.finalSettlementDone),
+          fnfDate: safeDate(pe.fnfDate),
+          exitInterviewDate: safeDate(pe.exitInterviewDate),
+          companyAssetsReturned: safe(pe.companyAssetsReturned),
+          hrRepresentative: safe(pe.hrRepresentative),
+          remarks: safe(pe.remarks)
+        });
+        await prevEmp.save();
+      }
+
+      // ── Save Documents ──
       const docTypes = ['profilePhoto', 'adharCard', 'panCard', 'salarySlip', 'relievingLetter', 'experienceLetter', 'offerLetter'];
       for (const docType of docTypes) {
         if (req.files && req.files[docType]) {
@@ -201,11 +245,11 @@ class EmployeeController {
 
     } catch (error) {
       console.error('Create Employee Failed:', error);
-      // Rollback everything
       if (user) await User.deleteOne({ _id: user._id }).catch(() => { });
       if (employee) await Employee.deleteOne({ _id: employee._id }).catch(() => { });
       if (leave) await Leave.deleteOne({ _id: leave._id }).catch(() => { });
       if (payroll) await Payroll.deleteOne({ _id: payroll._id }).catch(() => { });
+      if (prevEmp) await PreviousEmployment.deleteOne({ _id: prevEmp._id }).catch(() => { });
       if (employee) await Documents.deleteMany({ employee: employee._id }).catch(() => { });
       res.status(500).json({ message: error.message });
     }
@@ -218,28 +262,40 @@ class EmployeeController {
     }
 
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer', cellDates: true });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
 
-    if (!rows || rows.length === 0) {
-      return res.status(400).json({ message: 'Excel file is empty or has no data rows' });
+    // ── Sheet 1: Employee Details ──
+    const sheet1Name = workbook.SheetNames[0];
+    const sheet1 = workbook.Sheets[sheet1Name];
+    const rows = xlsx.utils.sheet_to_json(sheet1, { defval: '' });
+
+    // ── Sheet 2: Exit/Previous Employment Details ──
+    let exitRows = [];
+    if (workbook.SheetNames.length > 1) {
+      const sheet2Name = workbook.SheetNames[1];
+      const sheet2 = workbook.Sheets[sheet2Name];
+      exitRows = xlsx.utils.sheet_to_json(sheet2, { defval: '' });
     }
 
-    const results = { success: [], failed: [] };
+    // Build exit data map by Employee Name for quick lookup
+    const exitDataMap = {};
+    exitRows.forEach((row) => {
+      const name = String(safe(row['Employee Name'])).trim();
+      if (name) exitDataMap[name.toLowerCase()] = row;
+    });
 
-    const parseExcelDate = (val) => {
-      if (!val || val === '') return null;
-      if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
-      if (typeof val === 'number') {
-        try {
-          const parsed = xlsx.SSF.parse_date_code(val);
-          if (parsed) return new Date(parsed.y, parsed.m - 1, parsed.d);
-        } catch { return null; }
-      }
-      const d = new Date(val);
-      return isNaN(d.getTime()) ? null : d;
-    };
+    if (!rows || rows.length === 0) {
+      return res.status(400).json({ message: 'Excel file is empty or has no data rows in Sheet 1' });
+    }
+
+    // ── Save uploaded file to disk for re-download ──
+    if (!fs.existsSync(UPLOADED_EXCEL_DIR)) {
+      fs.mkdirSync(UPLOADED_EXCEL_DIR, { recursive: true });
+    }
+    const savedFileName = `bulk-import-${Date.now()}.xlsx`;
+    const savedFilePath = path.join(UPLOADED_EXCEL_DIR, savedFileName);
+    fs.writeFileSync(savedFilePath, req.file.buffer);
+
+    const results = { success: [], failed: [] };
 
     const defaultLeave = await Defaults.findOne({});
     const defaultCasual = defaultLeave ? defaultLeave.casualDefault : 12;
@@ -249,11 +305,10 @@ class EmployeeController {
       const row = rows[i];
       const rowNum = i + 2;
 
-      // Skip empty rows
       const vals = Object.values(row).filter(v => v !== '' && v !== null && v !== undefined);
       if (vals.length === 0) continue;
 
-      let user = null, employee = null, leave = null, payroll = null;
+      let user = null, employee = null, leave = null, payroll = null, prevEmp = null;
 
       try {
         const employeeId = String(safe(row['Employee ID'])).trim();
@@ -261,8 +316,9 @@ class EmployeeController {
         const nameParts = fullName.split(' ');
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || ' ';
-        const email = String(safe(row['Email'] )).trim().toLowerCase();
-        const personalEmail = String(safe(row['Personal Email'|| row['Office mail id '] || row['Office mail id']])).trim().toLowerCase();
+        const email = String(safe(row['Email'])).trim().toLowerCase();
+        const officeMailRaw = row['Office mail id '] || row['Office mail id'] || row['Office Mail Id'] || '';
+        const personalEmail = String(safe(officeMailRaw)).trim().toLowerCase();
         const contact = String(safe(row['Contact Number'])).trim();
         const department = String(safe(row['Department'])).trim();
         const designation = String(safe(row['Designation'])).trim();
@@ -324,7 +380,7 @@ class EmployeeController {
 
         employee = new Employee({
           _id: user._id,
-          employeeId, firstName, lastName, email,personalEmail,
+          employeeId, firstName, lastName, email, personalEmail,
           password: defaultPassword,
           contact,
           address: permanentAddress,
@@ -342,6 +398,30 @@ class EmployeeController {
           emergencyContactRelation: ''
         });
         await employee.save();
+
+        // ── Match exit data from Sheet 2 by employee name ──
+        const exitRow = exitDataMap[fullName.toLowerCase()];
+        if (exitRow) {
+          prevEmp = new PreviousEmployment({
+            employee: employee._id,
+            employeeName: fullName,
+            department: String(safe(exitRow['Department'])).trim(),
+            designation: String(safe(exitRow['Designation '] || exitRow['Designation'])).trim(),
+            joiningDate: parseExcelDate(exitRow['Joining Date']),
+            lastWorkingDay: parseExcelDate(exitRow['LWD']),
+            exitType: String(safe(exitRow[' Exit Type'] || exitRow['Exit Type'])).trim(),
+            reasonForExit: String(safe(exitRow['Reason for Exit'])).trim(),
+            managerName: String(safe(exitRow[' Manager/Supervisor Name'] || exitRow['Manager/Supervisor Name'])).trim(),
+            noticePeriodServed: String(safe(exitRow['Notice Period Served'])).trim(),
+            finalSettlementDone: String(safe(exitRow[' Final Settlement Done'] || exitRow['Final Settlement Done'])).trim(),
+            fnfDate: parseExcelDate(exitRow['Fnf date']),
+            exitInterviewDate: parseExcelDate(exitRow['Exit Interview Date']),
+            companyAssetsReturned: String(safe(exitRow['Company Assets Returned'])).trim(),
+            hrRepresentative: String(safe(exitRow[' HR Representative'] || exitRow['HR Representative'])).trim(),
+            remarks: String(safe(exitRow['Remarks'])).trim()
+          });
+          await prevEmp.save();
+        }
 
         let casualLeave = defaultCasual;
         let sickLeave = defaultSick;
@@ -378,6 +458,7 @@ class EmployeeController {
         if (employee) await Employee.deleteOne({ _id: employee._id }).catch(() => { });
         if (leave) await Leave.deleteOne({ _id: leave._id }).catch(() => { });
         if (payroll) await Payroll.deleteOne({ _id: payroll._id }).catch(() => { });
+        if (prevEmp) await PreviousEmployment.deleteOne({ _id: prevEmp._id }).catch(() => { });
         results.failed.push({ row: rowNum, name: String(row['Name'] || ''), reason: error.message });
       }
     }
@@ -386,8 +467,29 @@ class EmployeeController {
       message: `Bulk import completed. ${results.success.length} added, ${results.failed.length} failed.`,
       success: results.success,
       failed: results.failed,
-      totalProcessed: results.success.length + results.failed.length
+      totalProcessed: results.success.length + results.failed.length,
+      savedFile: savedFileName  // Return filename so frontend can offer download
     });
+  });
+
+  // ─── DOWNLOAD UPLOADED BULK EXCEL ─────────────────────────────────────────
+  downloadUploadedExcel = catchAsync(async (req, res) => {
+    const { filename } = req.params;
+
+    // Sanitize filename — prevent path traversal
+    const sanitized = path.basename(filename);
+    if (!sanitized.startsWith('bulk-import-') || !sanitized.endsWith('.xlsx')) {
+      return res.status(400).json({ message: 'Invalid file name' });
+    }
+
+    const filePath = path.join(UPLOADED_EXCEL_DIR, sanitized);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found. It may have been cleaned up.' });
+    }
+
+    res.setHeader('Content-Disposition', `attachment; filename="${sanitized}"`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.sendFile(filePath);
   });
 
   // ─── UPDATE EMPLOYEE ───────────────────────────────────────────────────────
@@ -458,6 +560,34 @@ class EmployeeController {
 
       const employee = await Employee.findByIdAndUpdate(req.params.id, updateData, { new: true });
 
+      // ── Update Previous Employment data ──
+      const pe = b.prevEmp ? (typeof b.prevEmp === 'string' ? JSON.parse(b.prevEmp) : b.prevEmp) : null;
+      if (pe) {
+        const prevEmpData = {
+          employee: req.params.id,
+          employeeName: safe(pe.employeeName),
+          department: safe(pe.department),
+          designation: safe(pe.designation),
+          joiningDate: safeDate(pe.joiningDate),
+          lastWorkingDay: safeDate(pe.lastWorkingDay),
+          exitType: safe(pe.exitType),
+          reasonForExit: safe(pe.reasonForExit),
+          managerName: safe(pe.managerName),
+          noticePeriodServed: safe(pe.noticePeriodServed),
+          finalSettlementDone: safe(pe.finalSettlementDone),
+          fnfDate: safeDate(pe.fnfDate),
+          exitInterviewDate: safeDate(pe.exitInterviewDate),
+          companyAssetsReturned: safe(pe.companyAssetsReturned),
+          hrRepresentative: safe(pe.hrRepresentative),
+          remarks: safe(pe.remarks)
+        };
+        await PreviousEmployment.findOneAndUpdate(
+          { employee: req.params.id },
+          prevEmpData,
+          { upsert: true, new: true }
+        );
+      }
+
       // Save new docs
       const docTypes = ['profilePhoto', 'adharCard', 'panCard', 'salarySlip', 'relievingLetter', 'experienceLetter', 'offerLetter'];
       for (const docType of docTypes) {
@@ -474,7 +604,7 @@ class EmployeeController {
         }
       }
 
-      // Sync User table — only fields User model has
+      // Sync User table
       const userUpdate = {
         email: b.email || e.email,
         firstName: b.firstName || e.firstName,
@@ -510,6 +640,7 @@ class EmployeeController {
       await Employee.findByIdAndDelete(req.params.id);
       await Documents.deleteMany({ employee: req.params.id });
       await Payroll.deleteMany({ employee: req.params.id });
+      await PreviousEmployment.deleteMany({ employee: req.params.id });
       res.json({ message: 'Deleted' });
     } catch (err) {
       res.status(500).json({ message: err.message });

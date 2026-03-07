@@ -31,6 +31,13 @@ export const employeeAPI = {
   bulkImport: (formData) => api.post('/employees/bulk-import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  downloadUploadedExcel: (filename) =>
+    api.get(`/employees/bulk-import/download/${filename}`, { responseType: 'blob' }),
+};
+
+export const previousEmploymentAPI = {
+  getByEmployee: (employeeId) => api.get(`/previous-employment/${employeeId}`),
+  upsert: (employeeId, data) => api.put(`/previous-employment/${employeeId}`, data),
 };
 
 export const attendanceAPI = {
