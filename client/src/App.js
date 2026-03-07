@@ -17,30 +17,33 @@ import Notfound from './pages/Notfound';
 import EmployeeDetails from './pages/EmployeeDetails';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import UserProfile from './pages/UserProfile';
+import { NotificationProvider } from './context/NotificationContext';
 
 function App() {
   const { token } = useSelector((state) => state.auth);
 
   return (
-    <Router>
-      {token && <Navbar />}
-      <Routes>
-        <Route path="/login" element={!token ? <Login /> : <Navigate to="/dashboard" />} />
-        <Route path="/register" element={!token ? <Register /> : <Navigate to="/dashboard" />} />
-        <Route path="/dashboard" element={token ? <Dashboard /> : <Navigate to="/login" />} />
-        <Route path="/employees" element={token ? <Employees /> : <Navigate to="/login" />} />
-        <Route path="/attendance" element={token ? <Attendance /> : <Navigate to="/login" />} />
-        <Route path="/leave" element={token ? <Leave /> : <Navigate to="/login" />} />
-        <Route path="/payroll" element={token ? <Payroll /> : <Navigate to="/login" />} />
-        <Route path="/performance" element={token ? <Performance /> : <Navigate to="/login" />} />
-        <Route path="/roles" element={token ? <RoleManagement /> : <Navigate to="/login" />} />
-        <Route path="/profile-settings" element={token ? <UserProfile /> : <Navigate to="/login" />} />
-        <Route path="/all_employee_attendance" element={token ? <AllEmployeesAttendance /> : <Navigate to="/login" />} />
-        <Route path="/" element={<Navigate to={"/login"} />} />
-        <Route path="/EmployeeDetails/:id" element={<EmployeeDetails />} />
-        <Route path="*" element={<Notfound/>}/>
-      </Routes>
-    </Router>
+    <NotificationProvider>
+      <Router>
+        {token && <Navbar />}
+        <Routes>
+          <Route path="/login" element={!token ? <Login /> : <Navigate to="/dashboard" />} />
+          <Route path="/register" element={!token ? <Register /> : <Navigate to="/dashboard" />} />
+          <Route path="/dashboard" element={token ? <Dashboard /> : <Navigate to="/login" />} />
+          <Route path="/employees" element={token ? <Employees /> : <Navigate to="/login" />} />
+          <Route path="/attendance" element={token ? <Attendance /> : <Navigate to="/login" />} />
+          <Route path="/leave" element={token ? <Leave /> : <Navigate to="/login" />} />
+          <Route path="/payroll" element={token ? <Payroll /> : <Navigate to="/login" />} />
+          <Route path="/performance" element={token ? <Performance /> : <Navigate to="/login" />} />
+          <Route path="/roles" element={token ? <RoleManagement /> : <Navigate to="/login" />} />
+          <Route path="/profile-settings" element={token ? <UserProfile /> : <Navigate to="/login" />} />
+          <Route path="/all_employee_attendance" element={token ? <AllEmployeesAttendance /> : <Navigate to="/login" />} />
+          <Route path="/" element={<Navigate to={"/login"} />} />
+          <Route path="/EmployeeDetails/:id" element={<EmployeeDetails />} />
+          <Route path="*" element={<Notfound/>}/>
+        </Routes>
+      </Router>
+    </NotificationProvider>
   );
 }
 
