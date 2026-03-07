@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// const API_BASE_URL = 'https://hrms-app-wtlz.onrender.com/v1';
-const API_BASE_URL = 'http://localhost:5000/v1';
+const API_BASE_URL = 'https://hrms-app-wtlz.onrender.com/v1';
+// const API_BASE_URL = 'http://localhost:5000/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -31,6 +31,13 @@ export const employeeAPI = {
   bulkImport: (formData) => api.post('/employees/bulk-import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  downloadUploadedExcel: (filename) =>
+    api.get(`/employees/bulk-import/download/${filename}`, { responseType: 'blob' }),
+};
+
+export const previousEmploymentAPI = {
+  getByEmployee: (employeeId) => api.get(`/previous-employment/${employeeId}`),
+  upsert: (employeeId, data) => api.put(`/previous-employment/${employeeId}`, data),
 };
 
 export const attendanceAPI = {

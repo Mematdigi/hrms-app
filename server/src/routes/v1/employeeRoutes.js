@@ -55,6 +55,14 @@ router.post(
   employeeController.bulkImportEmployees
 );
 
+// Download uploaded bulk excel (GET /employees/bulk-import/download/:filename)
+router.get(
+  '/bulk-import/download/:filename',
+  authMiddleware,
+  roleMiddleware(['admin', 'hr']),
+  employeeController.downloadUploadedExcel
+);
+
 // Payrolls (GET /employees/all/payrolls)
 router.get(
   '/all/payrolls',
