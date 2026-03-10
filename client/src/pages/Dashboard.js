@@ -33,10 +33,10 @@ const Dashboard = () => {
    const [leaveType, setLeaveType] = useState("full"); // 'short' or 'full'
    const [selectedLeaveCategory, setSelectedLeaveCategory] = useState("casual"); // 'casual' | 'sick' | 'unpaid'
    const [leaveFormData, setLeaveFormData] = useState({
-      date:     new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split('T')[0],
       fromTime: '',
-      toTime:   '',
-      reason:   ''
+      toTime: '',
+      reason: ''
    });
 
    // ── DYNAMIC: Leave Balance State ──
@@ -56,9 +56,26 @@ const Dashboard = () => {
    // ── DYNAMIC: Top Performers (HR) ──
    const [topPerformers, setTopPerformers] = useState([]);
 
+   // ── Performance Review Modal (Dashboard quick-create) ──
+   const [showReviewModal, setShowReviewModal] = useState(false);
+   const [reviewFormData, setReviewFormData] = useState({
+      employee_id: '', reviewPeriodStart: '', reviewPeriodEnd: '',
+      rating: 3, strengths: '', areasForImprovement: '', goals: '', comments: '',
+   });
+   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+   const [reviewSuccess, setReviewSuccess] = useState(false);
+
+   // ── Employee's own performance reviews ──
+   const [myReviews, setMyReviews] = useState([]);
+
+   // ── HR: All reviews table + employee list for dropdown ──
+   const [allReviews, setAllReviews] = useState([]);
+   const [allEmployees, setAllEmployees] = useState([]);
+   const [expandedReview, setExpandedReview] = useState(null); // review _id expanded in employee view
+
    // Determine Role
    const role = user?.role || "employee";
-   const isHR = role === 'admin' || role === 'hr'|| role === 'manager';
+   const isHR = role === 'admin' || role === 'hr' || role === 'manager';
 
    // ==============================
    // 3. Effects
@@ -122,9 +139,36 @@ const Dashboard = () => {
             try {
                const balRes = await leaveAPI.getBalances(user?.id);
                setLeaveBalances(balRes.data || null);
-               console.log(balRes.data)
             } catch (err) {
                console.error("Leave balances fetch failed", err);
+            }
+
+            // ── 2b. Fetch performance reviews ──
+            try {
+               const perfRes = await performanceAPI.getReviews({});
+               const allRevData = perfRes.data || [];
+               
+               
+               const empId = String(user?.employeeId || user?.id);
+
+               const mine = allRevData.filter(
+                  r => String(r.employeeId) === empId
+               );
+               
+
+               setAllReviews(allRevData);
+               setMyReviews(mine);
+
+            } catch (err) {
+               console.error("My reviews fetch failed", err);
+            }
+
+            // ── 2c. Fetch all employees for review dropdown ──
+            try {
+               const empRes = await employeeAPI.getAll();
+               setAllEmployees(empRes.data || []);
+            } catch (err) {
+               console.error("Employees fetch for dropdown failed", err);
             }
 
             // ── 3. HR-Specific Data ──
@@ -181,6 +225,7 @@ const Dashboard = () => {
                         name: `${firstName} ${lastName}`.trim() || 'Unknown',
                         type: leave.leaveType || leave.category || 'Leave',
                         days: leave.numberOfDays || 1,
+                        reason: leave.reason || '',
                         status: leave.status
                            ? leave.status.charAt(0).toUpperCase() + leave.status.slice(1)
                            : 'Pending',
@@ -213,20 +258,27 @@ const Dashboard = () => {
                   console.error("Payroll fetch failed", err);
                }
 
-               // 3f. Top Performers from performance reviews
+               // 3f. Top Performers from performance reviews (current month only)
                try {
                   const perfRes = await performanceAPI.getReviews({});
                   const allReviews = perfRes.data || [];
 
-                  // Group reviews by employee, average their rating
+                  // Filter to current month
+                  const now = new Date();
+                  const currentMonthReviews = allReviews.filter(review => {
+                     const created = new Date(review.createdAt);
+                     return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+                  });
+
+                  // Group reviews by employeeId, average their rating
                   const empRatings = {};
-                  allReviews.forEach(review => {
-                     const empId = review.employee?._id || review.employee;
+                  currentMonthReviews.forEach(review => {
+                     const empId = review.employeeId;
                      if (!empId) return;
                      if (!empRatings[empId]) {
                         empRatings[empId] = {
-                           name: `${review.employee?.firstName || ''} ${review.employee?.lastName || ''}`.trim(),
-                           designation: review.employee?.designation || 'Employee',
+                           name: review.fullName || `${review.firstName || ''} ${review.lastName || ''}`.trim() || 'Employee',
+                           designation: review.designation || 'Staff',
                            totalRating: 0,
                            count: 0,
                         };
@@ -280,23 +332,23 @@ const Dashboard = () => {
 
    // ── Monthly casual / sick limits (1 each per month) ──
    const CASUAL_MONTHLY_LIMIT = 1;
-   const SICK_MONTHLY_LIMIT   = 1;
+   const SICK_MONTHLY_LIMIT = 1;
 
    const currentMonthYear = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
 
    // We compute from leaveBalances — backend tracks casualUsed/sickUsed for current month
    // casualUsed / sickUsed from balances reflect this month's usage
    const casualUsedThisMonth = leaveBalances?.casualUsed ?? 0;
-   const sickUsedThisMonth   = leaveBalances?.sickUsed   ?? 0;
+   const sickUsedThisMonth = leaveBalances?.sickUsed ?? 0;
 
    const isCasualLimitReached = casualUsedThisMonth >= CASUAL_MONTHLY_LIMIT;
-   const isSickLimitReached   = sickUsedThisMonth   >= SICK_MONTHLY_LIMIT;
+   const isSickLimitReached = sickUsedThisMonth >= SICK_MONTHLY_LIMIT;
 
    // Combined warning message for the modal banner
    const getMonthlyLimitWarning = () => {
       const msgs = [];
       if (isCasualLimitReached) msgs.push('Casual Leave');
-      if (isSickLimitReached)   msgs.push('Sick Leave');
+      if (isSickLimitReached) msgs.push('Sick Leave');
       if (shortLeavesTaken >= shortLeavesLimit) msgs.push('Short Leave');
       if (msgs.length === 0) return '';
       return `⚠️ Your limit for ${msgs.join(', ')} is full for this month.`;
@@ -372,14 +424,14 @@ const Dashboard = () => {
          // ✅ FIX: Use correct DB enum values — 'casual' not 'Casual Leave'
          const payload = {
             employeeId: user?.id,
-            leaveType:  leaveType === 'short' ? 'short' : selectedLeaveCategory,
-            category:   leaveType === 'short' ? 'Full' : 'Full',
-            startDate:  leaveFormData.date,
-            endDate:    leaveFormData.date,
-            reason:     leaveFormData.reason,
+            leaveType: leaveType === 'short' ? 'short' : selectedLeaveCategory,
+            category: leaveType === 'short' ? 'Full' : 'Full',
+            startDate: leaveFormData.date,
+            endDate: leaveFormData.date,
+            reason: leaveFormData.reason,
             ...(leaveType === 'short' && {
                fromTime: leaveFormData.fromTime,
-               toTime:   leaveFormData.toTime,
+               toTime: leaveFormData.toTime,
             }),
          };
 
@@ -387,10 +439,10 @@ const Dashboard = () => {
 
          setShowLeaveModal(false);
          setLeaveFormData({
-            date:     new Date().toISOString().split('T')[0],
+            date: new Date().toISOString().split('T')[0],
             fromTime: '',
-            toTime:   '',
-            reason:   ''
+            toTime: '',
+            reason: ''
          });
          setLeaveType('full');
 
@@ -416,33 +468,40 @@ const Dashboard = () => {
    // ==============================
 
    // --- HEADER ACTION BUTTONS (Used in both dashboards) ---
-// ==============================
-// 6. Render Helpers (Components)
-// ==============================
+   // ==============================
+   // 6. Render Helpers (Components)
+   // ==============================
 
-// --- HEADER ACTION BUTTONS (Used in both dashboards) ---
-const HeaderActionButtons = () => {
-    // ✅ ADDED: If the user is an admin, do not show personal attendance/leave buttons
-    if (user?.role === 'admin') {
-        return null;
-    }
+   // --- HEADER ACTION BUTTONS (Used in both dashboards) ---
+   const HeaderActionButtons = () => {
+      // ✅ ADDED: If the user is an admin, do not show personal attendance/leave buttons
+      if (user?.role === 'admin') {
+         return null;
+      }
 
-    return (
-        <div className="d-flex gap-3">
+      return (
+         <div className="d-flex gap-3">
             <button
-                className={`btn-header-custom ${checkedIn ? 'btn-red' : 'btn-gradient-blue'}`}
-                onClick={checkedIn ? handleCheckOut : handleCheckIn}
+               className={`btn-header-custom ${checkedIn ? 'btn-red' : 'btn-gradient-blue'}`}
+               onClick={checkedIn ? handleCheckOut : handleCheckIn}
             >
-                {checkedIn ? <i className="bi bi-stop-circle me-2"></i> : <i className="bi bi-box-arrow-in-right me-2"></i>}
-                {checkedIn ? 'Punch Out' : 'Punch In'}
+               {checkedIn ? <i className="bi bi-stop-circle me-2"></i> : <i className="bi bi-box-arrow-in-right me-2"></i>}
+               {checkedIn ? 'Punch Out' : 'Punch In'}
             </button>
 
             <button className="btn-header-custom btn-gradient-blue" onClick={handleOpenLeaveModal}>
-                <i className="bi bi-calendar-plus me-2"></i> Apply Leave
+               <i className="bi bi-calendar-plus me-2"></i> Apply Leave
             </button>
-        </div>
-    );
-};
+            {
+               isHR && (
+                  <button className="btn-header-custom btn-gradient-blue" onClick={() => setShowReviewModal(true)}>
+                     <i className="bi bi-stars me-2"></i>Add Performance Review
+                  </button>
+               )
+            }
+         </div>
+      );
+   };
 
    const generateCalendar = () => {
       const days = [];
@@ -584,11 +643,94 @@ const HeaderActionButtons = () => {
                               style={{ width: `${Math.min((shortLeavesTaken / shortLeavesLimit) * 100, 100)}%` }}
                            ></div>
                         </div>
-                        <p className="small text-muted mt-2 mb-0">
+                        <p className="small text-muted mb-0">
                            {Math.max(shortLeavesLimit - shortLeavesTaken, 0)} short leaves remaining this month
                         </p>
                      </div>
                   </div>
+               </div>
+            </div>
+
+            {/* ── My Performance Reviews ── */}
+            <div className="mt-4">
+               <div className="d-flex justify-content-between align-items-center mb-3">
+                  {
+                     isHR && (
+                        <span className="text-primary small cursor-pointer" onClick={() => navigate('/performance')}>View all →</span>
+                     )
+                  }
+               </div>
+               <div className="dashboard-card p-3">
+                  <h5 className="fw-bold mb-4">⭐ My Performance Reviews</h5>
+                  {myReviews.length === 0 ? (
+                     <div className="text-center py-4">
+                        <div style={{ fontSize: '2.5rem', opacity: 0.3 }}>📊</div>
+                        <div className="text-muted small mt-2">No performance reviews yet.</div>
+                     </div>
+                  ) : (
+                     <div className="row g-3">
+                        {myReviews.map((review, idx) => {
+                           const ratingColors = ['', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#27ae60'];
+                           const ratingLabels = ['', 'Poor', 'Below Average', 'Average', 'Good', 'Excellent'];
+                           const col = ratingColors[review.rating] || '#999';
+                           const isExpanded = expandedReview === review._id;
+                           return (
+                              <div key={review._id} className="col-md-6 col-lg-4">
+                                 <div
+                                    style={{ border: `1.5px solid ${col}44`, borderRadius: 12, overflow: 'hidden', background: '#fff', boxShadow: isExpanded ? `0 4px 16px ${col}22` : 'none', transition: 'box-shadow 0.2s' }}
+                                 >
+                                    {/* Card Header */}
+                                    <div
+                                       style={{ background: `linear-gradient(135deg, ${col}18, ${col}06)`, padding: '12px 14px', borderBottom: `1px solid ${col}22`, cursor: 'pointer' }}
+                                       onClick={() => setExpandedReview(isExpanded ? null : review._id)}
+                                    >
+                                       <div className="d-flex justify-content-between align-items-center">
+                                          <span style={{ background: col + '22', color: col, border: `1px solid ${col}55`, borderRadius: 12, padding: '3px 10px', fontWeight: 700, fontSize: '0.78rem' }}>
+                                             {'⭐'.repeat(review.rating)} {ratingLabels[review.rating]}
+                                          </span>
+                                          <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'} small text-muted`}></i>
+                                       </div>
+                                       <div className="fw-semibold small mt-2">{review.reviewPeriod}</div>
+                                       <div className="extra-small text-muted">{review.createdAt ? review.createdAt.substring(0, 10).split('-').reverse().join('-') : '—'}</div>
+                                    </div>
+                                    {/* Expandable Body */}
+                                    {isExpanded && (
+                                       <div style={{ padding: '12px 14px' }} className="small">
+                                          {review.strengths && (
+                                             <div className="mb-2">
+                                                <div className="fw-semibold text-success mb-1">💪 Strengths</div>
+                                                <div className="text-muted">{review.strengths}</div>
+                                             </div>
+                                          )}
+                                          {review.areasForImprovement && (
+                                             <div className="mb-2">
+                                                <div className="fw-semibold text-warning mb-1">📈 Improvements</div>
+                                                <div className="text-muted">{review.areasForImprovement}</div>
+                                             </div>
+                                          )}
+                                          {review.goals && (
+                                             <div className="mb-2">
+                                                <div className="fw-semibold text-primary mb-1">🎯 Goals</div>
+                                                <div className="text-muted">{review.goals}</div>
+                                             </div>
+                                          )}
+                                          {review.comments && (
+                                             <div className="mb-0">
+                                                <div className="fw-semibold text-secondary mb-1">💬 Comments</div>
+                                                <div className="text-muted">{review.comments}</div>
+                                             </div>
+                                          )}
+                                          {!review.strengths && !review.areasForImprovement && !review.goals && !review.comments && (
+                                             <div className="text-muted text-center py-2">No details added.</div>
+                                          )}
+                                       </div>
+                                    )}
+                                 </div>
+                              </div>
+                           );
+                        })}
+                     </div>
+                  )}
                </div>
             </div>
          </div>
@@ -603,7 +745,7 @@ const HeaderActionButtons = () => {
             <div className="d-flex justify-content-between align-items-end mb-4">
                <div>
                   <h2 className="fw-bold text-dark mb-1">Good morning, {user?.firstName || 'Admin'}</h2>
-                  <p className="text-muted small mb-0">Here's what's happening with your team today.</p>
+                  {/* <p className="text-muted small mb-0">Here's what's happening with your team today.</p> */}
                </div>
                <HeaderActionButtons />
             </div>
@@ -612,7 +754,7 @@ const HeaderActionButtons = () => {
             <div className="row g-4 mb-4">
                {/* Card 1: Total Employees */}
                <div className="col-xl-3 col-md-6">
-                  <div className="stat-card-modern bg-deep-blue text-white">
+                  <div className="stat-card-modern bg-deep-blue text-white" onClick={() => navigate('/employees')}>
                      <div className="d-flex justify-content-between align-items-start">
                         <div>
                            <div className="small opacity-75 mb-1">Total Employees</div>
@@ -620,9 +762,6 @@ const HeaderActionButtons = () => {
                               <AnimatedNumber value={stats.totalEmployees} />
                            </h2>
                            <div className="small mt-2 badge bg-white-20">Active Staff</div>
-                           <div className="extra-small text-green-light mt-1">
-                              Updated live
-                           </div>
                         </div>
                         <div className="icon-box bg-white-20"><i className="bi bi-people"></i></div>
                      </div>
@@ -631,14 +770,14 @@ const HeaderActionButtons = () => {
 
                {/* Card 2: Present Today */}
                <div className="col-xl-3 col-md-6">
-                  <div className="stat-card-modern bg-white border">
+                  <div className="stat-card-modern bg-white border" onClick={() => navigate('/attendance')}>
                      <div className="d-flex justify-content-between align-items-start">
                         <div>
                            <div className="small text-muted mb-1">Present Today</div>
                            <h2 className="fw-bold mb-0 text-dark">
                               <AnimatedNumber value={stats.presentToday} />
                            </h2>
-                           <div className="small text-muted mt-2">{attendanceRate}</div>
+                           <div className="small text-muted">{attendanceRate}</div>
                         </div>
                         <div className="icon-box bg-green-light text-green"><i className="bi bi-person-check"></i></div>
                      </div>
@@ -646,15 +785,15 @@ const HeaderActionButtons = () => {
                </div>
 
                {/* Card 3: Pending Leaves */}
-               <div className="col-xl-3 col-md-6">
-                  <div className="stat-card-modern bg-white border">
+               <div className="col-xl-3 col-md-6" >
+                  <div className="stat-card-modern bg-white border" onClick={() => navigate('/leave')}>
                      <div className="d-flex justify-content-between align-items-start">
                         <div>
                            <div className="small text-muted mb-1">Pending Leaves</div>
                            <h2 className="fw-bold mb-0 text-dark">
                               <AnimatedNumber value={stats.pendingLeaves} />
                            </h2>
-                           <div className="small text-muted mt-2">
+                           <div className="small text-muted">
                               {stats.pendingLeaves > 0 ? 'Requires attention' : 'All clear'}
                            </div>
                         </div>
@@ -665,12 +804,12 @@ const HeaderActionButtons = () => {
 
                {/* Card 4: Payroll Status */}
                <div className="col-xl-3 col-md-6">
-                  <div className="stat-card-modern bg-white border">
+                  <div className="stat-card-modern bg-white border" onClick={() => navigate('/payroll')}>
                      <div className="d-flex justify-content-between align-items-start">
                         <div>
                            <div className="small text-muted mb-1">Payroll Status</div>
                            <h2 className="fw-bold mb-0 text-dark">{stats.payrollStatus}</h2>
-                           <div className="small text-muted mt-2">{monthLabel}</div>
+                           <div className="small text-muted">{monthLabel}</div>
                         </div>
                         <div className="icon-box bg-blue-light text-blue"><i className="bi bi-currency-dollar"></i></div>
                      </div>
@@ -680,9 +819,9 @@ const HeaderActionButtons = () => {
 
             <div className="row g-4">
                {/* Left: Quick Actions */}
-               <div className="col-lg-4">
-                  <h5 className="fw-bold mb-3">Quick Actions</h5>
+               <div className="col-lg-3">
                   <div className="dashboard-card p-3">
+                     <h5 className="fw-bold mb-3">Quick Actions</h5>
                      <button className="btn-quick-action" onClick={() => navigate('/employees')}>
                         <span className="icon-wrapper dark"><i className="bi bi-person-plus"></i></span>
                         <span className="fw-semibold">Add Employee</span>
@@ -695,11 +834,15 @@ const HeaderActionButtons = () => {
                         <span className="icon-wrapper dark"><i className="bi bi-file-earmark-text"></i></span>
                         <span className="fw-semibold">Generate Payslip</span>
                      </button>
+                     {/* <button className="btn-quick-action" onClick={() => setShowReviewModal(true)}>
+                        <span className="icon-wrapper" style={{ background: '#e8f5e9' }}><i className="bi bi-star" style={{ color: '#2e7d32' }}></i></span>
+                        <span className="fw-semibold">Add Review</span>
+                     </button> */}
                   </div>
                </div>
 
                {/* Right: Recent Leaves — DYNAMIC */}
-               <div className="col-lg-8">
+               <div className="col-lg-9">
                   <div className="dashboard-card p-0 overflow-hidden">
                      <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
                         <h6 className="fw-bold mb-0">Recent Staff Requests</h6>
@@ -722,6 +865,11 @@ const HeaderActionButtons = () => {
                                     <div className="fw-bold text-dark">{leave.name}</div>
                                     <div className="small text-muted">{leave.type} • {leave.days} day{leave.days !== 1 ? 's' : ''}</div>
                                  </div>
+                                 <div>
+                                    <div className="text-muted extra-small mt-1 border rounded px-2 py-1" style={{ background: '#f8f9fa' }}>
+                                       {leave.reason}
+                                    </div>
+                                 </div>
                               </div>
                               <span className={`badge-status-pill ${leave.status.toLowerCase()}`}>
                                  {leave.status}
@@ -735,31 +883,32 @@ const HeaderActionButtons = () => {
 
             {/* Bottom: Top Performers — DYNAMIC */}
             <div className="mt-4">
-               <div className="d-flex justify-content-between align-items-center mb-3">
-                  <h5 className="fw-bold mb-0">📈 Top Performers</h5>
-                  <span className="text-primary small cursor-pointer" onClick={() => navigate('/performance')}>View all →</span>
-               </div>
                <div className="dashboard-card p-3">
+                  <div className="d-flex justify-content-between align-items-center mb-4">
+                     <h5 className="fw-bold mb-0">🏆 Top Performers — {monthLabel}</h5>
+                     <span className="text-primary small cursor-pointer" onClick={() => navigate('/performance')}>View all →</span>
+                  </div>
                   {topPerformers.length === 0 ? (
                      <div className="text-center text-muted small py-3">
-                        No performance reviews found. <span className="text-primary cursor-pointer" onClick={() => navigate('/performance')}>Add reviews →</span>
+                        No reviews this month yet. <span className="text-primary cursor-pointer" onClick={() => setShowReviewModal(true)}>Add a review →</span>
                      </div>
                   ) : (
                      <div className="row g-3">
                         {topPerformers.map((performer, idx) => {
-                           const rankBg = idx === 0 ? 'bg-primary' : idx === 1 ? 'bg-deep-blue' : 'bg-dark';
+                           const rankBg = idx === 0 ? 'bg-warning text-dark' : idx === 1 ? 'bg-secondary' : 'bg-dark';
                            const ratingPercent = Math.round((performer.avgRating / 5) * 100);
+                           const medals = ['🥇', '🥈', '🥉'];
                            return (
                               <div key={idx} className="col-md-4">
-                                 <div className="performer-card bg-light">
-                                    <div className={`rank-badge ${rankBg}`}>{idx + 1}</div>
+                                 <div className="performer-card bg-light" style={{ borderLeft: `4px solid ${idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : '#78716c'}` }}>
+                                    <div className="fs-4 me-2">{medals[idx]}</div>
                                     <div>
                                        <div className="fw-bold">{performer.name || 'Employee'}</div>
                                        <div className="small text-muted">{performer.designation || 'Staff'}</div>
                                     </div>
                                     <div className="ms-auto text-end">
                                        <div className="fw-bold text-success">{ratingPercent}%</div>
-                                       <div className="extra-small text-muted">Rating</div>
+                                       <div className="extra-small text-muted">{performer.count} review{performer.count !== 1 ? 's' : ''}</div>
                                     </div>
                                  </div>
                               </div>
@@ -913,12 +1062,189 @@ const HeaderActionButtons = () => {
                   disabled={
                      (leaveType === 'short' && shortLeavesTaken >= shortLeavesLimit) ||
                      (leaveType === 'full' && selectedLeaveCategory === 'casual' && isCasualLimitReached) ||
-                     (leaveType === 'full' && selectedLeaveCategory === 'sick'   && isSickLimitReached)
+                     (leaveType === 'full' && selectedLeaveCategory === 'sick' && isSickLimitReached)
                   }
                >
                   Submit Application
                </Button>
             </Modal.Footer>
+         </Modal>
+
+         {/* =============================== */}
+         {/* CREATE PERFORMANCE REVIEW MODAL */}
+         {/* =============================== */}
+         <Modal show={showReviewModal} onHide={() => { setShowReviewModal(false); setReviewSuccess(false); }} centered size="lg" className="leave-modal">
+            <Modal.Header closeButton className="border-0 pb-0">
+               <Modal.Title className="fw-bold fs-5">
+                  <i className="bi bi-star me-2 text-warning"></i>Create Performance Review
+               </Modal.Title>
+            </Modal.Header>
+            <Modal.Body className="pt-2">
+               {reviewSuccess ? (
+                  <div className="text-center py-4">
+                     <div style={{ fontSize: '3rem' }}>✅</div>
+                     <h5 className="fw-bold mt-3">Review Submitted!</h5>
+                     <p className="text-muted small">Performance review has been saved successfully.</p>
+                     <Button className="btn-deep-blue rounded-pill px-4" onClick={() => { setShowReviewModal(false); setReviewSuccess(false); }}>Done</Button>
+                  </div>
+               ) : (
+                  <>
+                     <div className="row g-3">
+                        <div className="col-md-6">
+                           <Form.Group>
+                              <Form.Label className="small fw-semibold">Employee</Form.Label>
+                              <Form.Select
+                                 value={reviewFormData.employee_id}
+                                 onChange={(e) => setReviewFormData({ ...reviewFormData, employee_id: e.target.value })}
+                              >
+                                 <option value="">-- Select Employee --</option>
+                                 {allEmployees.map(emp => (
+                                    <option key={emp._id} value={emp.employeeId}>
+                                       {emp.firstName} {emp.lastName}
+                                    </option>
+                                 ))}
+                              </Form.Select>
+                           </Form.Group>
+                        </div>
+                        <div className="col-md-3">
+                           <Form.Group>
+                              <Form.Label className="small fw-semibold">Period From</Form.Label>
+                              <Form.Control
+                                 type="date"
+                                 value={reviewFormData.reviewPeriodStart}
+                                 onChange={(e) => setReviewFormData({ ...reviewFormData, reviewPeriodStart: e.target.value })}
+                              />
+                           </Form.Group>
+                        </div>
+                        <div className="col-md-3">
+                           <Form.Group>
+                              <Form.Label className="small fw-semibold">Period To</Form.Label>
+                              <Form.Control
+                                 type="date"
+                                 value={reviewFormData.reviewPeriodEnd}
+                                 onChange={(e) => setReviewFormData({ ...reviewFormData, reviewPeriodEnd: e.target.value })}
+                              />
+                           </Form.Group>
+                        </div>
+                        <div className="col-12">
+                           <Form.Label className="small fw-semibold d-block">Rating</Form.Label>
+                           <div className="d-flex gap-2">
+                              {[1, 2, 3, 4, 5].map(r => (
+                                 <button
+                                    key={r}
+                                    type="button"
+                                    onClick={() => setReviewFormData({ ...reviewFormData, rating: r })}
+                                    style={{
+                                       padding: '6px 14px', borderRadius: '20px', border: '1.5px solid',
+                                       borderColor: reviewFormData.rating >= r ? '#f59e0b' : '#dee2e6',
+                                       background: reviewFormData.rating >= r ? '#fef3c7' : 'white',
+                                       color: reviewFormData.rating >= r ? '#b45309' : '#6c757d',
+                                       fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer'
+                                    }}
+                                 >
+                                    {'⭐'.repeat(r)} {['', 'Poor', 'Below Avg', 'Average', 'Good', 'Excellent'][r]}
+                                 </button>
+                              ))}
+                           </div>
+                        </div>
+                        <div className="col-md-6">
+                           <Form.Group>
+                              <Form.Label className="small fw-semibold">💪 Strengths</Form.Label>
+                              <Form.Control
+                                 as="textarea" rows={2}
+                                 placeholder="Key strengths..."
+                                 value={reviewFormData.strengths}
+                                 onChange={(e) => setReviewFormData({ ...reviewFormData, strengths: e.target.value })}
+                              />
+                           </Form.Group>
+                        </div>
+                        <div className="col-md-6">
+                           <Form.Group>
+                              <Form.Label className="small fw-semibold">📈 Areas for Improvement</Form.Label>
+                              <Form.Control
+                                 as="textarea" rows={2}
+                                 placeholder="Areas to improve..."
+                                 value={reviewFormData.areasForImprovement}
+                                 onChange={(e) => setReviewFormData({ ...reviewFormData, areasForImprovement: e.target.value })}
+                              />
+                           </Form.Group>
+                        </div>
+                        <div className="col-md-6">
+                           <Form.Group>
+                              <Form.Label className="small fw-semibold">🎯 Goals</Form.Label>
+                              <Form.Control
+                                 as="textarea" rows={2}
+                                 placeholder="Goals for next period..."
+                                 value={reviewFormData.goals}
+                                 onChange={(e) => setReviewFormData({ ...reviewFormData, goals: e.target.value })}
+                              />
+                           </Form.Group>
+                        </div>
+                        <div className="col-md-6">
+                           <Form.Group>
+                              <Form.Label className="small fw-semibold">💬 Comments</Form.Label>
+                              <Form.Control
+                                 as="textarea" rows={2}
+                                 placeholder="Additional comments..."
+                                 value={reviewFormData.comments}
+                                 onChange={(e) => setReviewFormData({ ...reviewFormData, comments: e.target.value })}
+                              />
+                           </Form.Group>
+                        </div>
+                     </div>
+                  </>
+               )}
+            </Modal.Body>
+            {!reviewSuccess && (
+               <Modal.Footer className="border-0 pt-0">
+                  <Button variant="light" className="rounded-pill px-4" onClick={() => setShowReviewModal(false)}>Cancel</Button>
+                  <Button
+                     className="rounded-pill btn-deep-blue px-4"
+                     disabled={reviewSubmitting || !reviewFormData.employee_id || !reviewFormData.reviewPeriodStart}
+                     onClick={async () => {
+                        setReviewSubmitting(true);
+                        try {
+                           const reviewPeriod = reviewFormData.reviewPeriodStart && reviewFormData.reviewPeriodEnd
+                              ? `${reviewFormData.reviewPeriodStart} to ${reviewFormData.reviewPeriodEnd}`
+                              : reviewFormData.reviewPeriodStart;
+                           await performanceAPI.create({
+                              ...reviewFormData,
+                              reviewPeriod,
+                              reviewer_id: user?.id,
+                              rating: parseInt(reviewFormData.rating),
+                           });
+                           setReviewSuccess(true);
+                           setReviewFormData({ employee_id: '', reviewPeriodStart: '', reviewPeriodEnd: '', rating: 3, strengths: '', areasForImprovement: '', goals: '', comments: '' });
+                           // Refresh reviews data
+                           const perfRes = await performanceAPI.getReviews({});
+                           const allRevData = perfRes.data || [];
+                           const now = new Date();
+                           const curr = allRevData.filter(r => {
+                              const c = new Date(r.createdAt);
+                              return c.getMonth() === now.getMonth() && c.getFullYear() === now.getFullYear();
+                           });
+                           const empRatings = {};
+                           curr.forEach(r => {
+                              const id = r.employeeId;
+                              if (!id) return;
+                              if (!empRatings[id]) empRatings[id] = { name: r.fullName || 'Employee', designation: r.designation || 'Staff', totalRating: 0, count: 0 };
+                              empRatings[id].totalRating += r.rating || 0;
+                              empRatings[id].count += 1;
+                           });
+                           const ranked = Object.values(empRatings).map(e => ({ ...e, avgRating: e.count > 0 ? e.totalRating / e.count : 0 })).sort((a, b) => b.avgRating - a.avgRating).slice(0, 3);
+                           setTopPerformers(ranked);
+                           setAllReviews(allRevData);
+                        } catch (err) {
+                           alert(err?.response?.data?.message || 'Failed to submit review.');
+                        } finally {
+                           setReviewSubmitting(false);
+                        }
+                     }}
+                  >
+                     {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+                  </Button>
+               </Modal.Footer>
+            )}
          </Modal>
       </div>
    );
