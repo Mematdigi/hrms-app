@@ -1,7 +1,6 @@
 import axios from 'axios';
 
 const API_BASE_URL = 'https://hrms-app-wtlz.onrender.com/v1';
-// const API_BASE_URL = 'http://localhost:5000/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -100,3 +99,11 @@ export const holidayAPI = {
 };
 
 export default api;
+export const notificationAPI = {
+  getAll:         (params) => api.get('/notifications', { params }),
+  getUnreadCount: ()       => api.get('/notifications/unread-count'),
+  markAsRead:     (id)     => api.put(`/notifications/${id}/read`),
+  markAllRead:    ()       => api.put('/notifications/mark-all-read'),
+  deleteOne:      (id)     => api.delete(`/notifications/${id}`),
+  clearAll:       ()       => api.delete('/notifications/clear-all'),
+};

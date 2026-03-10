@@ -54,7 +54,7 @@ function Leave() {
   const [settingsForm, setSettingsForm] = useState({ casualDefault: '', sickDefault: '' });
 
   const { user } = useSelector((state) => state.auth);
-  const { pushNotification } = useNotifications();
+  const { showToast } = useNotifications();
 
   // ── Init ──
   useEffect(() => {
@@ -239,7 +239,7 @@ function Leave() {
       await leaveAPI.apply(payload);
       setSuccessMessage('✅ Leave request submitted successfully!');
       setErrorMessage('');
-      pushNotification({
+      showToast({
         type:    NOTIF_TYPES.LEAVE_APPLIED,
         title:   'Leave Request Submitted 📋',
         message: `Your ${payload.leaveType || 'leave'} request has been submitted and is pending approval.`,
@@ -274,7 +274,7 @@ function Leave() {
       const empName = leave.employee
         ? `${leave.employee.firstName || ''} ${leave.employee.lastName || ''}`.trim()
         : 'Employee';
-      pushNotification({
+      showToast({
         type:    NOTIF_TYPES.LEAVE_APPROVED,
         title:   'Leave Approved ✅',
         message: `${empName}'s ${leave.leaveType || 'leave'} request has been approved.`,
@@ -302,7 +302,7 @@ function Leave() {
       const empName = selectedLeave.employee
         ? `${selectedLeave.employee.firstName || ''} ${selectedLeave.employee.lastName || ''}`.trim()
         : 'Employee';
-      pushNotification({
+      showToast({
         type:    NOTIF_TYPES.LEAVE_REJECTED,
         title:   'Leave Rejected ❌',
         message: `${empName}'s ${selectedLeave.leaveType || 'leave'} request has been rejected.`,
