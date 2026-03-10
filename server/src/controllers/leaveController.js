@@ -4,6 +4,7 @@ const LeaveDefaults= require('../models/LeaveDefaults');
 const User         = require('../models/User');
 const Payroll      = require('../models/Payroll');
 const nodemailer   = require('nodemailer');
+const { createNotification, notifyAllHR } = require('./Notificationcontroller');
 
 // ─── Email Transporter ────────────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
@@ -200,7 +201,19 @@ class LeaveController {
       await leave.save();
       await leave.populate('employee', 'firstName lastName email department');
 
-      // ── NOTIFY HR ─────────────────────────────────────────────────────────
+      // ── NOTIFY HR (in-app) ────────────────────────────────────────────────
+      const empName = `${leave.employee.firstName} ${leave.employee.lastName}`;
+      await notifyAllHR({
+        sender:   leave.employee._id,
+        type:     'leave_applied',
+        title:    'New Leave Request',
+        message:  `${empName} has applied for ${leaveType} leave (${numberOfDays} day${numberOfDays !== 1 ? 's' : ''}).`,
+        refId:    leave._id,
+        refModel: 'Leave',
+        meta:     { leaveType, numberOfDays, startDate, endDate },
+      });
+
+      // ── NOTIFY HR (email) ─────────────────────────────────────────────────
       const hrManagers = await User.find({ role: 'hr' }, 'email firstName lastName');
       if (hrManagers.length > 0) {
         const emp       = leave.employee;
@@ -332,6 +345,18 @@ class LeaveController {
       leave.updatedAt    = new Date();
       await leave.save();
 
+      // ── NOTIFY Employee (in-app) ───────────────────────────────────────────
+      await createNotification({
+        recipient: leave.employee._id,
+        sender:    approverId,
+        type:      'leave_approved',
+        title:     'Leave Request Approved ✅',
+        message:   `Your ${leave.leaveType} leave request (${leave.numberOfDays} day${leave.numberOfDays !== 1 ? 's' : ''}) has been approved.`,
+        refId:     leave._id,
+        refModel:  'Leave',
+        meta:      { leaveType: leave.leaveType, numberOfDays: leave.numberOfDays },
+      });
+
       // ── Send approval email ────────────────────────────────────────────────
       const approver = await User.findById(approverId).select('firstName lastName');
       if (leave.employee?.email) {
@@ -404,6 +429,18 @@ class LeaveController {
       leave.rejectionReason = rejectionReason || '';
       leave.updatedAt       = new Date();
       await leave.save();
+
+      // ── NOTIFY Employee (in-app) ───────────────────────────────────────────
+      await createNotification({
+        recipient: leave.employee._id,
+        sender:    approverId,
+        type:      'leave_rejected',
+        title:     'Leave Request Rejected ❌',
+        message:   `Your ${leave.leaveType} leave request has been rejected. Reason: ${rejectionReason || 'No reason provided'}.`,
+        refId:     leave._id,
+        refModel:  'Leave',
+        meta:      { leaveType: leave.leaveType, rejectionReason },
+      });
 
       // ── Send rejection email ───────────────────────────────────────────────
       const approver = await User.findById(approverId).select('firstName lastName');

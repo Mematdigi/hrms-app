@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const path = require('path'); // ✅ ADD THIS
+const path = require('path');
 const connectDB = require('./config/db');
 const routesV1 = require('./routes/v1');
 const morganConfig = require('./config/morgan');
@@ -9,8 +9,8 @@ const statusCodes = require('http-status');
 const ApiError = require('./utils/ApiError');
 const { errorConverter, errorHandler } = require('./middleware/error');
 const morgan = require('morgan');
-const basePath = '/Hrms-app';
-const startAttendanceStatusCron = require('./jobs/schedulars')
+const startAttendanceStatusCron = require('./jobs/schedulars');
+const startBirthdayCron = require('./jobs/Birthdaycron'); // ✅ Birthday cron
 
 // Load environment variables
 dotenv.config();
@@ -42,24 +42,18 @@ app.get('/api/health', (req, res) => {
 
 // ✅ Serve React Frontend in Production
 if (process.env.NODE_ENV === 'production') {
-  // Serve static files from client/build
   app.use(express.static(path.join(__dirname, '../../client/build')));
-
-  // All non-API routes → serve React index.html (for React Router)
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../../client/build', 'index.html'));
   });
 }
 
-// 404 handler (only for API routes in production)
+// 404 handler
 app.use((req, res, next) => {
   next(new ApiError(404, statusCodes[statusCodes.NOT_FOUND], 'Route not found'));
 });
 
-// convert error to ApiError, if needed
 app.use(errorConverter);
-
-// handle error
 app.use(errorHandler);
 
 // Start server
@@ -67,6 +61,8 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
   console.log(`🌍 Mode: ${process.env.NODE_ENV}`);
-});
 
-// startAttendanceStatusCron()
+  // ✅ Start cron jobs
+  // startAttendanceStatusCron(); // Uncomment if needed
+  startBirthdayCron(); // 🎂 Birthday notifications daily at 10 AM IST
+});
