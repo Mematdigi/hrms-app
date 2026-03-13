@@ -545,22 +545,10 @@ const Dashboard = () => {
             <div className="d-flex justify-content-between align-items-end mb-4">
                <div>
                   <h2 className="fw-bold text-dark mb-1">Welcome back, {user?.firstName}</h2>
-                  <p className="text-muted small mb-0">Here's what's happening with your work today.</p>
+                  {/* <p className="text-muted small mb-0">Here's what's happening with your work today.</p> */}
                </div>
                <HeaderActionButtons />
             </div>
-
-            {/* Quick Pills */}
-            <div className="d-flex gap-3 mb-4 flex-wrap">
-               {['My Attendance', 'View Payroll', 'Performance', 'My Profile'].map((item, idx) => (
-                  <button key={idx} className="btn-pill-nav" onClick={() => navigate('#')}>
-                     {idx === 0 && <i className="bi bi-clock me-2"></i>}
-                     {idx === 1 && <i className="bi bi-cash-stack me-2"></i>}
-                     {item}
-                  </button>
-               ))}
-            </div>
-
             <div className="row g-4">
                {/* Punch Card */}
                <div className="col-lg-6">
@@ -844,7 +832,7 @@ const Dashboard = () => {
                {/* Right: Recent Leaves — DYNAMIC */}
                <div className="col-lg-9">
                   <div className="dashboard-card p-0 overflow-hidden">
-                     <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
+                     <div className="p-3 border-bottom d-flex justify-content-between align-items-center max-sm-flex-column gap-2">
                         <h6 className="fw-bold mb-0">Recent Staff Requests</h6>
                         <span className="text-primary small cursor-pointer" onClick={() => navigate('/leave')}>View all →</span>
                      </div>
@@ -852,7 +840,7 @@ const Dashboard = () => {
                      {recentLeaves.length === 0 ? (
                         <div className="p-4 text-center text-muted small">No recent leave requests</div>
                      ) : (
-                        recentLeaves.map((leave, idx) => (
+                        recentLeaves.slice(0, 3).map((leave, idx) => (
                            <div
                               key={leave.id}
                               className={`leave-request-row ${idx !== recentLeaves.length - 1 ? 'border-bottom' : ''}`}
