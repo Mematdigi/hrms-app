@@ -5,6 +5,8 @@ const User = require('../models/User');
 const Leave = require('../models/Leave');
 const catchAsync = require('../utils/catchAsync');
 const Holiday = require('../models/Holiday.modal');
+const { createNotification, notifyAllHR } = require('./Notificationcontroller');
+
 
 // ─── Helper: count working days in a month (Mon–Sat, skip Sundays) ────────────
 function getWorkingDaysInMonth(year, month) {
@@ -502,52 +504,69 @@ class PayrollController {
   // POST /payroll/download-request
   // Body: { payrollId, reason }
   // ───────────────────────────────────────────────────────────────────────────
-  requestDownload = catchAsync(async (req, res) => {
-    const { payrollId, reason } = req.body;
-    const employeeId = req.user._id || req.user.id;
+// PATCH: requestDownload  — ADD notification after newRequest.create()
+// Replace your existing requestDownload method with this one
+// ─────────────────────────────────────────────────────────────────────────────
+requestDownload = catchAsync(async (req, res) => {
+  const { payrollId, reason } = req.body;
+  const employeeId = req.user._id || req.user.id;
 
-    if (!payrollId || !reason?.trim()) {
-      return res.status(400).json({ success: false, message: 'payrollId and reason are required' });
-    }
+  if (!payrollId || !reason?.trim()) {
+    return res.status(400).json({ success: false, message: 'payrollId and reason are required' });
+  }
 
-    // Verify the payroll belongs to this employee (or HR can request on behalf)
-    const payroll = await Payroll.findById(payrollId);
-    if (!payroll) return res.status(404).json({ success: false, message: 'Payroll not found' });
+  const payroll = await Payroll.findById(payrollId).populate('employee', 'firstName lastName');
+  if (!payroll) return res.status(404).json({ success: false, message: 'Payroll not found' });
 
-    const isHR = req.user.role === 'admin' || req.user.role === 'hr';
-    if (!isHR && payroll.employee.toString() !== employeeId.toString()) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
-    }
+  const isHR = req.user.role === 'admin' || req.user.role === 'hr';
+  if (!isHR && payroll.employee._id.toString() !== employeeId.toString()) {
+    return res.status(403).json({ success: false, message: 'Access denied' });
+  }
 
-    // Check if there's already a pending or approved request for this payroll
-    const existing = await PayslipRequest.findOne({
-      employee: employeeId,
-      payroll: payrollId,
-      status: { $in: ['pending', 'approved'] }
-    });
-
-    if (existing) {
-      return res.status(409).json({
-        success: false,
-        message: existing.status === 'approved'
-          ? 'You already have an approved download request for this payslip.'
-          : 'A download request is already pending for this payslip.',
-        request: existing
-      });
-    }
-
-    const newRequest = await PayslipRequest.create({
-      employee: employeeId,
-      payroll: payrollId,
-      reason: reason.trim()
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Download request submitted. HR will review it shortly.',
-      request: newRequest
-    });
+  const existing = await PayslipRequest.findOne({
+    employee: employeeId,
+    payroll:  payrollId,
+    status:   { $in: ['pending', 'approved'] },
   });
+
+  if (existing) {
+    return res.status(409).json({
+      success: false,
+      message: existing.status === 'approved'
+        ? 'You already have an approved download request for this payslip.'
+        : 'A download request is already pending for this payslip.',
+      request: existing,
+    });
+  }
+
+  const newRequest = await PayslipRequest.create({
+    employee: employeeId,
+    payroll:  payrollId,
+    reason:   reason.trim(),
+  });
+
+  // ── NOTIFY HR: employee requested payslip download ────────────────────────
+  const empUser  = await User.findById(employeeId).select('firstName lastName');
+  const empName  = empUser ? `${empUser.firstName} ${empUser.lastName}` : 'An employee';
+  const monthStr = new Date(payroll.year, payroll.month - 1, 1)
+    .toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+
+  await notifyAllHR({
+    sender:   employeeId,
+    type:     'payslip_requested',
+    title:    'Payslip Download Request',
+    message:  `${empName} has requested to download their payslip for ${monthStr}.`,
+    refId:    newRequest._id,
+    refModel: 'Payroll',
+    meta:     { payrollId, month: payroll.month, year: payroll.year, reason: reason.trim() },
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Download request submitted. HR will review it shortly.',
+    request: newRequest,
+  });
+});
 
   // ───────────────────────────────────────────────────────────────────────────
   // EMPLOYEE: Get own download request history
@@ -582,73 +601,100 @@ class PayrollController {
     res.json({ success: true, requests });
   });
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // HR: Approve a download request
-  // POST /payroll/download-requests/approve
-  // Body: { requestId }
-  // ───────────────────────────────────────────────────────────────────────────
-  approveDownloadRequest = catchAsync(async (req, res) => {
-    const { requestId } = req.body;
-    const reviewerId = req.user._id || req.user.id;
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH: approveDownloadRequest — ADD notification to employee
+// ─────────────────────────────────────────────────────────────────────────────
+approveDownloadRequest = catchAsync(async (req, res) => {
+  const { requestId } = req.body;
+  const reviewerId = req.user._id || req.user.id;
 
-    if (!requestId) return res.status(400).json({ success: false, message: 'requestId required' });
+  if (!requestId) return res.status(400).json({ success: false, message: 'requestId required' });
 
-    const request = await PayslipRequest.findById(requestId);
-    if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
+  const request = await PayslipRequest.findById(requestId);
+  if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
 
-    if (request.status !== 'pending') {
-      return res.status(400).json({ success: false, message: `Request is already ${request.status}` });
-    }
+  if (request.status !== 'pending') {
+    return res.status(400).json({ success: false, message: `Request is already ${request.status}` });
+  }
 
-    request.status = 'approved';
-    request.reviewedBy = reviewerId;
-    request.hrResponse = '';
-    request.updatedAt = new Date();
-    await request.save();
+  request.status     = 'approved';
+  request.reviewedBy = reviewerId;
+  request.hrResponse = '';
+  request.updatedAt  = new Date();
+  await request.save();
 
-    await request.populate([
-      { path: 'employee', select: 'firstName lastName employeeId email' },
-      { path: 'payroll', select: 'month year netSalary' },
-      { path: 'reviewedBy', select: 'firstName lastName' }
-    ]);
+  await request.populate([
+    { path: 'employee', select: 'firstName lastName employeeId email' },
+    { path: 'payroll',  select: 'month year netSalary' },
+    { path: 'reviewedBy', select: 'firstName lastName' },
+  ]);
 
-    res.json({ success: true, message: 'Download request approved', request });
+  // ── NOTIFY Employee: payslip download approved ────────────────────────────
+  const monthStr = new Date(request.payroll.year, request.payroll.month - 1, 1)
+    .toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+
+  await createNotification({
+    recipient: request.employee._id,
+    sender:    reviewerId,
+    type:      'payslip_approved',
+    title:     'Payslip Download Approved ✅',
+    message:   `Your payslip download request for ${monthStr} has been approved. You can now download it.`,
+    refId:     request.payroll._id,
+    refModel:  'Payroll',
+    meta:      { month: request.payroll.month, year: request.payroll.year },
   });
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // HR: Reject a download request
-  // POST /payroll/download-requests/reject
-  // Body: { requestId, hrResponse }
-  // ───────────────────────────────────────────────────────────────────────────
-  rejectDownloadRequest = catchAsync(async (req, res) => {
-    const { requestId, hrResponse } = req.body;
-    const reviewerId = req.user._id || req.user.id;
+  res.json({ success: true, message: 'Download request approved', request });
+});
 
-    if (!requestId || !hrResponse?.trim()) {
-      return res.status(400).json({ success: false, message: 'requestId and hrResponse (rejection reason) are required' });
-    }
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH: rejectDownloadRequest — ADD notification to employee
+// ─────────────────────────────────────────────────────────────────────────────
+rejectDownloadRequest = catchAsync(async (req, res) => {
+  const { requestId, hrResponse } = req.body;
+  const reviewerId = req.user._id || req.user.id;
 
-    const request = await PayslipRequest.findById(requestId);
-    if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
+  if (!requestId || !hrResponse?.trim()) {
+    return res.status(400).json({ success: false, message: 'requestId and hrResponse are required' });
+  }
 
-    if (request.status !== 'pending') {
-      return res.status(400).json({ success: false, message: `Request is already ${request.status}` });
-    }
+  const request = await PayslipRequest.findById(requestId);
+  if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
 
-    request.status = 'rejected';
-    request.reviewedBy = reviewerId;
-    request.hrResponse = hrResponse.trim();
-    request.updatedAt = new Date();
-    await request.save();
+  if (request.status !== 'pending') {
+    return res.status(400).json({ success: false, message: `Request is already ${request.status}` });
+  }
 
-    await request.populate([
-      { path: 'employee', select: 'firstName lastName employeeId email' },
-      { path: 'payroll', select: 'month year netSalary' },
-      { path: 'reviewedBy', select: 'firstName lastName' }
-    ]);
+  request.status     = 'rejected';
+  request.reviewedBy = reviewerId;
+  request.hrResponse = hrResponse.trim();
+  request.updatedAt  = new Date();
+  await request.save();
 
-    res.json({ success: true, message: 'Download request rejected', request });
+  await request.populate([
+    { path: 'employee', select: 'firstName lastName employeeId email' },
+    { path: 'payroll',  select: 'month year netSalary' },
+    { path: 'reviewedBy', select: 'firstName lastName' },
+  ]);
+
+  // ── NOTIFY Employee: payslip download rejected ────────────────────────────
+  const monthStr = new Date(request.payroll.year, request.payroll.month - 1, 1)
+    .toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+
+  await createNotification({
+    recipient: request.employee._id,
+    sender:    reviewerId,
+    type:      'payslip_rejected',
+    title:     'Payslip Download Rejected ❌',
+    message:   `Your payslip download request for ${monthStr} was rejected. Reason: ${hrResponse.trim()}`,
+    refId:     request.payroll._id,
+    refModel:  'Payroll',
+    meta:      { month: request.payroll.month, year: request.payroll.year, reason: hrResponse.trim() },
   });
+
+  res.json({ success: true, message: 'Download request rejected', request });
+});
 
   // ───────────────────────────────────────────────────────────────────────────
   // HELPER: Check download permission for a specific payroll (used by frontend)

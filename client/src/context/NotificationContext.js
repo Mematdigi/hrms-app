@@ -1,49 +1,53 @@
 // src/context/NotificationContext.js
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { employeeAPI } from '../services/api';
+import { notificationAPI } from '../services/api';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Notification Types
+// Notification type → display config (color, icon, label)
 // ─────────────────────────────────────────────────────────────────────────────
-export const NOTIF_TYPES = {
-  LEAVE_APPLIED:       'leave_applied',
-  LEAVE_APPROVED:      'leave_approved',
-  LEAVE_REJECTED:      'leave_rejected',
-  PAYSLIP_REQUESTED:   'payslip_requested',
-  PAYSLIP_APPROVED:    'payslip_approved',
-  PAYSLIP_REJECTED:    'payslip_rejected',
-  BIRTHDAY:            'birthday',
+export const NOTIF_COLORS = {
+  leave_applied:    { bg: '#eff6ff', border: '#3b82f6', icon: '#1d4ed8' },
+  leave_approved:   { bg: '#f0fdf4', border: '#22c55e', icon: '#15803d' },
+  leave_rejected:   { bg: '#fef2f2', border: '#ef4444', icon: '#b91c1c' },
+  payslip_requested:{ bg: '#fff7ed', border: '#f97316', icon: '#c2410c' },
+  payslip_approved: { bg: '#f0fdf4', border: '#22c55e', icon: '#15803d' },
+  payslip_rejected: { bg: '#fef2f2', border: '#ef4444', icon: '#b91c1c' },
+  birthday:         { bg: '#fdf4ff', border: '#a855f7', icon: '#7e22ce' },
+  general:          { bg: '#f8fafc', border: '#94a3b8', icon: '#475569' },
 };
 
 export const NOTIF_ICONS = {
-  leave_applied:     '📋',
-  leave_approved:    '✅',
-  leave_rejected:    '❌',
-  payslip_requested: '📄',
-  payslip_approved:  '💚',
-  payslip_rejected:  '🚫',
-  birthday:          '🎂',
-};
-
-export const NOTIF_COLORS = {
-  leave_applied:     { bg: '#eff6ff', border: '#3b82f6', icon: '#2563eb' },
-  leave_approved:    { bg: '#f0fdf4', border: '#22c55e', icon: '#16a34a' },
-  leave_rejected:    { bg: '#fef2f2', border: '#ef4444', icon: '#dc2626' },
-  payslip_requested: { bg: '#fefce8', border: '#eab308', icon: '#ca8a04' },
-  payslip_approved:  { bg: '#f0fdf4', border: '#22c55e', icon: '#16a34a' },
-  payslip_rejected:  { bg: '#fef2f2', border: '#ef4444', icon: '#dc2626' },
-  birthday:          { bg: '#fdf4ff', border: '#a855f7', icon: '#9333ea' },
+  leave_applied:    '📋',
+  leave_approved:   '✅',
+  leave_rejected:   '❌',
+  payslip_requested:'📄',
+  payslip_approved: '✅',
+  payslip_rejected: '❌',
+  birthday:         '🎂',
+  general:          '🔔',
 };
 
 export const NOTIF_LABELS = {
-  leave_applied:     'Leave Applied',
-  leave_approved:    'Leave Approved',
-  leave_rejected:    'Leave Rejected',
-  payslip_requested: 'Payslip Requested',
-  payslip_approved:  'Payslip Approved',
-  payslip_rejected:  'Payslip Rejected',
-  birthday:          'Birthday 🎂',
+  leave_applied:    'Leave Request',
+  leave_approved:   'Leave Approved',
+  leave_rejected:   'Leave Rejected',
+  payslip_requested:'Payslip Request',
+  payslip_approved: 'Payslip Approved',
+  payslip_rejected: 'Payslip Rejected',
+  birthday:         'Birthday 🎉',
+  general:          'Notification',
+};
+
+export const NOTIF_TYPES = {
+  LEAVE_APPLIED:     'leave_applied',
+  LEAVE_APPROVED:    'leave_approved',
+  LEAVE_REJECTED:    'leave_rejected',
+  PAYSLIP_REQUESTED: 'payslip_requested',
+  PAYSLIP_APPROVED:  'payslip_approved',
+  PAYSLIP_REJECTED:  'payslip_rejected',
+  BIRTHDAY:          'birthday',
+  GENERAL:           'general',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -51,168 +55,204 @@ export const NOTIF_LABELS = {
 // ─────────────────────────────────────────────────────────────────────────────
 const NotificationContext = createContext(null);
 
-let _idCounter = 0;
-const genId = () => `notif_${Date.now()}_${++_idCounter}`;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Provider
-// ─────────────────────────────────────────────────────────────────────────────
-export const NotificationProvider = ({ children }) => {
-  const [toasts,     setToasts]     = useState([]);
-  const [bellNotifs, setBellNotifs] = useState([]);
-  const { user }                    = useSelector((state) => state.auth);
-  const birthdayChecked             = useRef(false);
-
-  // ── Push a notification ────────────────────────────────────────────────────
-  const pushNotification = useCallback(({ type, title, message, meta = {} }) => {
-    const id        = genId();
-    const timestamp = new Date();
-    const notif     = { id, type, title, message, meta, timestamp, read: false };
-
-    // Show as toast (auto-dismiss after 5s)
-    setToasts(prev => [...prev, notif]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
-
-    // Add to bell panel
-    setBellNotifs(prev => [notif, ...prev].slice(0, 50));
-  }, []);
-
-  const dismissToast = useCallback((id) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  }, []);
-
-  const markAllRead = useCallback(() => {
-    setBellNotifs(prev => prev.map(n => ({ ...n, read: true })));
-  }, []);
-
-  const clearAll = useCallback(() => {
-    setBellNotifs([]);
-  }, []);
-
-  // ── Birthday check (once per HR login) ────────────────────────────────────
-  useEffect(() => {
-    if (birthdayChecked.current || !user) return;
-    if (!['admin', 'hr', 'manager'].includes(user.role)) return;
-    birthdayChecked.current = true;
-
-    (async () => {
-      try {
-        const res  = await employeeAPI.getAll();
-        const emps = res.data || [];
-        const now  = new Date();
-        emps.forEach(emp => {
-          if (!emp.dateOfBirth) return;
-          const dob = new Date(emp.dateOfBirth);
-          if (dob.getMonth() === now.getMonth() && dob.getDate() === now.getDate()) {
-            const name = `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'An employee';
-            pushNotification({
-              type:    NOTIF_TYPES.BIRTHDAY,
-              title:   '🎂 Birthday Today!',
-              message: `${name}'s birthday is today — don't forget to wish them!`,
-              meta:    { employeeId: emp._id, name },
-            });
-          }
-        });
-      } catch (err) {
-        console.error('Birthday check failed:', err);
-      }
-    })();
-  }, [user, pushNotification]);
-
-  const unreadCount = bellNotifs.filter(n => !n.read).length;
-
-  return (
-    <NotificationContext.Provider value={{
-      toasts, bellNotifs, unreadCount,
-      pushNotification, dismissToast, markAllRead, clearAll,
-    }}>
-      {children}
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-    </NotificationContext.Provider>
-  );
+export const useNotifications = () => {
+  const ctx = useContext(NotificationContext);
+  if (!ctx) throw new Error('useNotifications must be used inside NotificationProvider');
+  return ctx;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Toast Container — fixed bottom-right
+// Toast component (self-contained, no external library needed)
 // ─────────────────────────────────────────────────────────────────────────────
-const ToastContainer = ({ toasts, onDismiss }) => {
-  if (!toasts.length) return null;
+const ToastItem = ({ toast, onDismiss }) => {
+  const col = NOTIF_COLORS[toast.type] || NOTIF_COLORS.general;
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    // Animate in
+    const t = setTimeout(() => setVisible(true), 20);
+    return () => clearTimeout(t);
+  }, []);
+
+  const handleDismiss = () => {
+    setVisible(false);
+    setTimeout(() => onDismiss(toast.id), 300);
+  };
+
   return (
-    <div style={{
-      position: 'fixed', bottom: '24px', right: '24px',
-      zIndex: 999999, display: 'flex', flexDirection: 'column',
-      gap: '10px', pointerEvents: 'none',
-      maxWidth: '360px', width: '100%',
-    }}>
-      {toasts.map(t => <Toast key={t.id} toast={t} onDismiss={onDismiss} />)}
+    <div
+      onClick={handleDismiss}
+      style={{
+        display:       'flex',
+        alignItems:    'flex-start',
+        gap:           '10px',
+        background:    '#ffffff',
+        border:        `1px solid ${col.border}`,
+        borderLeft:    `4px solid ${col.border}`,
+        borderRadius:  '12px',
+        padding:       '12px 14px',
+        boxShadow:     '0 8px 30px rgba(0,0,0,0.12)',
+        cursor:        'pointer',
+        marginBottom:  '8px',
+        maxWidth:      '360px',
+        width:         '100%',
+        transition:    'all 0.3s cubic-bezier(0.34,1.56,0.64,1)',
+        opacity:       visible ? 1 : 0,
+        transform:     visible ? 'translateX(0)' : 'translateX(120%)',
+        pointerEvents: 'all',
+      }}
+    >
+      {/* Icon */}
+      <div style={{
+        width: '36px', height: '36px', borderRadius: '9px',
+        background: col.bg, display: 'flex', alignItems: 'center',
+        justifyContent: 'center', fontSize: '16px', flexShrink: 0,
+      }}>
+        {NOTIF_ICONS[toast.type] || '🔔'}
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '13px', fontWeight: '700', color: col.icon, lineHeight: '1.3', marginBottom: '2px' }}>
+          {toast.title}
+        </div>
+        <div style={{ fontSize: '12px', color: '#4b5563', lineHeight: '1.4' }}>
+          {toast.message}
+        </div>
+        <div style={{
+          fontSize: '10px', fontWeight: '700', marginTop: '5px',
+          color: col.icon, background: col.bg,
+          display: 'inline-block', padding: '2px 7px', borderRadius: '20px',
+        }}>
+          {NOTIF_LABELS[toast.type] || toast.type}
+        </div>
+      </div>
+
+      {/* Close btn */}
+      <button
+        onClick={(e) => { e.stopPropagation(); handleDismiss(); }}
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: '#9ca3af', fontSize: '13px', padding: '0', flexShrink: 0,
+          lineHeight: 1,
+        }}
+      >✕</button>
+
+      {/* Progress bar */}
+      <div style={{
+        position:  'absolute', bottom: 0, left: 0, right: 0,
+        height:    '3px', borderRadius: '0 0 12px 12px',
+        background: col.bg, overflow: 'hidden',
+      }}>
+        <div style={{
+          height:     '100%',
+          background: col.border,
+          animation:  `__toastProgress ${toast.duration || 5000}ms linear forwards`,
+        }} />
+      </div>
     </div>
   );
 };
 
-const Toast = ({ toast, onDismiss }) => {
-  const [in_, setIn] = useState(false);
-  const col = NOTIF_COLORS[toast.type] || NOTIF_COLORS.leave_applied;
-
-  useEffect(() => { const t = setTimeout(() => setIn(true), 10); return () => clearTimeout(t); }, []);
-
-  const close = () => { setIn(false); setTimeout(() => onDismiss(toast.id), 300); };
-
+// Toast Container — fixed bottom-right
+const ToastContainer = ({ toasts, onDismiss }) => {
+  if (!toasts.length) return null;
   return (
     <>
       <style>{`
-        @keyframes __toastProg { from{width:100%} to{width:0%} }
+        @keyframes __toastProgress {
+          from { width: 100%; }
+          to   { width: 0%; }
+        }
       `}</style>
-      <div
-        onClick={close}
-        style={{
-          pointerEvents:   'all',
-          cursor:          'pointer',
-          display:         'flex',
-          alignItems:      'flex-start',
-          gap:             '12px',
-          padding:         '13px 15px 16px',
-          borderRadius:    '14px',
-          backgroundColor: col.bg,
-          borderLeft:      `4px solid ${col.border}`,
-          boxShadow:       '0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06)',
-          position:        'relative',
-          overflow:        'hidden',
-          opacity:         in_ ? 1 : 0,
-          transform:       in_ ? 'translateX(0)' : 'translateX(110%)',
-          transition:      'opacity 0.3s ease, transform 0.35s cubic-bezier(0.34,1.56,0.64,1)',
-          minWidth:        '290px',
-          userSelect:      'none',
-        }}
-      >
-        <span style={{ fontSize: '20px', flexShrink: 0, marginTop: '1px' }}>
-          {NOTIF_ICONS[toast.type]}
-        </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: '700', fontSize: '13px', color: col.icon, marginBottom: '3px' }}>
-            {toast.title}
+      <div style={{
+        position:   'fixed',
+        bottom:     '24px',
+        right:      '24px',
+        zIndex:     99999,
+        display:    'flex',
+        flexDirection: 'column-reverse',
+        alignItems: 'flex-end',
+        pointerEvents: 'none',
+      }}>
+        {toasts.map(t => (
+          <div key={t.id} style={{ position: 'relative', pointerEvents: 'all' }}>
+            <ToastItem toast={t} onDismiss={onDismiss} />
           </div>
-          <div style={{ fontSize: '12px', color: '#374151', lineHeight: '1.45' }}>
-            {toast.message}
-          </div>
-        </div>
-        <span style={{ color: '#9ca3af', fontSize: '13px', flexShrink: 0, alignSelf: 'flex-start', marginTop: '1px' }}>✕</span>
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0,
-          height: '3px', backgroundColor: col.border,
-          animation: '__toastProg 5s linear forwards',
-        }} />
+        ))}
       </div>
     </>
   );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Hook
+// Provider
 // ─────────────────────────────────────────────────────────────────────────────
-export const useNotifications = () => {
-  const ctx = useContext(NotificationContext);
-  if (!ctx) throw new Error('useNotifications must be used inside <NotificationProvider>');
-  return ctx;
+export const NotificationProvider = ({ children }) => {
+  const { user } = useSelector(state => state.auth);
+
+  const [toasts, setToasts] = useState([]);
+  const toastCounter = useRef(0);
+
+  // ── Show a toast manually (for actions inside the app) ────────────────────
+  const showToast = useCallback(({ type = 'general', title, message, duration = 5000 }) => {
+    const id = ++toastCounter.current;
+    setToasts(prev => [...prev, { id, type, title, message, duration }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, duration + 400);
+  }, []);
+
+  const dismissToast = useCallback((id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  // ── Poll for new unread notifications (show toast for new ones) ───────────
+  const lastSeenIdRef = useRef(null);
+  const pollRef       = useRef(null);
+
+  const pollNewNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res  = await notificationAPI.getAll({ limit: 5, unread: 'true' });
+      const list = res.data?.notifications || [];
+      if (!list.length) return;
+
+      const newest = list[0];
+      if (!newest) return;
+
+      // First load: just set the reference, don't toast
+      if (lastSeenIdRef.current === null) {
+        lastSeenIdRef.current = newest._id;
+        return;
+      }
+
+      // Toast any notifications newer than last seen
+      const newOnes = list.filter(n => n._id !== lastSeenIdRef.current && !n.isRead);
+      if (newOnes.length > 0) {
+        lastSeenIdRef.current = list[0]._id;
+        // Show toast for the most recent one (avoid flooding)
+        const n = newOnes[0];
+        showToast({ type: n.type, title: n.title, message: n.message });
+      }
+    } catch { /* silent */ }
+  }, [user, showToast]);
+
+  useEffect(() => {
+    if (!user) return;
+    // Initial poll — sets lastSeenId without showing toast
+    pollNewNotifications();
+    // Poll every 30 seconds for new notifications
+    pollRef.current = setInterval(pollNewNotifications, 30000);
+    return () => clearInterval(pollRef.current);
+  }, [user, pollNewNotifications]);
+
+  return (
+    <NotificationContext.Provider value={{ showToast }}>
+      {children}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+    </NotificationContext.Provider>
+  );
 };
 
-export default NotificationContext;
+export default NotificationProvider;

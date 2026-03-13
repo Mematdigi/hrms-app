@@ -199,7 +199,7 @@ const PayslipView = ({ payroll, employee, breakdown, canDownload }) => {
 function Payroll() {
   const { user } = useSelector((state) => state.auth);
   const isHR = user?.role === 'admin' || user?.role === 'hr';
-  const { pushNotification } = useNotifications();
+  const { showToast } = useNotifications();
 
   const [payrolls, setPayrolls] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -392,7 +392,7 @@ function Payroll() {
     try {
       await payrollAPI.requestDownload({ payrollId: requestPayrollId, reason: requestReason });
       showSuccess('✅ Download request submitted. HR will review shortly.');
-      pushNotification({
+      showToast({
         type:    NOTIF_TYPES.PAYSLIP_REQUESTED,
         title:   'Payslip Request Submitted 📄',
         message: 'Your payslip download request has been submitted. HR will review it shortly.',
@@ -421,7 +421,7 @@ function Payroll() {
     try {
       await payrollAPI.approveDownloadRequest({ requestId });
       showSuccess('✅ Download request approved');
-      pushNotification({
+      showToast({
         type:    NOTIF_TYPES.PAYSLIP_APPROVED,
         title:   'Payslip Request Approved 💚',
         message: 'The payslip download request has been approved successfully.',
@@ -443,7 +443,7 @@ function Payroll() {
     try {
       await payrollAPI.rejectDownloadRequest({ requestId: rejectModal.requestId, hrResponse: rejectModal.reason });
       showSuccess('Request rejected');
-      pushNotification({
+      showToast({
         type:    NOTIF_TYPES.PAYSLIP_REJECTED,
         title:   'Payslip Request Rejected 🚫',
         message: `The payslip download request has been rejected. Reason: ${rejectModal.reason}`,

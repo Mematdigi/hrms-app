@@ -58,8 +58,10 @@ const employeeSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  // Mixed type so it can store either a plain Number (old records)
+  // or an AES-encrypted string (new records)
   baseSalary: {
-    type: Number,
+    type: mongoose.Schema.Types.Mixed,
     default: 0
   },
   status: {
@@ -143,12 +145,12 @@ const employeeSchema = new mongoose.Schema({
   // Document Paths
   profilePhoto: { type: String, default: null },
   documents: {
-    adharCard: { type: String, default: null },
-    panCard: { type: String, default: null },
-    salarySlip: { type: String, default: null },
-    relievingLetter: { type: String, default: null },
+    adharCard:        { type: String, default: null },
+    panCard:          { type: String, default: null },
+    salarySlip:       { type: String, default: null },
+    relievingLetter:  { type: String, default: null },
     experienceLetter: { type: String, default: null },
-    offerLetter: { type: String, default: null }
+    offerLetter:      { type: String, default: null }
   }
 }, { timestamps: true });
 
