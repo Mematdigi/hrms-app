@@ -26,14 +26,6 @@ const safeDate = (val) => {
 const safe = (val, fallback = '') =>
   (val !== undefined && val !== null && val !== '') ? val : fallback;
 
-// Helper: normalize gender to lowercase for User model enum
-const normalizeGender = (val) => {
-  if (!val || val === '') return undefined;
-  const lower = val.toLowerCase();
-  if (['male', 'female', 'other'].includes(lower)) return lower;
-  return undefined;
-};
-
 // Helper: parse excel date values
 const parseExcelDate = (val) => {
   if (!val || val === '') return null;
@@ -54,7 +46,6 @@ class EmployeeController {
   getAllEmployees = async (req, res) => {
     try {
       const employees = await Employee.find().select('-password').lean();
-      // Decrypt sensitive fields before sending to client
       const decrypted = employees.map(decryptEmployee);
       res.json(decrypted);
     } catch (error) {
@@ -72,10 +63,7 @@ class EmployeeController {
         employee = userDoc;
       }
 
-      // Decrypt sensitive fields
       const decrypted = decryptEmployee(employee);
-
-      // Also fetch previous employment data
       const previousEmployment = await PreviousEmployment.findOne({ employee: req.params.id }).lean();
 
       res.json({ ...decrypted, previousEmployment: previousEmployment || null });
@@ -85,6 +73,8 @@ class EmployeeController {
   });
 
   // ─── CREATE EMPLOYEE ───────────────────────────────────────────────────────
+  // User table stores ONLY: firstName, lastName, email, password, role, employeeId, isActive
+  // Everything else goes to Employee table
   createEmployee = catchAsync(async (req, res) => {
     let user = null;
     let employee = null;
@@ -106,7 +96,7 @@ class EmployeeController {
           ? req.files[fieldName][0].path.replace('uploads\\', '').replace('uploads/', '')
           : null;
 
-      // ── Build raw payload, then encrypt sensitive fields ──
+      // ── Encrypt all sensitive fields ──
       const rawPayload = {
         contact:                  b.contact,
         address:                  safe(b.address),
@@ -128,29 +118,19 @@ class EmployeeController {
 
       const enc = encryptEmployee(rawPayload);
 
-      // ── User model (auth) — store only non-sensitive fields ──
-      const userPayload = {
-        employeeId:   b.employeeId,
-        firstName:    b.firstName,
-        lastName:     b.lastName,
-        email:        b.email,
-        password:     b.password,
-        role:         'employee',
-        department:   safe(b.department) || undefined,
-        designation:  safe(b.designation) || undefined,
-        dateOfJoining: safeDate(b.dateOfJoining),
-        dateOfBirth:   safeDate(b.dateOfBirth),
-        baseSalary:   b.baseSalary ? parseFloat(b.baseSalary) : 0,
-        isActive:     true,
-      };
-
-      const userGender = normalizeGender(b.gender);
-      if (userGender) userPayload.gender = userGender;
-
-      user = new User(userPayload);
+      // ── User model: ONLY these 7 fields (as shown in DB screenshot) ──
+      user = new User({
+        firstName:  b.firstName,
+        lastName:   b.lastName,
+        email:      b.email,
+        password:   b.password,
+        role:       'employee',
+        employeeId: b.employeeId,
+        isActive:   true,
+      });
       await user.save();
 
-      // ── Employee model — all sensitive fields encrypted ──
+      // ── Employee model: all details including encrypted sensitive fields ──
       employee = new Employee({
         _id:          user._id,
         employeeId:   b.employeeId,
@@ -160,15 +140,15 @@ class EmployeeController {
         password:     b.password,
         department:   safe(b.department),
         designation:  safe(b.designation),
-        dateOfJoining: safeDate(b.dateOfJoining),
-        dateOfBirth:   safeDate(b.dateOfBirth),
+        dateOfJoining:  safeDate(b.dateOfJoining),
+        dateOfBirth:    safeDate(b.dateOfBirth),
         lastWorkingDay: safeDate(b.lastWorkingDay),
         baseSalary:   enc.baseSalary,
-        status:       b.status || 'Full Time',
+        status:       b.status     || 'Full Time',
         periodType:   b.periodType || 'Permanent',
-        workMode:     b.workMode || 'Work From Office',
+        workMode:     b.workMode   || 'Work From Office',
 
-        // ── ENCRYPTED FIELDS ──
+        // ── ENCRYPTED SENSITIVE FIELDS ──
         personalEmail:            enc.personalEmail,
         contact:                  enc.contact,
         address:                  enc.address,
@@ -192,13 +172,15 @@ class EmployeeController {
           salarySlip:       fp('salarySlip'),
           relievingLetter:  fp('relievingLetter'),
           experienceLetter: fp('experienceLetter'),
-          offerLetter:      fp('offerLetter')
-        }
+          offerLetter:      fp('offerLetter'),
+        },
       });
       await employee.save();
 
       // ── Save Previous Employment if provided ──
-      const pe = b.prevEmp ? (typeof b.prevEmp === 'string' ? JSON.parse(b.prevEmp) : b.prevEmp) : null;
+      const pe = b.prevEmp
+        ? (typeof b.prevEmp === 'string' ? JSON.parse(b.prevEmp) : b.prevEmp)
+        : null;
       if (pe && (pe.employeeName || pe.department || pe.designation || pe.lastWorkingDay)) {
         prevEmp = new PreviousEmployment({
           employee:              employee._id,
@@ -216,13 +198,16 @@ class EmployeeController {
           exitInterviewDate:     safeDate(pe.exitInterviewDate),
           companyAssetsReturned: safe(pe.companyAssetsReturned),
           hrRepresentative:      safe(pe.hrRepresentative),
-          remarks:               safe(pe.remarks)
+          remarks:               safe(pe.remarks),
         });
         await prevEmp.save();
       }
 
       // ── Save Documents ──
-      const docTypes = ['profilePhoto', 'adharCard', 'panCard', 'salarySlip', 'relievingLetter', 'experienceLetter', 'offerLetter'];
+      const docTypes = [
+        'profilePhoto', 'adharCard', 'panCard', 'salarySlip',
+        'relievingLetter', 'experienceLetter', 'offerLetter',
+      ];
       for (const docType of docTypes) {
         if (req.files && req.files[docType]) {
           const file = req.files[docType][0];
@@ -232,7 +217,7 @@ class EmployeeController {
             filePath:     fp(docType),
             originalName: file.originalname,
             mimeType:     file.mimetype,
-            size:         file.size
+            size:         file.size,
           }).save();
         }
       }
@@ -259,7 +244,7 @@ class EmployeeController {
         status:       'approved',
         casualLeave,
         sickLeave,
-        earnedLeave:  0
+        earnedLeave:  0,
       });
       await leave.save();
 
@@ -274,7 +259,7 @@ class EmployeeController {
         deductions:  0,
         workingDays: 24,
         netSalary:   b.baseSalary ? parseFloat(b.baseSalary) : 0,
-        status:      'draft'
+        status:      'draft',
       });
       await payroll.save();
 
@@ -282,6 +267,7 @@ class EmployeeController {
 
     } catch (error) {
       console.error('Create Employee Failed:', error);
+      // ── Rollback all created records on failure ──
       if (user)     await User.deleteOne({ _id: user._id }).catch(() => {});
       if (employee) await Employee.deleteOne({ _id: employee._id }).catch(() => {});
       if (leave)    await Leave.deleteOne({ _id: leave._id }).catch(() => {});
@@ -293,6 +279,7 @@ class EmployeeController {
   });
 
   // ─── BULK IMPORT EMPLOYEES FROM EXCEL ─────────────────────────────────────
+  // User table stores ONLY: firstName, lastName, email, password, role, employeeId, isActive
   bulkImportEmployees = catchAsync(async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: 'No Excel file uploaded' });
@@ -341,6 +328,7 @@ class EmployeeController {
       const row    = rows[i];
       const rowNum = i + 2;
 
+      // Skip completely empty rows
       const vals = Object.values(row).filter(v => v !== '' && v !== null && v !== undefined);
       if (vals.length === 0) continue;
 
@@ -370,17 +358,17 @@ class EmployeeController {
         if (rawPeriodType.includes('probation')) empPeriodType = 'Probation';
         else if (rawPeriodType.includes('contract')) empPeriodType = 'Contractual';
 
-        const panNumber          = String(safe(row['PAN Number'])).trim();
-        const aadharNumber       = String(safe(row['Aadhar Number'])).trim();
-        const bankAccountNumber  = String(safe(row['Bank Account No'])).trim();
-        const ifscCode           = String(safe(row['IFSC Code'])).trim();
-        const bankName           = String(safe(row['Bank Name'])).trim();
-        const permanentAddress   = String(safe(row['Permanent Address'])).trim();
-        const currentAddress     = String(safe(row['Current Address'])).trim();
-        const maritalStatus      = String(safe(row['Marital Status'])).trim();
+        const panNumber             = String(safe(row['PAN Number'])).trim();
+        const aadharNumber          = String(safe(row['Aadhar Number'])).trim();
+        const bankAccountNumber     = String(safe(row['Bank Account No'])).trim();
+        const ifscCode              = String(safe(row['IFSC Code'])).trim();
+        const bankName              = String(safe(row['Bank Name'])).trim();
+        const permanentAddress      = String(safe(row['Permanent Address'])).trim();
+        const currentAddress        = String(safe(row['Current Address'])).trim();
+        const maritalStatus         = String(safe(row['Marital Status'])).trim();
         const emergencyContactName  = String(safe(row['Emergency contact Name '] || row['Emergency contact Name'])).trim();
         const emergencyContactPhone = String(safe(row['Emeregncy Contact Number '] || row['Emergency Contact Number'])).trim();
-        const nationality        = String(safe(row['Nationality'])).trim();
+        const nationality           = String(safe(row['Nationality'])).trim();
 
         const dateOfJoining  = parseExcelDate(row['DATE OF JOINING']);
         const dateOfBirth    = parseExcelDate(row['Date of Birth']);
@@ -418,36 +406,31 @@ class EmployeeController {
           baseSalary,
         });
 
-        // ── User model (auth) — non-sensitive only ──
-        const userPayload = {
-          employeeId, firstName, lastName, email,
-          password: defaultPassword,
-          role: 'employee',
-          department, designation,
-          dateOfJoining,
-          dateOfBirth,
-          baseSalary,
-          isActive: true
-        };
-        const userGender = normalizeGender(gender);
-        if (userGender) userPayload.gender = userGender;
-
-        user = new User(userPayload);
+        // ── User model: ONLY these 7 fields (as shown in DB screenshot) ──
+        user = new User({
+          firstName,
+          lastName,
+          email,
+          password:   defaultPassword,
+          role:       'employee',
+          employeeId,
+          isActive:   true,
+        });
         await user.save();
 
-        // ── Employee model — encrypted sensitive fields ──
+        // ── Employee model: all details including encrypted sensitive fields ──
         employee = new Employee({
           _id: user._id,
           employeeId, firstName, lastName, email,
-          password: defaultPassword,
+          password:   defaultPassword,
           department, designation,
           dateOfJoining, dateOfBirth, lastWorkingDay,
           baseSalary:   enc.baseSalary,
-          status:   empStatus,
-          periodType: empPeriodType,
-          workMode: 'Work From Office',
+          status:       empStatus,
+          periodType:   empPeriodType,
+          workMode:     'Work From Office',
 
-          // ── ENCRYPTED ──
+          // ── ENCRYPTED SENSITIVE FIELDS ──
           contact:                  enc.contact,
           personalEmail:            enc.personalEmail,
           address:                  enc.address,
@@ -485,11 +468,12 @@ class EmployeeController {
             exitInterviewDate:     parseExcelDate(exitRow['Exit Interview Date']),
             companyAssetsReturned: String(safe(exitRow['Company Assets Returned'])).trim(),
             hrRepresentative:      String(safe(exitRow[' HR Representative'] || exitRow['HR Representative'])).trim(),
-            remarks:               String(safe(exitRow['Remarks'])).trim()
+            remarks:               String(safe(exitRow['Remarks'])).trim(),
           });
           await prevEmp.save();
         }
 
+        // ── Leave Balance ──
         let casualLeave = defaultCasual;
         let sickLeave   = defaultSick;
         if (dateOfJoining) {
@@ -503,17 +487,18 @@ class EmployeeController {
           leaveType:    'Initial Allocation',
           numberOfDays: 0,
           status:       'approved',
-          casualLeave, sickLeave, earnedLeave: 0
+          casualLeave, sickLeave, earnedLeave: 0,
         });
         await leave.save();
 
+        // ── Payroll record ──
         const now = new Date();
         payroll = new Payroll({
           employee:    user._id,
           month:       now.getMonth() + 1,
           year:        now.getFullYear(),
           baseSalary, workedDays: 0, deductions: 0,
-          workingDays: 24, netSalary: baseSalary, status: 'draft'
+          workingDays: 24, netSalary: baseSalary, status: 'draft',
         });
         await payroll.save();
 
@@ -521,11 +506,11 @@ class EmployeeController {
 
       } catch (error) {
         console.error(`Bulk import row ${rowNum} error:`, error.message);
-        if (user)    await User.deleteOne({ _id: user._id }).catch(() => {});
+        if (user)     await User.deleteOne({ _id: user._id }).catch(() => {});
         if (employee) await Employee.deleteOne({ _id: employee._id }).catch(() => {});
-        if (leave)   await Leave.deleteOne({ _id: leave._id }).catch(() => {});
-        if (payroll) await Payroll.deleteOne({ _id: payroll._id }).catch(() => {});
-        if (prevEmp) await PreviousEmployment.deleteOne({ _id: prevEmp._id }).catch(() => {});
+        if (leave)    await Leave.deleteOne({ _id: leave._id }).catch(() => {});
+        if (payroll)  await Payroll.deleteOne({ _id: payroll._id }).catch(() => {});
+        if (prevEmp)  await PreviousEmployment.deleteOne({ _id: prevEmp._id }).catch(() => {});
         results.failed.push({ row: rowNum, name: String(row['Name'] || ''), reason: error.message });
       }
     }
@@ -535,7 +520,7 @@ class EmployeeController {
       success: results.success,
       failed:  results.failed,
       totalProcessed: results.success.length + results.failed.length,
-      savedFile: savedFileName
+      savedFile: savedFileName,
     });
   });
 
@@ -556,6 +541,7 @@ class EmployeeController {
   });
 
   // ─── UPDATE EMPLOYEE ───────────────────────────────────────────────────────
+  // User table sync: ONLY firstName, lastName, email (+ password if changed)
   updateEmployee = async (req, res) => {
     try {
       const existingEmployee = await Employee.findById(req.params.id);
@@ -578,7 +564,7 @@ class EmployeeController {
           ? req.files[fieldName][0].path.replace('uploads\\', '').replace('uploads/', '')
           : null;
 
-      // ── Encrypt only if new value provided, else re-use existing encrypted value ──
+      // ── Encrypt only newly provided sensitive fields ──
       const enc = encryptEmployee({
         contact:                  b.contact                  !== undefined ? b.contact                  : null,
         address:                  b.address                  !== undefined ? b.address                  : null,
@@ -598,31 +584,31 @@ class EmployeeController {
       });
 
       const updateData = {
-        employeeId:   b.employeeId   || e.employeeId,
-        firstName:    b.firstName    || e.firstName,
-        lastName:     b.lastName     || e.lastName,
-        email:        b.email        || e.email,
-        department:   b.department   || e.department,
-        designation:  b.designation  || e.designation,
-        dateOfJoining: safeDate(b.dateOfJoining) || e.dateOfJoining,
-        dateOfBirth:   safeDate(b.dateOfBirth)   || e.dateOfBirth,
+        employeeId:     b.employeeId    || e.employeeId,
+        firstName:      b.firstName     || e.firstName,
+        lastName:       b.lastName      || e.lastName,
+        email:          b.email         || e.email,
+        department:     b.department    || e.department,
+        designation:    b.designation   || e.designation,
+        dateOfJoining:  safeDate(b.dateOfJoining)  || e.dateOfJoining,
+        dateOfBirth:    safeDate(b.dateOfBirth)     || e.dateOfBirth,
         lastWorkingDay: b.lastWorkingDay !== undefined ? safeDate(b.lastWorkingDay) : e.lastWorkingDay,
-        baseSalary:   b.baseSalary !== undefined ? enc.baseSalary : e.baseSalary,
-        status:       b.status        || e.status,
-        periodType:   b.periodType    !== undefined ? b.periodType : e.periodType,
-        isActive:     b.isActive      !== undefined
-                        ? (b.isActive === 'true' || b.isActive === true)
-                        : e.isActive,
-        workMode:     b.workMode || e.workMode || 'Work From Office',
+        baseSalary:     b.baseSalary    !== undefined ? enc.baseSalary : e.baseSalary,
+        status:         b.status        || e.status,
+        periodType:     b.periodType    !== undefined ? b.periodType : e.periodType,
+        isActive:       b.isActive      !== undefined
+                          ? (b.isActive === 'true' || b.isActive === true)
+                          : e.isActive,
+        workMode:       b.workMode || e.workMode || 'Work From Office',
 
-        // ── ENCRYPTED — use new encrypted value if field was provided, else keep existing ──
+        // ── ENCRYPTED: use new encrypted value if field provided, else keep existing ──
         personalEmail:            b.personalEmail            !== undefined ? enc.personalEmail            : e.personalEmail,
         contact:                  b.contact                  !== undefined ? enc.contact                  : e.contact,
         address:                  b.address                  !== undefined ? enc.address                  : e.address,
         currentAddress:           b.currentAddress           !== undefined ? enc.currentAddress           : e.currentAddress,
         gender:                   b.gender                   !== undefined ? enc.gender                   : e.gender,
         maritalStatus:            b.maritalStatus            !== undefined ? enc.maritalStatus            : e.maritalStatus,
-        nationality:              b.nationality              !== undefined ? enc.nationality              : e.nationality,
+        nationality:              b.nationality              !== undefined ? enc.nationality               : e.nationality,
         panNumber:                b.panNumber                !== undefined ? enc.panNumber                : e.panNumber,
         aadharNumber:             b.aadharNumber             !== undefined ? enc.aadharNumber             : e.aadharNumber,
         bankName:                 b.bankName                 !== undefined ? enc.bankName                 : e.bankName,
@@ -639,42 +625,46 @@ class EmployeeController {
           salarySlip:       fp('salarySlip')       || e.documents?.salarySlip,
           relievingLetter:  fp('relievingLetter')  || e.documents?.relievingLetter,
           experienceLetter: fp('experienceLetter') || e.documents?.experienceLetter,
-          offerLetter:      fp('offerLetter')      || e.documents?.offerLetter
-        }
+          offerLetter:      fp('offerLetter')      || e.documents?.offerLetter,
+        },
       };
 
       const employee = await Employee.findByIdAndUpdate(req.params.id, updateData, { new: true });
 
-      // ── Update Previous Employment data ──
-      const pe = b.prevEmp ? (typeof b.prevEmp === 'string' ? JSON.parse(b.prevEmp) : b.prevEmp) : null;
+      // ── Update Previous Employment data if provided ──
+      const pe = b.prevEmp
+        ? (typeof b.prevEmp === 'string' ? JSON.parse(b.prevEmp) : b.prevEmp)
+        : null;
       if (pe) {
-        const prevEmpData = {
-          employee:              req.params.id,
-          employeeName:          safe(pe.employeeName),
-          department:            safe(pe.department),
-          designation:           safe(pe.designation),
-          joiningDate:           safeDate(pe.joiningDate),
-          lastWorkingDay:        safeDate(pe.lastWorkingDay),
-          exitType:              safe(pe.exitType),
-          reasonForExit:         safe(pe.reasonForExit),
-          managerName:           safe(pe.managerName),
-          noticePeriodServed:    safe(pe.noticePeriodServed),
-          finalSettlementDone:   safe(pe.finalSettlementDone),
-          fnfDate:               safeDate(pe.fnfDate),
-          exitInterviewDate:     safeDate(pe.exitInterviewDate),
-          companyAssetsReturned: safe(pe.companyAssetsReturned),
-          hrRepresentative:      safe(pe.hrRepresentative),
-          remarks:               safe(pe.remarks)
-        };
         await PreviousEmployment.findOneAndUpdate(
           { employee: req.params.id },
-          prevEmpData,
+          {
+            employee:              req.params.id,
+            employeeName:          safe(pe.employeeName),
+            department:            safe(pe.department),
+            designation:           safe(pe.designation),
+            joiningDate:           safeDate(pe.joiningDate),
+            lastWorkingDay:        safeDate(pe.lastWorkingDay),
+            exitType:              safe(pe.exitType),
+            reasonForExit:         safe(pe.reasonForExit),
+            managerName:           safe(pe.managerName),
+            noticePeriodServed:    safe(pe.noticePeriodServed),
+            finalSettlementDone:   safe(pe.finalSettlementDone),
+            fnfDate:               safeDate(pe.fnfDate),
+            exitInterviewDate:     safeDate(pe.exitInterviewDate),
+            companyAssetsReturned: safe(pe.companyAssetsReturned),
+            hrRepresentative:      safe(pe.hrRepresentative),
+            remarks:               safe(pe.remarks),
+          },
           { upsert: true, new: true }
         );
       }
 
-      // Save new docs
-      const docTypes = ['profilePhoto', 'adharCard', 'panCard', 'salarySlip', 'relievingLetter', 'experienceLetter', 'offerLetter'];
+      // ── Save new documents ──
+      const docTypes = [
+        'profilePhoto', 'adharCard', 'panCard', 'salarySlip',
+        'relievingLetter', 'experienceLetter', 'offerLetter',
+      ];
       for (const docType of docTypes) {
         if (req.files && req.files[docType]) {
           const file = req.files[docType][0];
@@ -684,33 +674,25 @@ class EmployeeController {
             filePath:     fp(docType),
             originalName: file.originalname,
             mimeType:     file.mimetype,
-            size:         file.size
+            size:         file.size,
           }).save();
         }
       }
 
-      // Sync User table (non-sensitive fields only)
+      // ── Sync User table: ONLY firstName, lastName, email ──
       const userUpdate = {
-        email:        b.email        || e.email,
-        firstName:    b.firstName    || e.firstName,
-        lastName:     b.lastName     || e.lastName,
-        department:   b.department   || e.department,
-        designation:  b.designation  || e.designation,
-        dateOfJoining: safeDate(b.dateOfJoining) || e.dateOfJoining,
-        baseSalary:   b.baseSalary ? parseFloat(b.baseSalary) : e.baseSalary,
-        dateOfBirth:  safeDate(b.dateOfBirth) || e.dateOfBirth,
+        firstName: b.firstName || e.firstName,
+        lastName:  b.lastName  || e.lastName,
+        email:     b.email     || e.email,
       };
-      const updatedGender = normalizeGender(b.gender);
-      if (updatedGender) userUpdate.gender = updatedGender;
-
       await User.findByIdAndUpdate(req.params.id, userUpdate);
 
+      // ── Update password separately (triggers pre-save hash) ──
       if (b.password) {
         const userDoc = await User.findById(req.params.id);
         if (userDoc) { userDoc.password = b.password; await userDoc.save(); }
       }
 
-      // Return decrypted data to client
       const decryptedEmployee = decryptEmployee(employee);
       res.json({ message: 'Updated successfully', employee: decryptedEmployee });
     } catch (err) {
@@ -739,7 +721,7 @@ class EmployeeController {
   getEmployeePayrolls = catchAsync(async (req, res) => {
     try {
       const employeesWithPayroll = await User.aggregate([
-        { $match: { role: 'employee' } }
+        { $match: { role: 'employee' } },
       ]);
       res.status(200).json({ success: true, data: employeesWithPayroll });
     } catch (err) {
