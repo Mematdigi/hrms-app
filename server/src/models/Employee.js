@@ -35,8 +35,7 @@ const employeeSchema = new mongoose.Schema({
     default: ''
   },
   password: {
-    type: String,
-    required: true
+    type: String
   },
   department: {
     type: String,
@@ -154,11 +153,7 @@ const employeeSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Pre-save hook to hash password
-employeeSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 12);
-  next();
-});
+// Note: Password handled by User model only
+// Employee password optional/not used for auth
 
 module.exports = mongoose.model('Employee', employeeSchema);
