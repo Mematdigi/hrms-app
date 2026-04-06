@@ -747,7 +747,7 @@ function Payroll() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr style={{ background: '#f1f5f9' }}>
-                    {['Employee', 'Department', 'Month / Year', 'Working Days', 'Worked Days','Base Salary', 'Deductions', 'Net Salary', 'Status', 'Actions'].map(h => (
+                    {['Employee', 'Department', 'Month / Year', 'Working Days', 'Worked Days','Base Salary', 'Deductions', 'Net Salary', 'Actions'].map(h => (
                       <th key={h} style={{ padding: '13px 16px', textAlign: 'left', fontWeight: 600, color: '#374151', borderBottom: '2px solid #e5e7eb', whiteSpace: 'nowrap', fontSize: 13 }}>{h}</th>
                     ))}
                   </tr>
@@ -786,31 +786,10 @@ function Payroll() {
                         <td style={{ padding: '12px 16px', color: '#dc2626', fontWeight: 600 }}>{fmt(p.deductions)}</td>
                         <td style={{ padding: '12px 16px', fontWeight: 700, color: '#059669' }}>{fmt(p.netSalary)}</td>
                         <td style={{ padding: '12px 16px' }}>
-                          <span style={{
-                            background: STATUS_BG[p.status],
-                            color: STATUS_COLOR[p.status],
-                            padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, textTransform: 'capitalize',
-                            border: `1px solid ${STATUS_COLOR[p.status]}44`
-                          }}>
-                            {p.status}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px 16px' }}>
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                             <button onClick={() => handleViewPayslip(p)} style={actionBtn('#e8eaf6', '#1a237e')}>
                               👁 View
-                            </button>
-                            {p.status === 'draft' && (
-                              <button onClick={() => handleProcess(p._id)} style={actionBtn('#dbeafe', '#1d4ed8')}>
-                                ⚙️ Process
-                              </button>
-                            )}
-                            {p.status === 'processed' && (
-                              <button onClick={() => handlePay(p._id)} style={actionBtn('#d1fae5', '#065f46')}>
-                                ✅ Pay
-                              </button>
-                            )}
-                          </div>
+                            </button></div>
                         </td>
                       </tr>
                     );
