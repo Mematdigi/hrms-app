@@ -98,7 +98,6 @@ export const holidayAPI = {
   getStats: (year) => api.get('/holidays/stats', { params: { year } }),
 };
 
-export default api;
 export const notificationAPI = {
   getAll:         (params) => api.get('/notifications', { params }),
   getUnreadCount: ()       => api.get('/notifications/unread-count'),
@@ -107,3 +106,5 @@ export const notificationAPI = {
   deleteOne:      (id)     => api.delete(`/notifications/${id}`),
   clearAll:       ()       => api.delete('/notifications/clear-all'),
 };
+
+export default api;
