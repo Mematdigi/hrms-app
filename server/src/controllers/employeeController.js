@@ -544,11 +544,19 @@ class EmployeeController {
   // User table sync: ONLY firstName, lastName, email (+ password if changed)
   updateEmployee = async (req, res) => {
     try {
-      const existingEmployee = await Employee.findById(req.params.id);
-      if (!existingEmployee) return res.status(404).json({ message: 'Employee not found' });
+      let existingRecord = await Employee.findById(req.params.id);
+      let isUserOnly = false;
+      let fullUser = null;
+      
+      if (!existingRecord) {
+        fullUser = await User.findById(req.params.id);
+        if (!fullUser) return res.status(404).json({ message: 'User/Employee not found' });
+        existingRecord = fullUser.toObject();
+        isUserOnly = true;
+      }
 
       const b = req.body;
-      const e = existingEmployee;
+      const e = existingRecord;
 
       if (b.email && b.email !== e.email) {
         if (await Employee.findOne({ email: b.email })) return res.status(400).json({ message: 'Email already exists' });
@@ -629,7 +637,36 @@ class EmployeeController {
         },
       };
 
-      const employee = await Employee.findByIdAndUpdate(req.params.id, updateData, { new: true });
+      let employee;
+      if (isUserOnly) {
+        // For User-only (admin/HR): Create Employee record + update User
+        const employeeData = new Employee({
+          _id: req.params.id,
+          password: fullUser ? fullUser.password : '',
+          employeeId: e.employeeId || `ADMIN-${req.params.id.slice(-6)}`,
+          firstName: updateData.firstName,
+          lastName: updateData.lastName,
+          email: updateData.email,
+          department: updateData.department || 'Administration',
+          designation: updateData.designation || e.role?.toUpperCase(),
+          status: 'Full Time',
+          periodType: 'Permanent',
+          workMode: updateData.workMode || 'Work From Office',
+          ...updateData // Spread all other fields
+        });
+        employee = await employeeData.save();
+        
+        // Sync User basic fields
+        await User.findByIdAndUpdate(req.params.id, {
+          firstName: updateData.firstName,
+          lastName: updateData.lastName,
+          email: updateData.email,
+          department: updateData.department,
+          designation: updateData.designation
+        });
+      } else {
+        employee = await Employee.findByIdAndUpdate(req.params.id, updateData, { new: true });
+      }
 
       // ── Update Previous Employment data if provided ──
       const pe = b.prevEmp
@@ -693,7 +730,7 @@ class EmployeeController {
         if (userDoc) { userDoc.password = b.password; await userDoc.save(); }
       }
 
-      const decryptedEmployee = decryptEmployee(employee);
+      const decryptedEmployee = decryptEmployee(employee.toObject());
       res.json({ message: 'Updated successfully', employee: decryptedEmployee });
     } catch (err) {
       console.error('Update error:', err);

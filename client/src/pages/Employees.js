@@ -463,7 +463,7 @@ function Employees() {
                                 className={`bulk-tab-btn ${bulkTab === 'sheet2' ? 'active' : ''}`}
                                 onClick={() => setBulkTab('sheet2')}
                             >
-                                <i className="bi bi-box-arrow-right me-2"></i>Sheet 2 — Last Company Exit Details
+                                <i className="bi bi-box-arrow-right me-2"></i>Sheet 2 — Exit Details
                             </button>
                         </div>
 
@@ -493,7 +493,7 @@ function Employees() {
                         {/* Sheet 2 Info */}
                         {bulkTab === 'sheet2' && (
                             <div className="bulk-columns-info">
-                                <h5><i className="bi bi-box-arrow-right me-2"></i>Sheet 2 — Last Company Exit Details Columns</h5>
+                                <h5><i className="bi bi-box-arrow-right me-2"></i>Sheet 2 — Exit Details Columns</h5>
                                 <p className="text-muted mb-2">This sheet is <strong>optional</strong>. Fill exit details for employees who have left a previous company. <strong>Employee Name must match Sheet 1.</strong></p>
                                 <div className="columns-grid">
                                     {[
@@ -676,7 +676,7 @@ function Employees() {
                                 className={`form-tab-btn ${formTab === 'exit' ? 'active' : ''}`}
                                 onClick={() => setFormTab('exit')}
                             >
-                                <i className="bi bi-box-arrow-right me-2"></i>Last Company Exit Details
+                                <i className="bi bi-box-arrow-right me-2"></i>Exit Details
                             </button>
                         </div>
 
@@ -859,20 +859,20 @@ function Employees() {
                             </>
                         )}
 
-                        {/* ═══ TAB 2: Last Company Exit Details ═══ */}
+                        {/* ═══ TAB 2: Exit Details ═══ */}
                         {formTab === 'exit' && (
                             <>
                                 <div className="form-section-card">
                                     <div className="exit-details-header">
                                         <div>
-                                            <h4><i className="bi bi-box-arrow-right me-2 text-warning"></i>Last Company Exit Details</h4>
-                                            <p className="text-muted small mb-0">This section is optional. Fill exit/relieving details of the employee's previous company.</p>
+                                            <h4><i className="bi bi-box-arrow-right me-2 text-warning"></i>Exit Details</h4>
+                                            <p className="text-muted small mb-0">This section is optional. Fill exit/relieving details of the employee.</p>
                                         </div>
                                     </div>
 
                                     <div className="form-row-grid mt-3">
                                         <div className="input-group">
-                                            <label>Employee Name (as in last company)</label>
+                                            <label>Employee Name</label>
                                             <input type="text" name="employeeName" value={prevEmpData.employeeName} onChange={handlePrevEmpChange} placeholder="Full name in previous company" />
                                         </div>
                                         <div className="input-group">
@@ -884,7 +884,7 @@ function Employees() {
                                             <input type="text" name="designation" value={prevEmpData.designation} onChange={handlePrevEmpChange} placeholder="Designation in last company" />
                                         </div>
                                         <div className="input-group">
-                                            <label>Joining Date (Last Company)</label>
+                                            <label>Joining Date</label>
                                             <input type="date" name="joiningDate" value={prevEmpData.joiningDate} onChange={handlePrevEmpChange} />
                                         </div>
                                         <div className="input-group">

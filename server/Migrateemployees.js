@@ -1,10 +1,9 @@
 /**
- * Migration Script — Add new fields to existing Employee documents
+ * HRMS Migration: Create Employee Records for Admin/HR Users
  * 
- * Run once on your server:
- *   node migrateEmployees.js
+ * Creates minimal Employee docs for existing admin/hr users in User collection
  * 
- * Place this file in your backend root folder (same level as server.js)
+ * Run: node server/Migrateemployees.js
  */
 
 const mongoose = require('mongoose');
@@ -18,8 +17,11 @@ async function migrate() {
     await mongoose.connect(MONGO_URI);
     console.log('✅ Connected to MongoDB');
 
-    const db = mongoose.connection.db;
-    const collection = db.collection('employees');
+    const User = require('./src/models/User');
+    const Employee = require('./src/models/Employee');
+    const { encryptEmployee } = require('./src/utils/encryption');
+
+    console.log('🔍 Finding admin/HR users without Employee records...');
 
     // Count how many need updating
     const total = await collection.countDocuments();
