@@ -60,7 +60,8 @@ console.log("employeeId",employeeId)
         email: user.email,
         role: user.role,
         firstName: user.firstName,
-        lastName: user.lastName
+        lastName: user.lastName,
+        employeeId: user.employeeId
       }
     }));
   });
@@ -87,7 +88,8 @@ console.log("employeeId",employeeId)
         email: user.email,
         role: user.role,
         firstName: user.firstName,
-        lastName: user.lastName
+        lastName: user.lastName,
+        employeeId: user.employeeId
       }
     }));
   });

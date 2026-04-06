@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { leaveAPI, holidayAPI } from '../services/api';
+import { useNotifications, NOTIF_TYPES } from '../context/NotificationContext';
 import {
   FileText,
   HourglassSplit,
@@ -53,6 +54,7 @@ function Leave() {
   const [settingsForm, setSettingsForm] = useState({ casualDefault: '', sickDefault: '' });
 
   const { user } = useSelector((state) => state.auth);
+  const { showToast } = useNotifications();
 
   // ── Init ──
   useEffect(() => {
@@ -237,6 +239,11 @@ function Leave() {
       await leaveAPI.apply(payload);
       setSuccessMessage('✅ Leave request submitted successfully!');
       setErrorMessage('');
+      showToast({
+        type:    NOTIF_TYPES.LEAVE_APPLIED,
+        title:   'Leave Request Submitted 📋',
+        message: `Your ${payload.leaveType || 'leave'} request has been submitted and is pending approval.`,
+      });
       setFormData({
         leaveType: 'casual',
         category: 'Full',
@@ -264,6 +271,15 @@ function Leave() {
         numberOfDays: leave.numberOfDays,
         leaveType: leave.leaveType
       });
+      const empName = leave.employee
+        ? `${leave.employee.firstName || ''} ${leave.employee.lastName || ''}`.trim()
+        : 'Employee';
+      showToast({
+        type:    NOTIF_TYPES.LEAVE_APPROVED,
+        title:   'Leave Approved ✅',
+        message: `${empName}'s ${leave.leaveType || 'leave'} request has been approved.`,
+        meta:    { leaveId: leave._id },
+      });
       fetchLeaves();
     } catch (error) { console.error(error); }
   };
@@ -282,6 +298,15 @@ function Leave() {
         leaveType: selectedLeave.leaveType,
         rejectionReason: rejectionRemark,
         approverId: user?.id,
+      });
+      const empName = selectedLeave.employee
+        ? `${selectedLeave.employee.firstName || ''} ${selectedLeave.employee.lastName || ''}`.trim()
+        : 'Employee';
+      showToast({
+        type:    NOTIF_TYPES.LEAVE_REJECTED,
+        title:   'Leave Rejected ❌',
+        message: `${empName}'s ${selectedLeave.leaveType || 'leave'} request has been rejected.`,
+        meta:    { leaveId: selectedLeave._id },
       });
       setIsRejectModalOpen(false);
       setRejectionRemark('');

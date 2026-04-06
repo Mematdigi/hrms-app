@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { payrollAPI, employeeAPI } from '../services/api';
 import { Modal } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { useNotifications, NOTIF_TYPES } from '../context/NotificationContext';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -111,7 +112,7 @@ const PayslipView = ({ payroll, employee, breakdown, canDownload }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
             {[
               ['Employee Name', `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'N/A'],
-              ['Employee ID', emp.employeeId ? `EMP${emp.employeeId}` : 'N/A'],
+              ['Employee ID', emp.employeeId ? `${emp.employeeId}` : 'N/A'],
               ['Designation', emp.designation || 'N/A'],
               ['Department', emp.department || 'N/A'],
               ['Date of Joining', emp.dateOfJoining ? new Date(emp.dateOfJoining).toLocaleDateString('en-IN') : 'N/A'],
@@ -198,6 +199,7 @@ const PayslipView = ({ payroll, employee, breakdown, canDownload }) => {
 function Payroll() {
   const { user } = useSelector((state) => state.auth);
   const isHR = user?.role === 'admin' || user?.role === 'hr';
+  const { showToast } = useNotifications();
 
   const [payrolls, setPayrolls] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -390,6 +392,11 @@ function Payroll() {
     try {
       await payrollAPI.requestDownload({ payrollId: requestPayrollId, reason: requestReason });
       showSuccess('✅ Download request submitted. HR will review shortly.');
+      showToast({
+        type:    NOTIF_TYPES.PAYSLIP_REQUESTED,
+        title:   'Payslip Request Submitted 📄',
+        message: 'Your payslip download request has been submitted. HR will review it shortly.',
+      });
       setShowRequestModal(false);
       fetchMyDownloadRequests();
     } catch (e) {
@@ -414,6 +421,12 @@ function Payroll() {
     try {
       await payrollAPI.approveDownloadRequest({ requestId });
       showSuccess('✅ Download request approved');
+      showToast({
+        type:    NOTIF_TYPES.PAYSLIP_APPROVED,
+        title:   'Payslip Request Approved 💚',
+        message: 'The payslip download request has been approved successfully.',
+        meta:    { requestId },
+      });
       setHRRequests(prev => prev.map(r => r._id === requestId ? { ...r, status: 'approved' } : r));
     } catch (e) {
       showError(e?.response?.data?.message || 'Failed to approve request');
@@ -430,6 +443,12 @@ function Payroll() {
     try {
       await payrollAPI.rejectDownloadRequest({ requestId: rejectModal.requestId, hrResponse: rejectModal.reason });
       showSuccess('Request rejected');
+      showToast({
+        type:    NOTIF_TYPES.PAYSLIP_REJECTED,
+        title:   'Payslip Request Rejected 🚫',
+        message: `The payslip download request has been rejected. Reason: ${rejectModal.reason}`,
+        meta:    { requestId: rejectModal.requestId },
+      });
       setHRRequests(prev => prev.map(r => r._id === rejectModal.requestId ? { ...r, status: 'rejected', hrResponse: rejectModal.reason } : r));
       setRejectModal({ open: false, requestId: '', reason: '' });
     } catch (e) {
@@ -755,7 +774,7 @@ function Payroll() {
                             </div>
                             <div>
                               <div style={{ fontWeight: 600, color: '#111827' }}>{name}</div>
-                              <div style={{ fontSize: 12, color: '#9ca3af' }}>{emp.employeeId ? `EMP${emp.employeeId}` : emp.email || ''}</div>
+                              <div style={{ fontSize: 12, color: '#9ca3af' }}>{emp.employeeId ? `${emp.employeeId}` : emp.email || ''}</div>
                             </div>
                           </div>
                         </td>

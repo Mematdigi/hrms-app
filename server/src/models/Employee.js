@@ -21,33 +21,57 @@ const employeeSchema = new mongoose.Schema({
     unique: true,
     lowercase: true
   },
+  personalEmail: { type: String, default: '' },
   contact: {
     type: String,
     required: true
   },
   address: {
-    type: String
+    type: String,
+    default: ''
+  },
+  currentAddress: {
+    type: String,
+    default: ''
   },
   password: {
-    type: String,
-    required: true
+    type: String
   },
   department: {
-    type: String
+    type: String,
+    default: ''
   },
   designation: {
-    type: String
+    type: String,
+    default: ''
   },
   dateOfJoining: {
-    type: Date
+    type: Date,
+    default: null
   },
+  dateOfBirth: {
+    type: Date,
+    default: null
+  },
+  lastWorkingDay: {
+    type: Date,
+    default: null
+  },
+  // Mixed type so it can store either a plain Number (old records)
+  // or an AES-encrypted string (new records)
   baseSalary: {
-    type: Number
+    type: mongoose.Schema.Types.Mixed,
+    default: 0
   },
   status: {
     type: String,
-    enum: ['Full Time', 'Probation', 'Internship'],
+    enum: ['Full Time', 'Internship'],
     default: 'Full Time'
+  },
+  periodType: {
+    type: String,
+    enum: ['Probation', 'Permanent', 'Contractual'],
+    default: 'Permanent'
   },
   isActive: {
     type: Boolean,
@@ -56,6 +80,30 @@ const employeeSchema = new mongoose.Schema({
   role: {
     type: String,
     default: 'employee'
+  },
+
+  // Gender — NO enum so empty string / any value is accepted
+  gender: {
+    type: String,
+    default: ''
+  },
+  maritalStatus: {
+    type: String,
+    default: ''
+  },
+  nationality: {
+    type: String,
+    default: ''
+  },
+
+  // Identity
+  panNumber: {
+    type: String,
+    default: ''
+  },
+  aadharNumber: {
+    type: String,
+    default: ''
   },
 
   // Work Mode
@@ -93,23 +141,19 @@ const employeeSchema = new mongoose.Schema({
     default: ''
   },
 
-  // Document Paths (Storing URLs/Paths)
-  profilePhoto: { type: String },
+  // Document Paths
+  profilePhoto: { type: String, default: null },
   documents: {
-    adharCard: { type: String },
-    panCard: { type: String },
-    salarySlip: { type: String },
-    relievingLetter: { type: String },
-    experienceLetter: { type: String },
-    offerLetter: { type: String }
+    adharCard:        { type: String, default: null },
+    panCard:          { type: String, default: null },
+    salarySlip:       { type: String, default: null },
+    relievingLetter:  { type: String, default: null },
+    experienceLetter: { type: String, default: null },
+    offerLetter:      { type: String, default: null }
   }
 }, { timestamps: true });
 
-// Pre-save hook to hash password
-employeeSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 12);
-  next();
-});
+// Note: Password handled by User model only
+// Employee password optional/not used for auth
 
 module.exports = mongoose.model('Employee', employeeSchema);

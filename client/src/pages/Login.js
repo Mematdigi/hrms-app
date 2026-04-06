@@ -24,14 +24,13 @@ function Login() {
       const res = await authAPI.login({ email, password });
       // Expecting { token, user } — adjust if your shape differs
       const { token, user } = res.data.data;
-      console.log('Login successful:', token,user);
-      console.log('User information:', res.data.data);
-      console.log('Full response:', res);
       // persist token
       localStorage.setItem('token', token);
 
       // (optional) keep user for quick access
       localStorage.setItem('hrmsUser', JSON.stringify(user));
+      // Also save to 'user' key for redux authReducer compatibility
+      localStorage.setItem('user', JSON.stringify(user));
 
       // redux
       dispatch({ type: 'LOGIN_SUCCESS', payload: { token, user } });
@@ -44,7 +43,6 @@ function Login() {
         'Login failed';
       setError(msg);
       showError(msg);
-      console.error('Login error:', err.response);
     } finally {
       setLoading(false);
     }
@@ -91,9 +89,9 @@ function Login() {
           </button>
         </form>
 
-        <p>
+        {/* <p>
           Don&apos;t have an account? <Link to="/register">Register here</Link>
-        </p>
+        </p> */}
       </div>
     </div>
   );

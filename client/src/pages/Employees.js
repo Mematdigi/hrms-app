@@ -1,52 +1,83 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { employeeAPI } from '../services/api';
 
+const EMPTY_PREV_EMP = {
+    employeeName: '',
+    department: '',
+    designation: '',
+    joiningDate: '',
+    lastWorkingDay: '',
+    exitType: '',
+    reasonForExit: '',
+    managerName: '',
+    noticePeriodServed: '',
+    finalSettlementDone: '',
+    fnfDate: '',
+    exitInterviewDate: '',
+    companyAssetsReturned: '',
+    hrRepresentative: '',
+    remarks: ''
+};
+
 function Employees() {
     const navigate = useNavigate();
 
-    // --- State Management ---
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(true);
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
 
-    // View Mode: 'grid', 'list', 'add', 'edit'
+    // View Mode: 'grid', 'list', 'add', 'edit', 'bulk'
     const [viewMode, setViewMode] = useState('grid');
 
-    // --- Search & Filter State ---
+    // Search & Filter
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterDepartment, setFilterDepartment] = useState('');
-    const [filterDesignation, setFilterDesignation] = useState('');
-    const [filterStatus, setFilterStatus] = useState('');
-    const [filterJoinDate, setFilterJoinDate] = useState('');
 
-    // --- Main Form Data (Used for BOTH Add and Edit) ---
+    // Bulk Import State
+    const [bulkFile, setBulkFile] = useState(null);
+    const [bulkLoading, setBulkLoading] = useState(false);
+    const [bulkResult, setBulkResult] = useState(null);
+    const [savedBulkFile, setSavedBulkFile] = useState(null); // filename returned from server
+    const [bulkTab, setBulkTab] = useState('sheet1'); // 'sheet1' | 'sheet2'
+    const bulkFileRef = useRef(null);
+
+    // Active form tab in add/edit
+    const [formTab, setFormTab] = useState('employee'); // 'employee' | 'exit'
+
+    // Main Form Data
     const [formData, setFormData] = useState({
-        employeeId: '',
+        employeeId: 'MMD-',
         firstName: '',
         lastName: '',
         email: '',
+        personalEmail: '',
         contact: '',
         address: '',
+        currentAddress: '',
         password: '',
         department: '',
         designation: '',
         dateOfJoining: '',
+        dateOfBirth: '',
+        lastWorkingDay: '',
         baseSalary: '',
         status: 'Full Time',
+        periodType: 'Permanent',
         isActive: true,
         workMode: 'Work From Office',
-        // Bank Details
+        gender: '',
+        maritalStatus: '',
+        nationality: '',
+        panNumber: '',
+        aadharNumber: '',
         bankName: '',
         bankAccountNumber: '',
         ifscCode: '',
-        // Emergency Contact
         emergencyContactName: '',
         emergencyContactPhone: '',
         emergencyContactRelation: '',
-        // Documents
         adharCard: null,
         panCard: null,
         salarySlip: null,
@@ -56,7 +87,9 @@ function Employees() {
         profilePhoto: null
     });
 
-    // Edit State
+    // Previous Employment (Exit Details)
+    const [prevEmpData, setPrevEmpData] = useState({ ...EMPTY_PREV_EMP });
+
     const [editingId, setEditingId] = useState(null);
     const [photoPreview, setPhotoPreview] = useState(null);
     const [existingDocs, setExistingDocs] = useState({});
@@ -75,37 +108,68 @@ function Employees() {
         } finally { setLoading(false); }
     };
 
-    // --- Handlers ---
-    const handleEditClick = (employee) => {
+    const handleEditClick = async (emp) => {
+        const res = await employeeAPI.getById(emp._id);
+        const employee = { ...res.data };
         setEditingId(employee._id);
-
         setFormData({
-            employeeId: `MMD-${employee.employeeId}` || '',
+            employeeId: `${employee.employeeId}` || '',
             firstName: employee.firstName || '',
             lastName: employee.lastName || '',
             email: employee.email || '',
+            personalEmail: employee.personalEmail || '',
             contact: employee.contact || '',
             address: employee.address || '',
+            currentAddress: employee.currentAddress || '',
             password: '',
             department: employee.department || '',
             designation: employee.designation || '',
             dateOfJoining: employee.dateOfJoining ? new Date(employee.dateOfJoining).toISOString().split('T')[0] : '',
+            dateOfBirth: employee.dateOfBirth ? new Date(employee.dateOfBirth).toISOString().split('T')[0] : '',
+            lastWorkingDay: employee.lastWorkingDay ? new Date(employee.lastWorkingDay).toISOString().split('T')[0] : '',
             baseSalary: employee.baseSalary || '',
             status: employee.status || 'Full Time',
+            periodType: employee.periodType || 'Permanent',
             isActive: employee.isActive,
             workMode: employee.workMode || 'Work From Office',
-            // Bank Details
+            gender: employee.gender || '',
+            maritalStatus: employee.maritalStatus || '',
+            nationality: employee.nationality || '',
+            panNumber: employee.panNumber || '',
+            aadharNumber: employee.aadharNumber || '',
             bankName: employee.bankName || '',
             bankAccountNumber: employee.bankAccountNumber || '',
             ifscCode: employee.ifscCode || '',
-            // Emergency Contact
             emergencyContactName: employee.emergencyContactName || '',
             emergencyContactPhone: employee.emergencyContactPhone || '',
             emergencyContactRelation: employee.emergencyContactRelation || '',
-            // Reset files
             adharCard: null, panCard: null, salarySlip: null,
             relievingLetter: null, experienceLetter: null, offerLetter: null, profilePhoto: null
         });
+
+        // Load previous employment data if available
+        if (employee.previousEmployment) {
+            const pe = employee.previousEmployment;
+            setPrevEmpData({
+                employeeName: pe.employeeName || '',
+                department: pe.department || '',
+                designation: pe.designation || '',
+                joiningDate: pe.joiningDate ? new Date(pe.joiningDate).toISOString().split('T')[0] : '',
+                lastWorkingDay: pe.lastWorkingDay ? new Date(pe.lastWorkingDay).toISOString().split('T')[0] : '',
+                exitType: pe.exitType || '',
+                reasonForExit: pe.reasonForExit || '',
+                managerName: pe.managerName || '',
+                noticePeriodServed: pe.noticePeriodServed || '',
+                finalSettlementDone: pe.finalSettlementDone || '',
+                fnfDate: pe.fnfDate ? new Date(pe.fnfDate).toISOString().split('T')[0] : '',
+                exitInterviewDate: pe.exitInterviewDate ? new Date(pe.exitInterviewDate).toISOString().split('T')[0] : '',
+                companyAssetsReturned: pe.companyAssetsReturned || '',
+                hrRepresentative: pe.hrRepresentative || '',
+                remarks: pe.remarks || ''
+            });
+        } else {
+            setPrevEmpData({ ...EMPTY_PREV_EMP });
+        }
 
         if (employee.profilePhoto) {
             setPhotoPreview(`http://localhost:5000/uploads/${employee.profilePhoto}`);
@@ -114,6 +178,7 @@ function Employees() {
         }
 
         setExistingDocs(employee.documents || {});
+        setFormTab('employee');
         setViewMode('edit');
     };
 
@@ -122,12 +187,16 @@ function Employees() {
         setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
     };
 
+    const handlePrevEmpChange = (e) => {
+        const { name, value } = e.target;
+        setPrevEmpData({ ...prevEmpData, [name]: value });
+    };
+
     const handleFileChange = (e) => {
         const { name, files } = e.target;
         if (files && files[0]) {
             const file = files[0];
             setFormData({ ...formData, [name]: file });
-
             if (name === 'profilePhoto') {
                 const reader = new FileReader();
                 reader.onloadend = () => setPhotoPreview(reader.result);
@@ -136,7 +205,6 @@ function Employees() {
         }
     };
 
-    // ✅ Unified Submit for Add and Update
     const handleSubmit = async (e) => {
         e.preventDefault();
         setErrorMessage('');
@@ -159,6 +227,12 @@ function Employees() {
 
             data.append('isActive', formData.isActive.toString());
 
+            // Append previous employment as JSON string
+            const hasPrevEmpData = Object.values(prevEmpData).some(v => v !== '');
+            if (hasPrevEmpData) {
+                data.append('prevEmp', JSON.stringify(prevEmpData));
+            }
+
             if (viewMode === 'add') {
                 await employeeAPI.create(data);
                 setSuccessMessage('✅ Employee created successfully!');
@@ -177,18 +251,21 @@ function Employees() {
 
     const resetForm = () => {
         setFormData({
-            employeeId: '', firstName: '', lastName: '', email: '', contact: '', address: '',
-            password: '', department: '', designation: '', dateOfJoining: '', baseSalary: '',
-            status: 'Full Time', isActive: true,
-            workMode: 'Work From Office',
+            employeeId: '', firstName: '', lastName: '', email: '', personalEmail: '', contact: '',
+            address: '', currentAddress: '', password: '', department: '', designation: '',
+            dateOfJoining: '', dateOfBirth: '', lastWorkingDay: '', baseSalary: '',
+            status: 'Full Time', periodType: 'Permanent', isActive: true, workMode: 'Work From Office',
+            gender: '', maritalStatus: '', nationality: '', panNumber: '', aadharNumber: '',
             bankName: '', bankAccountNumber: '', ifscCode: '',
             emergencyContactName: '', emergencyContactPhone: '', emergencyContactRelation: '',
             adharCard: null, panCard: null, salarySlip: null,
             relievingLetter: null, experienceLetter: null, offerLetter: null, profilePhoto: null
         });
+        setPrevEmpData({ ...EMPTY_PREV_EMP });
         setPhotoPreview(null);
         setEditingId(null);
         setExistingDocs({});
+        setFormTab('employee');
         setViewMode('grid');
     };
 
@@ -201,24 +278,115 @@ function Employees() {
         } catch (error) { setErrorMessage(error?.response?.data?.message || 'Error deleting employee'); }
     };
 
-    // --- Helper Functions ---
+    // --- Bulk Import Handlers ---
+    const handleBulkFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setBulkFile(file);
+            setBulkResult(null);
+            setSavedBulkFile(null);
+        }
+    };
+
+    const handleBulkImport = async () => {
+        if (!bulkFile) { setErrorMessage('Please select an Excel file first.'); return; }
+        setBulkLoading(true);
+        setBulkResult(null);
+        setErrorMessage('');
+        setSuccessMessage('');
+
+        try {
+            const data = new FormData();
+            data.append('excelFile', bulkFile);
+            const response = await employeeAPI.bulkImport(data);
+            setBulkResult(response.data);
+            if (response.data.savedFile) {
+                setSavedBulkFile(response.data.savedFile);
+            }
+            if (response.data.success?.length > 0) {
+                setSuccessMessage(`✅ ${response.data.success.length} employees imported successfully!`);
+                fetchEmployees();
+            }
+            if (response.data.failed?.length > 0) {
+                setErrorMessage(`⚠️ ${response.data.failed.length} rows failed. See details below.`);
+            }
+        } catch (error) {
+            setErrorMessage(error?.response?.data?.message || 'Bulk import failed.');
+        } finally {
+            setBulkLoading(false);
+        }
+    };
+
+    const handleDownloadUploadedExcel = async () => {
+        if (!savedBulkFile) return;
+        try {
+            const response = await employeeAPI.downloadUploadedExcel(savedBulkFile);
+            const url = URL.createObjectURL(new Blob([response.data]));
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = savedBulkFile;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            setErrorMessage('Could not download file. It may have been removed from server.');
+        }
+    };
+
+    const handleDownloadTemplate = () => {
+        // Template now has 2 sheets info in description
+        const sheet1Headers = [
+            'Employee ID', 'DATE OF JOINING', 'Name', 'Department', 'Designation',
+            'Employee Type', 'Contact Number', 'Email', 'Date of Birth',
+            'Employee period type', 'Gender', 'PAN Number', 'Aadhar Number',
+            'Bank Account No', 'IFSC Code', 'Salary', 'Office mail id ',
+            'Bank Name', 'Last Working Day', 'Permanent Address', 'Current Address',
+            'Marital Status', 'Emergency contact Name ', 'Emeregncy Contact Number ', 'Nationality'
+        ];
+        const sheet1Sample = [
+            'MMD-001', '01/01/2024', 'John Doe', 'Development Team', 'Software Engineer',
+            'Full Time', '9876543210', 'john.doe@company.com', '01/01/1995',
+            'Permanent', 'Male', 'ABCDE1234F', '123456789012', '1234567890',
+            'SBIN0001234', '50000', 'john.doe@company.com', 'State Bank of India', '',
+            '123 Main St, City', '456 Other St, City', 'Single', 'Jane Doe', '9876543211', 'Indian'
+        ];
+
+        const sheet2Headers = [
+            'S.No', 'Employee Name', 'Department', 'Designation ', 'Joining Date', 'LWD',
+            ' Exit Type', 'Reason for Exit', ' Manager/Supervisor Name',
+            'Notice Period Served', ' Final Settlement Done', 'Fnf date',
+            'Exit Interview Date', 'Company Assets Returned', ' HR Representative', 'Remarks'
+        ];
+        const sheet2Sample = [
+            '1', 'John Doe', 'Development Team', 'Software Engineer', '01/01/2024', '31/12/2024',
+            'Resignation', 'Better opportunity', 'Jane Manager',
+            'Yes', 'Yes', '15/01/2025', '10/01/2025', 'Yes', 'HR Name', 'Good performer'
+        ];
+
+        const csvSheet1 = [sheet1Headers.join(','), sheet1Sample.join(',')].join('\n');
+        const csvSheet2 = [sheet2Headers.join(','), sheet2Sample.join(',')].join('\n');
+        const combined = `SHEET 1 - Employee Details\n${csvSheet1}\n\nSHEET 2 - Exit Details (match Employee Name with Sheet 1)\n${csvSheet2}`;
+
+        const blob = new Blob([combined], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'employee_import_template.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     useEffect(() => {
         if (successMessage || errorMessage) {
-            const timer = setTimeout(() => { setSuccessMessage(''); setErrorMessage(''); }, 5000);
+            const timer = setTimeout(() => { setSuccessMessage(''); setErrorMessage(''); }, 6000);
             return () => clearTimeout(timer);
         }
     }, [successMessage, errorMessage]);
-
-    const handleResetFilters = () => {
-        setSearchQuery(''); setFilterDepartment(''); setFilterDesignation(''); setFilterStatus(''); setFilterJoinDate('');
-    };
 
     const filteredEmployees = useMemo(() => {
         return employees.filter((emp) => {
             const searchLower = searchQuery.toLowerCase();
             const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
-            const matchesSearch = fullName.includes(searchLower) || emp.email.toLowerCase().includes(searchLower);
-            return matchesSearch;
+            return fullName.includes(searchLower) || emp.email.toLowerCase().includes(searchLower);
         });
     }, [employees, searchQuery]);
 
@@ -239,14 +407,30 @@ function Employees() {
             {/* Header */}
             <div className="page-header">
                 <div>
-                    <h1>{viewMode === 'add' ? 'Add New Employee' : viewMode === 'edit' ? 'Edit Details' : 'Employees'}</h1>
-                    <p>{viewMode === 'grid' || viewMode === 'list' ? 'Manage your team members.' : 'Manage employee information and documents.'}</p>
+                    <h1>
+                        {viewMode === 'add' ? 'Add New Employee'
+                            : viewMode === 'edit' ? 'Edit Details'
+                            : viewMode === 'bulk' ? 'Bulk Import Employees'
+                            : 'Employees'}
+                    </h1>
+                    <p>
+                        {viewMode === 'grid' || viewMode === 'list'
+                            ? 'Manage your team members.'
+                            : viewMode === 'bulk'
+                            ? 'Import multiple employees at once using an Excel sheet.'
+                            : 'Manage employee information and documents.'}
+                    </p>
                 </div>
                 {(user?.role === 'admin' || user?.role === 'hr') && (
                     viewMode === 'grid' || viewMode === 'list' ? (
-                        <button className="btn-primary-add" onClick={() => { resetForm(); setViewMode('add'); }}>
-                            + Add Employee
-                        </button>
+                        <div className="header-actions">
+                            <button className="btn-secondary-add" onClick={() => { setBulkResult(null); setBulkFile(null); setSavedBulkFile(null); setBulkTab('sheet1'); setViewMode('bulk'); }}>
+                                <i className="bi bi-file-earmark-spreadsheet me-2"></i>Bulk Import
+                            </button>
+                            <button className="btn-primary-add" onClick={() => { resetForm(); setViewMode('add'); }}>
+                                + Add Employee
+                            </button>
+                        </div>
                     ) : (
                         <div className="form-footer-actions">
                             <button type="button" className="btn-primary-add" onClick={resetForm}>Cancel</button>
@@ -255,11 +439,200 @@ function Employees() {
                 )}
             </div>
 
-            {/* --- ADD / EDIT FORM VIEW (FULL PAGE) --- */}
+            {/* --- BULK IMPORT VIEW --- */}
+            {viewMode === 'bulk' && (
+                <div className="bulk-import-container fade-in">
+                    <div className="bulk-import-card">
+                        <div className="bulk-header">
+                            <div className="bulk-icon"><i className="bi bi-file-earmark-spreadsheet"></i></div>
+                            <div>
+                                <h3>Import Employees via Excel</h3>
+                                <p className="text-muted">Upload an Excel file (.xlsx) with 2 sheets. Default password will be set as <strong>EmployeeID@123</strong>.</p>
+                            </div>
+                        </div>
+
+                        {/* Bulk Tab Switcher */}
+                        <div className="bulk-sheet-tabs">
+                            <button
+                                className={`bulk-tab-btn ${bulkTab === 'sheet1' ? 'active' : ''}`}
+                                onClick={() => setBulkTab('sheet1')}
+                            >
+                                <i className="bi bi-person-lines-fill me-2"></i>Sheet 1 — Employee Details
+                            </button>
+                            <button
+                                className={`bulk-tab-btn ${bulkTab === 'sheet2' ? 'active' : ''}`}
+                                onClick={() => setBulkTab('sheet2')}
+                            >
+                                <i className="bi bi-box-arrow-right me-2"></i>Sheet 2 — Exit Details
+                            </button>
+                        </div>
+
+                        {/* Sheet 1 Info */}
+                        {bulkTab === 'sheet1' && (
+                            <div className="bulk-columns-info">
+                                <h5><i className="bi bi-table me-2"></i>Sheet 1 — Employee Details Columns</h5>
+                                <p className="text-muted mb-2">Each row = one employee. <strong>Employee Name</strong> in Sheet 1 must match <strong>Employee Name</strong> in Sheet 2 for exit data to be linked.</p>
+                                <div className="columns-grid">
+                                    {[
+                                        'Employee ID*', 'DATE OF JOINING', 'Name*', 'Department', 'Designation',
+                                        'Employee Type', 'Contact Number', 'Email*', 'Date of Birth',
+                                        'Employee period type', 'Gender', 'PAN Number', 'Aadhar Number',
+                                        'Bank Account No', 'IFSC Code', 'Salary', 'Office mail id ',
+                                        'Bank Name', 'Last Working Day', 'Permanent Address', 'Current Address',
+                                        'Marital Status', 'Emergency contact Name ', 'Emeregncy Contact Number ', 'Nationality'
+                                    ].map((col) => (
+                                        <span key={col} className={`col-tag ${col.includes('*') ? 'required' : ''}`}>
+                                            {col}
+                                        </span>
+                                    ))}
+                                </div>
+                                <p className="text-muted mt-2"><span className="col-tag required" style={{fontSize:'11px'}}>*</span> = Required fields</p>
+                            </div>
+                        )}
+
+                        {/* Sheet 2 Info */}
+                        {bulkTab === 'sheet2' && (
+                            <div className="bulk-columns-info">
+                                <h5><i className="bi bi-box-arrow-right me-2"></i>Sheet 2 — Exit Details Columns</h5>
+                                <p className="text-muted mb-2">This sheet is <strong>optional</strong>. Fill exit details for employees who have left a previous company. <strong>Employee Name must match Sheet 1.</strong></p>
+                                <div className="columns-grid">
+                                    {[
+                                        'S.No', 'Employee Name*', 'Department', 'Designation', 'Joining Date',
+                                        'LWD (Last Working Day)', 'Exit Type', 'Reason for Exit',
+                                        'Manager/Supervisor Name', 'Notice Period Served', 'Final Settlement Done',
+                                        'Fnf date', 'Exit Interview Date', 'Company Assets Returned',
+                                        'HR Representative', 'Remarks'
+                                    ].map((col) => (
+                                        <span key={col} className={`col-tag ${col.includes('*') ? 'required' : ''}`}>
+                                            {col}
+                                        </span>
+                                    ))}
+                                </div>
+                                <p className="text-muted mt-2">
+                                    <strong>Exit Type values:</strong> Resignation, Termination, Retirement, Contract End, Layoff, Absconding, Other
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="bulk-template-row">
+                            <span><i className="bi bi-info-circle me-2 text-primary"></i>Download the template to see the required column format for both sheets.</span>
+                            <button className="btn-download-template" onClick={handleDownloadTemplate}>
+                                <i className="bi bi-download me-2"></i>Download Template
+                            </button>
+                        </div>
+
+                        <div className="bulk-upload-area">
+                            <label htmlFor="bulkFileInput" className={`drop-zone ${bulkFile ? 'has-file' : ''}`}>
+                                <input
+                                    type="file"
+                                    id="bulkFileInput"
+                                    ref={bulkFileRef}
+                                    accept=".xlsx,.xls"
+                                    onChange={handleBulkFileChange}
+                                    hidden
+                                />
+                                <i className={`bi ${bulkFile ? 'bi-file-earmark-check' : 'bi-cloud-upload'}`}></i>
+                                <span>{bulkFile ? bulkFile.name : 'Click to select Excel file (.xlsx, .xls) with 2 sheets'}</span>
+                                {bulkFile && <small className="text-muted">{(bulkFile.size / 1024).toFixed(1)} KB</small>}
+                            </label>
+                        </div>
+
+                        <div className="bulk-actions">
+                            {bulkFile && (
+                                <button
+                                    className="btn-clear-file"
+                                    onClick={() => { setBulkFile(null); setBulkResult(null); setSavedBulkFile(null); if (bulkFileRef.current) bulkFileRef.current.value = ''; }}
+                                >
+                                    <i className="bi bi-x me-1"></i>Clear
+                                </button>
+                            )}
+                            {savedBulkFile && (
+                                <button
+                                    className="btn-download-uploaded"
+                                    onClick={handleDownloadUploadedExcel}
+                                    title="Download the Excel file you just uploaded"
+                                >
+                                    <i className="bi bi-file-earmark-arrow-down me-2"></i>Download Uploaded Excel
+                                </button>
+                            )}
+                            <button
+                                className="btn-primary-add"
+                                onClick={handleBulkImport}
+                                disabled={!bulkFile || bulkLoading}
+                            >
+                                {bulkLoading ? (
+                                    <><span className="spinner-border spinner-border-sm me-2" role="status"></span>Importing...</>
+                                ) : (
+                                    <><i className="bi bi-upload me-2"></i>Import Employees</>
+                                )}
+                            </button>
+                        </div>
+
+                        {/* Bulk Import Results */}
+                        {bulkResult && (
+                            <div className="bulk-results">
+                                <div className="result-summary">
+                                    <div className="result-stat success">
+                                        <i className="bi bi-check-circle-fill"></i>
+                                        <div><span className="count">{bulkResult.success?.length || 0}</span><span className="label">Imported</span></div>
+                                    </div>
+                                    <div className="result-stat failed">
+                                        <i className="bi bi-x-circle-fill"></i>
+                                        <div><span className="count">{bulkResult.failed?.length || 0}</span><span className="label">Failed</span></div>
+                                    </div>
+                                    <div className="result-stat total">
+                                        <i className="bi bi-people-fill"></i>
+                                        <div><span className="count">{bulkResult.totalProcessed || 0}</span><span className="label">Total</span></div>
+                                    </div>
+                                </div>
+
+                                {bulkResult.success?.length > 0 && (
+                                    <div className="result-table-wrap">
+                                        <h6 className="text-success"><i className="bi bi-check-circle me-2"></i>Successfully Imported</h6>
+                                        <table className="modern-table">
+                                            <thead><tr><th>Row</th><th>Name</th><th>Employee ID</th><th>Email</th></tr></thead>
+                                            <tbody>
+                                                {bulkResult.success.map((item, idx) => (
+                                                    <tr key={idx}>
+                                                        <td>{item.row}</td>
+                                                        <td>{item.name}</td>
+                                                        <td>{item.employeeId}</td>
+                                                        <td>{item.email}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {bulkResult.failed?.length > 0 && (
+                                    <div className="result-table-wrap mt-3">
+                                        <h6 className="text-danger"><i className="bi bi-x-circle me-2"></i>Failed Rows</h6>
+                                        <table className="modern-table">
+                                            <thead><tr><th>Row</th><th>Name</th><th>Reason</th></tr></thead>
+                                            <tbody>
+                                                {bulkResult.failed.map((item, idx) => (
+                                                    <tr key={idx}>
+                                                        <td>{item.row}</td>
+                                                        <td>{item.name || '-'}</td>
+                                                        <td className="text-danger">{item.reason}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* --- ADD / EDIT FORM VIEW --- */}
             {(viewMode === 'add' || viewMode === 'edit') ? (
                 <form className="add-employee-container fade-in" onSubmit={handleSubmit} encType="multipart/form-data">
 
-                    {/* Left Sidebar: Profile Photo & Basic Info */}
+                    {/* Left Sidebar */}
                     <div className="left-sidebar">
                         <div className="profile-upload-card">
                             <div className="avatar-preview">
@@ -272,18 +645,11 @@ function Employees() {
 
                             <div className="divider"></div>
 
-                            <div className="mini-info-row">
-                                <i className="bi bi-envelope"></i> <span>{formData.email || 'email@company.com'}</span>
-                            </div>
-                            <div className="mini-info-row">
-                                <i className="bi bi-telephone"></i> <span>{formData.contact || 'Contact No.'}</span>
-                            </div>
-                            <div className="mini-info-row">
-                                <i className="bi bi-geo-alt"></i> <span>{formData.address || 'Location'}</span>
-                            </div>
+                            <div className="mini-info-row"><i className="bi bi-envelope"></i> <span>{formData.email || 'email@company.com'}</span></div>
+                            <div className="mini-info-row"><i className="bi bi-telephone"></i> <span>{formData.contact || 'Contact No.'}</span></div>
+                            <div className="mini-info-row"><i className="bi bi-geo-alt"></i> <span>{formData.address || 'Location'}</span></div>
                         </div>
 
-                        {/* Quick Settings */}
                         <div className="form-section-card mt-3">
                             <h4>Quick Settings</h4>
                             <div className="input-group checkbox mt-2">
@@ -293,155 +659,320 @@ function Employees() {
                         </div>
                     </div>
 
-                    {/* Right Side: Form Sections */}
+                    {/* Right Side */}
                     <div className="right-form-area">
 
-                        {/* Personal Information */}
-                        <div className="form-section-card">
-                            <div className="d-flex justify-content-between align-items-center mb-3">
-                                <h4>Personal Information</h4>
-                                {viewMode === 'edit' && <span className="text-muted small"><i className="bi bi-pencil"></i> Editing Mode</span>}
-                            </div>
-                            <div className="form-row-grid">
-                                <div className="input-group"><label>First Name <span className="req">*</span></label><input type="text" name="firstName" value={formData.firstName} onChange={handleChange} required /></div>
-                                <div className="input-group"><label>Last Name <span className="req">*</span></label><input type="text" name="lastName" value={formData.lastName} onChange={handleChange} required /></div>
-                                <div className="input-group"><label>Email Address <span className="req">*</span></label><input type="email" name="email" value={formData.email} onChange={handleChange} required disabled={viewMode === 'edit'} /></div>
-                                <div className="input-group"><label>Contact Number <span className="req">*</span></label><input type="tel" name="contact" value={formData.contact} onChange={handleChange} required /></div>
-                                <div className="input-group full-width"><label>Address</label><input type="text" name="address" value={formData.address} onChange={handleChange} /></div>
-                            </div>
+                        {/* Form Tab Switcher */}
+                        <div className="form-tab-switcher">
+                            <button
+                                type="button"
+                                className={`form-tab-btn ${formTab === 'employee' ? 'active' : ''}`}
+                                onClick={() => setFormTab('employee')}
+                            >
+                                <i className="bi bi-person-fill me-2"></i>Employee Details
+                            </button>
+                            <button
+                                type="button"
+                                className={`form-tab-btn ${formTab === 'exit' ? 'active' : ''}`}
+                                onClick={() => setFormTab('exit')}
+                            >
+                                <i className="bi bi-box-arrow-right me-2"></i>Exit Details
+                            </button>
                         </div>
 
-                        {/* Employment Details */}
-                        <div className="form-section-card">
-                            <h4>Employment Details</h4>
-                            <div className="form-row-grid">
-                                <div className="input-group"><label>Employee ID <span className="req">*</span></label><input type="text" name="employeeId" value={formData.employeeId} onChange={handleChange} required /></div>
-                                <div className="input-group">
-                                    <label>Department</label>
-                                    <select name="department" value={formData.department} onChange={handleChange}>
-                                        <option value="" disabled>Select Department</option>
-                                        <option value="Development Team">Development</option>
-                                        <option value="SEO Team">SEO</option>
-                                        <option value="Content Team">Content</option>
-                                        <option value="Video Team">Video</option>
-                                        <option value="HR Team">HR</option>
-                                        <option value="Insurance Team">Insurance</option>
-                                        <option value="Graphic Team">Graphic Designing</option>
-                                        <option value="Accounts Team">Accounts</option>
-                                        <option value="Sales Team">Sales</option>
-                                        <option value="PR Team">PR</option>
-                                    </select>
+                        {/* ═══ TAB 1: Employee Details ═══ */}
+                        {formTab === 'employee' && (
+                            <>
+                                {/* Personal Information */}
+                                <div className="form-section-card">
+                                    <div className="d-flex justify-content-between align-items-center mb-3">
+                                        <h4>Personal Information</h4>
+                                        {viewMode === 'edit' && <span className="text-muted small"><i className="bi bi-pencil"></i> Editing Mode</span>}
+                                    </div>
+                                    <div className="form-row-grid">
+                                        <div className="input-group"><label>First Name <span className="req">*</span></label><input type="text" name="firstName" value={formData.firstName} onChange={handleChange} required /></div>
+                                        <div className="input-group"><label>Last Name <span className="req">*</span></label><input type="text" name="lastName" value={formData.lastName} onChange={handleChange} required /></div>
+                                        <div className="input-group"><label>Email Address <span className="req">*</span></label><input type="email" name="email" value={formData.email} onChange={handleChange} required disabled={viewMode === 'edit'} /></div>
+                                        <div className="input-group"><label>Personal Email</label><input type="email" name="personalEmail" value={formData.personalEmail} onChange={handleChange} placeholder="Personal email address" /></div>
+                                        <div className="input-group"><label>Contact Number <span className="req">*</span></label><input type="tel" name="contact" value={formData.contact} onChange={handleChange} required /></div>
+                                        <div className="input-group">
+                                            <label>Gender</label>
+                                            <select name="gender" value={formData.gender} onChange={handleChange}>
+                                                <option value="">Select Gender</option>
+                                                <option value="Male">Male</option>
+                                                <option value="Female">Female</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Marital Status</label>
+                                            <select name="maritalStatus" value={formData.maritalStatus} onChange={handleChange}>
+                                                <option value="">Select Status</option>
+                                                <option value="Single">Single</option>
+                                                <option value="Married">Married</option>
+                                                <option value="Divorced">Divorced</option>
+                                                <option value="Widowed">Widowed</option>
+                                            </select>
+                                        </div>
+                                        <div className="input-group"><label>Date of Birth</label><input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} /></div>
+                                        <div className="input-group"><label>Nationality</label><input type="text" name="nationality" value={formData.nationality} onChange={handleChange} placeholder="e.g. Indian" /></div>
+                                        <div className="input-group full-width"><label>Permanent Address</label><input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="Permanent address" /></div>
+                                        <div className="input-group full-width"><label>Current Address</label><input type="text" name="currentAddress" value={formData.currentAddress} onChange={handleChange} placeholder="Current address (if different)" /></div>
+                                    </div>
                                 </div>
-                                <div className="input-group"><label>Designation</label><input type="text" name="designation" value={formData.designation} onChange={handleChange} /></div>
-                                <div className="input-group"><label>Joining Date</label><input type="date" name="dateOfJoining" value={formData.dateOfJoining} onChange={handleChange} /></div>
-                                <div className="input-group">
-                                    <label>Employment Status</label>
-                                    <select name="status" value={formData.status} onChange={handleChange}>
-                                        <option value=" " disabled>Select Employee Type</option>
-                                        <option value="Full Time">Full Time</option>
-                                        <option value="Probation">Probation</option>
-                                        <option value="Internship">Internship</option>
-                                    </select>
-                                </div>
-                                <div className="input-group">
-                                    <label>Work Mode</label>
-                                    <select name="workMode" value={formData.workMode} onChange={handleChange}>
-                                        <option value="Work From Office">Work From Office</option>
-                                        <option value="Work From Home">Work From Home</option>
-                                        <option value="Hybrid">Hybrid</option>
-                                    </select>
-                                </div>
-                                <div className="input-group"><label>Base Salary</label><input type="number" name="baseSalary" value={formData.baseSalary} onChange={handleChange} /></div>
-                                <div className="input-group"><label>Password {viewMode === 'add' && <span className="req">*</span>}</label><input type="password" name="password" value={formData.password} onChange={handleChange} required={viewMode === 'add'} placeholder={viewMode === 'edit' ? "Leave empty to keep current" : ""} /></div>
-                            </div>
-                        </div>
 
-                        {/* ✅ NEW: Bank Details Section */}
-                        <div className="form-section-card">
-                            <h4><i className="bi bi-bank me-2"></i>Bank Details</h4>
-                            <div className="form-row-grid">
-                                <div className="input-group">
-                                    <label>Bank Name</label>
-                                    <input type="text" name="bankName" value={formData.bankName} onChange={handleChange} placeholder="e.g. State Bank of India" />
-                                </div>
-                                <div className="input-group">
-                                    <label>Account Number</label>
-                                    <input type="text" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleChange} placeholder="Enter account number" />
-                                </div>
-                                <div className="input-group">
-                                    <label>IFSC Code</label>
-                                    <input type="text" name="ifscCode" value={formData.ifscCode} onChange={handleChange} placeholder="e.g. SBIN0001234" style={{ textTransform: 'uppercase' }} />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* ✅ NEW: Emergency Contact Section */}
-                        <div className="form-section-card">
-                            <h4><i className="bi bi-telephone-plus me-2"></i>Emergency Contact</h4>
-                            <div className="form-row-grid">
-                                <div className="input-group">
-                                    <label>Contact Name</label>
-                                    <input type="text" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange} placeholder="Full name" />
-                                </div>
-                                <div className="input-group">
-                                    <label>Contact Phone</label>
-                                    <input type="tel" name="emergencyContactPhone" value={formData.emergencyContactPhone} onChange={handleChange} placeholder="Phone number" />
-                                </div>
-                                <div className="input-group">
-                                    <label>Relationship</label>
-                                    <select name="emergencyContactRelation" value={formData.emergencyContactRelation} onChange={handleChange}>
-                                        <option value="">Select Relationship</option>
-                                        <option value="Spouse">Spouse</option>
-                                        <option value="Parent">Parent</option>
-                                        <option value="Sibling">Sibling</option>
-                                        <option value="Child">Child</option>
-                                        <option value="Friend">Friend</option>
-                                        <option value="Other">Other</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Documents Upload */}
-                        <div className="form-section-card">
-                            <h4>Documents Upload</h4>
-                            <div className="documents-grid">
-                                {[
-                                    { label: "Aadhar Card", name: "adharCard" },
-                                    { label: "PAN Card", name: "panCard" },
-                                    { label: "Salary Slip", name: "salarySlip" },
-                                    { label: "Relieving Letter", name: "relievingLetter" },
-                                    { label: "Experience Letter", name: "experienceLetter" },
-                                    { label: "Offer Letter", name: "offerLetter" }
-                                ].map((doc) => (
-                                    <div className="file-upload-box" key={doc.name}>
-                                        <label>{doc.label}</label>
-                                        <div className={`file-input-wrapper ${existingDocs[doc.name] ? 'has-file' : ''}`}>
-                                            <input type="file" name={doc.name} onChange={handleFileChange} />
-                                            <div className="fake-btn">
-                                                <i className={`bi ${existingDocs[doc.name] && viewMode === 'edit' ? 'bi-check-circle-fill text-success' : 'bi-cloud-upload'}`}></i>
-                                                {viewMode === 'edit' ? (existingDocs[doc.name] ? ' Change File' : ' Upload File') : ' Choose File'}
-                                            </div>
-                                            <span className="file-name">
-                                                {formData[doc.name] ? formData[doc.name].name : (viewMode === 'edit' && existingDocs[doc.name] ? "Current File Uploaded" : "No file chosen")}
-                                            </span>
+                                {/* Identity Documents */}
+                                <div className="form-section-card">
+                                    <h4><i className="bi bi-person-vcard me-2"></i>Identity Details</h4>
+                                    <div className="form-row-grid">
+                                        <div className="input-group">
+                                            <label>PAN Number</label>
+                                            <input type="text" name="panNumber" value={formData.panNumber} onChange={handleChange} placeholder="e.g. ABCDE1234F" style={{ textTransform: 'uppercase' }} maxLength={10} />
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Aadhar Number</label>
+                                            <input type="text" name="aadharNumber" value={formData.aadharNumber} onChange={handleChange} placeholder="12-digit Aadhar number" maxLength={12} />
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        </div>
+                                </div>
 
-                        <div className="form-footer-actions">
-                            <button type="submit" className="btn-primary-add">{viewMode === 'add' ? 'Save Employee' : 'Update Changes'}</button>
-                        </div>
+                                {/* Employment Details */}
+                                <div className="form-section-card">
+                                    <h4>Employment Details</h4>
+                                    <div className="form-row-grid">
+                                        <div className="input-group"><label>Employee ID <span className="req">*</span></label><input type="text" name="employeeId" value={formData.employeeId} onChange={handleChange} required /></div>
+                                        <div className="input-group">
+                                            <label>Department</label>
+                                            <select name="department" value={formData.department} onChange={handleChange}>
+                                                <option value="" disabled>Select Department</option>
+                                                <option value="Development Team">Development</option>
+                                                <option value="SEO Team">SEO</option>
+                                                <option value="Content Team">Content</option>
+                                                <option value="Video Team">Video</option>
+                                                <option value="HR Team">HR</option>
+                                                <option value="Insurance Team">Insurance</option>
+                                                <option value="Graphic Team">Graphic Designing</option>
+                                                <option value="Accounts Team">Accounts</option>
+                                                <option value="Sales Team">Sales</option>
+                                                <option value="PR Team">PR</option>
+                                            </select>
+                                        </div>
+                                        <div className="input-group"><label>Designation</label><input type="text" name="designation" value={formData.designation} onChange={handleChange} /></div>
+                                        <div className="input-group"><label>Joining Date</label><input type="date" name="dateOfJoining" value={formData.dateOfJoining} onChange={handleChange} /></div>
+                                        <div className="input-group"><label>Last Working Day</label><input type="date" name="lastWorkingDay" value={formData.lastWorkingDay} onChange={handleChange} /></div>
+                                        <div className="input-group">
+                                            <label>Employment Status</label>
+                                            <select name="status" value={formData.status} onChange={handleChange}>
+                                                <option value="" disabled>Select Employee Type</option>
+                                                <option value="Full Time">Full Time</option>
+                                                <option value="Internship">Internship</option>
+                                            </select>
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Period Type</label>
+                                            <select name="periodType" value={formData.periodType} onChange={handleChange}>
+                                                <option value="" disabled>Select Period Type</option>
+                                                <option value="Probation">Probation</option>
+                                                <option value="Permanent">Permanent</option>
+                                                <option value="Contractual">Contractual</option>
+                                            </select>
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Work Mode</label>
+                                            <select name="workMode" value={formData.workMode} onChange={handleChange}>
+                                                <option value="Work From Office">Work From Office</option>
+                                                <option value="Work From Home">Work From Home</option>
+                                                <option value="Hybrid">Hybrid</option>
+                                            </select>
+                                        </div>
+                                        <div className="input-group"><label>Base Salary</label><input type="number" name="baseSalary" value={formData.baseSalary} onChange={handleChange} /></div>
+                                        <div className="input-group"><label>Password {viewMode === 'add' && <span className="req">*</span>}</label><input type="password" name="password" value={formData.password} onChange={handleChange} required={viewMode === 'add'} placeholder={viewMode === 'edit' ? "Leave empty to keep current" : ""} /></div>
+                                    </div>
+                                </div>
+
+                                {/* Bank Details */}
+                                <div className="form-section-card">
+                                    <h4><i className="bi bi-bank me-2"></i>Bank Details</h4>
+                                    <div className="form-row-grid">
+                                        <div className="input-group"><label>Bank Name</label><input type="text" name="bankName" value={formData.bankName} onChange={handleChange} placeholder="e.g. State Bank of India" /></div>
+                                        <div className="input-group"><label>Account Number</label><input type="text" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleChange} placeholder="Enter account number" /></div>
+                                        <div className="input-group"><label>IFSC Code</label><input type="text" name="ifscCode" value={formData.ifscCode} onChange={handleChange} placeholder="e.g. SBIN0001234" style={{ textTransform: 'uppercase' }} /></div>
+                                    </div>
+                                </div>
+
+                                {/* Emergency Contact */}
+                                <div className="form-section-card">
+                                    <h4><i className="bi bi-telephone-plus me-2"></i>Emergency Contact</h4>
+                                    <div className="form-row-grid">
+                                        <div className="input-group"><label>Contact Name</label><input type="text" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange} placeholder="Full name" /></div>
+                                        <div className="input-group"><label>Contact Phone</label><input type="tel" name="emergencyContactPhone" value={formData.emergencyContactPhone} onChange={handleChange} placeholder="Phone number" /></div>
+                                        <div className="input-group">
+                                            <label>Relationship</label>
+                                            <select name="emergencyContactRelation" value={formData.emergencyContactRelation} onChange={handleChange}>
+                                                <option value="">Select Relationship</option>
+                                                <option value="Spouse">Spouse</option>
+                                                <option value="Parent">Parent</option>
+                                                <option value="Sibling">Sibling</option>
+                                                <option value="Child">Child</option>
+                                                <option value="Friend">Friend</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Documents Upload */}
+                                <div className="form-section-card">
+                                    <h4>Documents Upload</h4>
+                                    <div className="documents-grid">
+                                        {[
+                                            { label: "Aadhar Card", name: "adharCard" },
+                                            { label: "PAN Card", name: "panCard" },
+                                            { label: "Salary Slip", name: "salarySlip" },
+                                            { label: "Relieving Letter", name: "relievingLetter" },
+                                            { label: "Experience Letter", name: "experienceLetter" },
+                                            { label: "Offer Letter", name: "offerLetter" }
+                                        ].map((doc) => (
+                                            <div className="file-upload-box" key={doc.name}>
+                                                <label>{doc.label}</label>
+                                                <div className={`file-input-wrapper ${existingDocs[doc.name] ? 'has-file' : ''}`}>
+                                                    <input type="file" name={doc.name} onChange={handleFileChange} />
+                                                    <div className="fake-btn">
+                                                        <i className={`bi ${existingDocs[doc.name] && viewMode === 'edit' ? 'bi-check-circle-fill text-success' : 'bi-cloud-upload'}`}></i>
+                                                        {viewMode === 'edit' ? (existingDocs[doc.name] ? ' Change File' : ' Upload File') : ' Choose File'}
+                                                    </div>
+                                                    <span className="file-name">
+                                                        {formData[doc.name] ? formData[doc.name].name : (viewMode === 'edit' && existingDocs[doc.name] ? "Current File Uploaded" : "No file chosen")}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="form-footer-actions">
+                                    <button type="button" className="btn-secondary-add" onClick={() => setFormTab('exit')}>
+                                        Next: Exit Details <i className="bi bi-arrow-right ms-2"></i>
+                                    </button>
+                                    <button type="submit" className="btn-primary-add">{viewMode === 'add' ? 'Save Employee' : 'Update Changes'}</button>
+                                </div>
+                            </>
+                        )}
+
+                        {/* ═══ TAB 2: Exit Details ═══ */}
+                        {formTab === 'exit' && (
+                            <>
+                                <div className="form-section-card">
+                                    <div className="exit-details-header">
+                                        <div>
+                                            <h4><i className="bi bi-box-arrow-right me-2 text-warning"></i>Exit Details</h4>
+                                            <p className="text-muted small mb-0">This section is optional. Fill exit/relieving details of the employee.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="form-row-grid mt-3">
+                                        <div className="input-group">
+                                            <label>Employee Name</label>
+                                            <input type="text" name="employeeName" value={prevEmpData.employeeName} onChange={handlePrevEmpChange} placeholder="Full name in previous company" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Department</label>
+                                            <input type="text" name="department" value={prevEmpData.department} onChange={handlePrevEmpChange} placeholder="Department in last company" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Designation</label>
+                                            <input type="text" name="designation" value={prevEmpData.designation} onChange={handlePrevEmpChange} placeholder="Designation in last company" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Joining Date</label>
+                                            <input type="date" name="joiningDate" value={prevEmpData.joiningDate} onChange={handlePrevEmpChange} />
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Last Working Day (LWD)</label>
+                                            <input type="date" name="lastWorkingDay" value={prevEmpData.lastWorkingDay} onChange={handlePrevEmpChange} />
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Exit Type</label>
+                                            <select name="exitType" value={prevEmpData.exitType} onChange={handlePrevEmpChange}>
+                                                <option value="">Select Exit Type</option>
+                                                <option value="Resignation">Resignation</option>
+                                                <option value="Termination">Termination</option>
+                                                <option value="Retirement">Retirement</option>
+                                                <option value="Contract End">Contract End</option>
+                                                <option value="Layoff">Layoff</option>
+                                                <option value="Absconding">Absconding</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+                                        <div className="input-group full-width">
+                                            <label>Reason for Exit</label>
+                                            <input type="text" name="reasonForExit" value={prevEmpData.reasonForExit} onChange={handlePrevEmpChange} placeholder="e.g. Better opportunity, Personal reasons" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Manager / Supervisor Name</label>
+                                            <input type="text" name="managerName" value={prevEmpData.managerName} onChange={handlePrevEmpChange} placeholder="Reporting manager name" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Notice Period Served</label>
+                                            <select name="noticePeriodServed" value={prevEmpData.noticePeriodServed} onChange={handlePrevEmpChange}>
+                                                <option value="">Select</option>
+                                                <option value="Yes">Yes</option>
+                                                <option value="No">No</option>
+                                                <option value="Partial">Partial</option>
+                                            </select>
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Final Settlement Done</label>
+                                            <select name="finalSettlementDone" value={prevEmpData.finalSettlementDone} onChange={handlePrevEmpChange}>
+                                                <option value="">Select</option>
+                                                <option value="Yes">Yes</option>
+                                                <option value="No">No</option>
+                                                <option value="Pending">Pending</option>
+                                            </select>
+                                        </div>
+                                        <div className="input-group">
+                                            <label>FnF Date (Full &amp; Final Settlement)</label>
+                                            <input type="date" name="fnfDate" value={prevEmpData.fnfDate} onChange={handlePrevEmpChange} />
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Exit Interview Date</label>
+                                            <input type="date" name="exitInterviewDate" value={prevEmpData.exitInterviewDate} onChange={handlePrevEmpChange} />
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Company Assets Returned</label>
+                                            <select name="companyAssetsReturned" value={prevEmpData.companyAssetsReturned} onChange={handlePrevEmpChange}>
+                                                <option value="">Select</option>
+                                                <option value="Yes">Yes</option>
+                                                <option value="No">No</option>
+                                                <option value="Partial">Partial</option>
+                                            </select>
+                                        </div>
+                                        <div className="input-group">
+                                            <label>HR Representative</label>
+                                            <input type="text" name="hrRepresentative" value={prevEmpData.hrRepresentative} onChange={handlePrevEmpChange} placeholder="HR person who handled exit" />
+                                        </div>
+                                        <div className="input-group full-width">
+                                            <label>Remarks</label>
+                                            <input type="text" name="remarks" value={prevEmpData.remarks} onChange={handlePrevEmpChange} placeholder="Any additional notes" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="form-footer-actions">
+                                    <button type="button" className="btn-secondary-add" onClick={() => setFormTab('employee')}>
+                                        <i className="bi bi-arrow-left me-2"></i>Back: Employee Details
+                                    </button>
+                                    <button type="submit" className="btn-primary-add">{viewMode === 'add' ? 'Save Employee' : 'Update Changes'}</button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </form>
-            ) : (
+            ) : viewMode !== 'bulk' ? (
                 /* --- NORMAL VIEW (Grid/List) --- */
                 <>
                     <div className="filter-bar">
                         <div className="search-wrapper"><i className="bi bi-search search-icon"></i><input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div>
-                        <button className="btn-icon-filter" onClick={handleResetFilters}><i className="bi bi-funnel"></i> Filter</button>
                         <div className="view-toggles">
                             <button className={`toggle-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')}><i className="bi bi-grid-fill"></i></button>
                             <button className={`toggle-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')}><i className="bi bi-list-ul"></i></button>
@@ -506,7 +1037,7 @@ function Employees() {
                         </div>
                     )}
                 </>
-            )}
+            ) : null}
         </div>
     );
 }
