@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'react-bootstrap-icons';
+import LeaveImportExport from './LeaveImportExport';
 
 function Leave() {
 
@@ -550,6 +551,7 @@ function Leave() {
           <h1>Leave Management</h1>
           <p>Track and manage employee leave requests</p>
         </div>
+        <LeaveImportExport />
         <div className="header-actions">
           {user?.role !== 'admin' && (
             <button className="btn-apply-main" onClick={() => {

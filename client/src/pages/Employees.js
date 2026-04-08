@@ -34,12 +34,13 @@ function Employees() {
 
     // Search & Filter
     const [searchQuery, setSearchQuery] = useState('');
+    const [activeFilter, setActiveFilter] = useState('active'); // 'active' | 'inactive'
 
     // Bulk Import State
     const [bulkFile, setBulkFile] = useState(null);
     const [bulkLoading, setBulkLoading] = useState(false);
     const [bulkResult, setBulkResult] = useState(null);
-    const [savedBulkFile, setSavedBulkFile] = useState(null); // filename returned from server
+    const [savedBulkFile, setSavedBulkFile] = useState(null);
     const [bulkTab, setBulkTab] = useState('sheet1'); // 'sheet1' | 'sheet2'
     const bulkFileRef = useRef(null);
 
@@ -147,7 +148,6 @@ function Employees() {
             relievingLetter: null, experienceLetter: null, offerLetter: null, profilePhoto: null
         });
 
-        // Load previous employment data if available
         if (employee.previousEmployment) {
             const pe = employee.previousEmployment;
             setPrevEmpData({
@@ -227,7 +227,6 @@ function Employees() {
 
             data.append('isActive', formData.isActive.toString());
 
-            // Append previous employment as JSON string
             const hasPrevEmpData = Object.values(prevEmpData).some(v => v !== '');
             if (hasPrevEmpData) {
                 data.append('prevEmp', JSON.stringify(prevEmpData));
@@ -333,7 +332,6 @@ function Employees() {
     };
 
     const handleDownloadTemplate = () => {
-        // Template now has 2 sheets info in description
         const sheet1Headers = [
             'Employee ID', 'DATE OF JOINING', 'Name', 'Department', 'Designation',
             'Employee Type', 'Contact Number', 'Email', 'Date of Birth',
@@ -382,13 +380,22 @@ function Employees() {
         }
     }, [successMessage, errorMessage]);
 
+    // ── Filtered employees: active/inactive + search ──────────────────────────
+    const activeCount   = useMemo(() => employees.filter(e =>  e.isActive).length, [employees]);
+    const inactiveCount = useMemo(() => employees.filter(e => !e.isActive).length, [employees]);
+
     const filteredEmployees = useMemo(() => {
         return employees.filter((emp) => {
+            // Active / Inactive filter
+            if (activeFilter === 'active'   && !emp.isActive) return false;
+            if (activeFilter === 'inactive' &&  emp.isActive) return false;
+
+            // Search filter
             const searchLower = searchQuery.toLowerCase();
             const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
             return fullName.includes(searchLower) || emp.email.toLowerCase().includes(searchLower);
         });
-    }, [employees, searchQuery]);
+    }, [employees, searchQuery, activeFilter]);
 
     const getAvatarColor = (name) => {
         const colors = ['#1e3a8a', '#2563eb', '#1d4ed8', '#1e40af'];
@@ -971,21 +978,68 @@ function Employees() {
             ) : viewMode !== 'bulk' ? (
                 /* --- NORMAL VIEW (Grid/List) --- */
                 <>
+                    {/* ── Filter Bar ── */}
                     <div className="filter-bar">
-                        <div className="search-wrapper"><i className="bi bi-search search-icon"></i><input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div>
+                        <div className="search-wrapper">
+                            <i className="bi bi-search search-icon"></i>
+                            <input
+                                type="text"
+                                placeholder="Search by name or email..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Active / Inactive Toggle */}
+                        <div className="active-filter-toggle">
+                            <button
+                                className={`active-filter-btn ${activeFilter === 'active' ? 'selected active-selected' : ''}`}
+                                onClick={() => setActiveFilter('active')}
+                            >
+                                <span className="filter-dot active-dot"></span>
+                                Active
+                                <span className="filter-count">{activeCount}</span>
+                            </button>
+                            <button
+                                className={`active-filter-btn ${activeFilter === 'inactive' ? 'selected inactive-selected' : ''}`}
+                                onClick={() => setActiveFilter('inactive')}
+                            >
+                                <span className="filter-dot inactive-dot"></span>
+                                Inactive
+                                <span className="filter-count">{inactiveCount}</span>
+                            </button>
+                        </div>
+
                         <div className="view-toggles">
                             <button className={`toggle-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')}><i className="bi bi-grid-fill"></i></button>
                             <button className={`toggle-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')}><i className="bi bi-list-ul"></i></button>
                         </div>
                     </div>
 
-                    {viewMode === 'grid' ? (
+                    {/* Empty state */}
+                    {filteredEmployees.length === 0 && (
+                        <div className="empty-state">
+                            <div className="empty-state-icon">
+                                {activeFilter === 'inactive' ? '😴' : '👥'}
+                            </div>
+                            <h3>No {activeFilter === 'inactive' ? 'Inactive' : 'Active'} Employees Found</h3>
+                            <p>
+                                {searchQuery
+                                    ? `No results for "${searchQuery}". Try a different search.`
+                                    : activeFilter === 'inactive'
+                                    ? 'All employees are currently active.'
+                                    : 'No active employees found.'}
+                            </p>
+                        </div>
+                    )}
+
+                    {viewMode === 'grid' && filteredEmployees.length > 0 ? (
                         <div className="employees-grid">
                             {filteredEmployees.map((emp) => (
-                                <div className="employee-card" key={emp._id}>
+                                <div className={`employee-card ${!emp.isActive ? 'inactive-card' : ''}`} key={emp._id}>
                                     <div className="card-header-part">
                                         <div className="d-flex align-items-center gap-3">
-                                            <div className="avatar" style={{ backgroundColor: getAvatarColor(emp.firstName) }}>{emp.firstName[0]}</div>
+                                            <div className="avatar" style={{ backgroundColor: emp.isActive ? getAvatarColor(emp.firstName) : '#9ca3af' }}>{emp.firstName[0]}</div>
                                             <div className="text-info"><h3>{emp.firstName} {emp.lastName}</h3><p className="role">{emp.designation || 'Employee'}</p></div>
                                         </div>
                                         {(user?.role === 'admin' || user?.role === 'hr') && (
@@ -998,28 +1052,43 @@ function Employees() {
                                         <div className="contact-row"><i className="bi bi-laptop"></i> <span>{emp.workMode || 'Work From Office'}</span></div>
                                     </div>
                                     <div className="card-footer-part">
-                                        <span className={`status-badge ${emp.isActive ? 'confirmed' : 'inactive'}`}>{emp.status}</span>
+                                        <span className={`status-badge ${emp.isActive ? 'confirmed' : 'inactive'}`}>
+                                            {emp.isActive ? emp.status : 'Inactive'}
+                                        </span>
                                         <button className="view-profile-link" onClick={() => navigate(`/EmployeeDetails/${emp._id}`)}>View Profile <i className="bi bi-arrow-up-right"></i></button>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                    ) : (
+                    ) : viewMode === 'list' && filteredEmployees.length > 0 ? (
                         <div className="table-card">
                             <table className="modern-table">
-                                <thead><tr><th>EMPLOYEE</th><th>DEPARTMENT</th><th>WORK MODE</th><th>STATUS</th><th>JOIN DATE</th><th className="text-end">ACTIONS</th></tr></thead>
+                                <thead>
+                                    <tr>
+                                        <th>EMPLOYEE</th>
+                                        <th>DEPARTMENT</th>
+                                        <th>WORK MODE</th>
+                                        <th>STATUS</th>
+                                        <th>JOIN DATE</th>
+                                        <th className="text-end">ACTIONS</th>
+                                    </tr>
+                                </thead>
                                 <tbody>
                                     {filteredEmployees.map((emp) => (
-                                        <tr key={emp._id}>
+                                        <tr key={emp._id} className={!emp.isActive ? 'inactive-row' : ''}>
                                             <td>
                                                 <div className="profile-cell">
-                                                    <div className="avatar" style={{ backgroundColor: getAvatarColor(emp.firstName) }}>{emp.firstName[0]}</div>
+                                                    <div className="avatar" style={{ backgroundColor: emp.isActive ? getAvatarColor(emp.firstName) : '#9ca3af' }}>{emp.firstName[0]}</div>
                                                     <div className="info"><span className="name">{emp.firstName} {emp.lastName}</span><span className="role">{emp.designation}</span></div>
                                                 </div>
                                             </td>
                                             <td className="text-secondary">{emp.department || '-'}</td>
                                             <td className="text-secondary">{emp.workMode || 'WFO'}</td>
-                                            <td><span className={`status-pill ${emp.isActive ? 'active' : 'inactive'}`}>{emp.status}</span></td>
+                                            <td>
+                                                <span className={`status-pill ${emp.isActive ? 'active' : 'inactive'}`}>
+                                                    {emp.isActive ? emp.status : 'Inactive'}
+                                                </span>
+                                            </td>
                                             <td className="text-secondary">{emp.dateOfJoining ? new Date(emp.dateOfJoining).toLocaleDateString('en-GB') : '-'}</td>
                                             <td className="text-end action-cell-flex">
                                                 <button className="btn-link-action me-3" onClick={() => navigate(`/EmployeeDetails/${emp._id}`)}>View <i className="bi bi-arrow-up-right ms-1"></i></button>
@@ -1035,7 +1104,7 @@ function Employees() {
                                 </tbody>
                             </table>
                         </div>
-                    )}
+                    ) : null}
                 </>
             ) : null}
         </div>

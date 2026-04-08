@@ -35,6 +35,9 @@ const leaveSchema = new mongoose.Schema({
     enum:    ['pending', 'approved', 'rejected', 'left'],
     default: 'pending'
   },
+  
+  // Medical document
+  medicalDocumentSubmitted: { type: Boolean, default: false },
 
   // Approval info
   approvedBy:      { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
