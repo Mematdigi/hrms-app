@@ -15,6 +15,8 @@ const payrollRoutes      = require('./payrollRoutes');
 const performanceRoutes  = require('./performanceRoutes');
 const roleRoutes         = require('./roleRoutes');
 const notificationRoutes = require('./notificationRoutes'); // ✅ ADD THIS
+const officeDocument = require('./officeDocumentRoutes'); // ✅ ADD THIS
+const personalDocument = require('./personalDocumentRoutes'); // ✅ ADD THIS
 
 // Mount all v1 routes here
 const defaultRoutes = [
@@ -27,6 +29,8 @@ const defaultRoutes = [
   { path: '/roles',         route: roleRoutes },
   { path: '/holidays',      route: require('./holidayRoutes') },
   { path: '/notifications', route: notificationRoutes }, // ✅ ADD THIS
+  { path: '/office-documents', route: officeDocument }, // ✅ ADD THIS
+  { path: '/personal-documents', route: personalDocument }, // ✅ ADD THIS
 ];
 
 defaultRoutes.forEach(({ path, route }) => router.use(path, route));

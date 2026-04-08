@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-// const API_BASE_URL = 'https://hrms-app-wtlz.onrender.com/v1';
-const API_BASE_URL = 'http://localhost:5000/v1';
+const API_BASE_URL = 'https://hrms-app-wtlz.onrender.com/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -16,9 +15,9 @@ api.interceptors.request.use((config) => {
 });
 
 export const authAPI = {
-  register: (data) => api.post('/auth/register', data),
-  login:    (data) => api.post('/auth/login', data),
-  getProfile: ()   => api.get('/auth/profile'),
+  register:   (data) => api.post('/auth/register', data),
+  login:      (data) => api.post('/auth/login', data),
+  getProfile: ()     => api.get('/auth/profile'),
 };
 
 export const employeeAPI = {
@@ -53,44 +52,35 @@ export const attendanceAPI = {
 };
 
 export const leaveAPI = {
-  apply:       (data)       => api.post('/leave/apply', data),
-  getRequests: (params)     => api.get('/leave/requests', { params }),
-  getPending:  (params)     => api.get('/leave/pending', { params }),
-  getStats:    ()           => api.get('/leave/stats'),
-  approve:     (data)       => api.put('/leave/approve', data),
-  reject:      (data)       => api.put('/leave/reject', data),
-  getDefaults: ()           => api.get('/leave/defaults'),
-  updateDefaults: (data)    => api.put('/leave/defaults', data),
-  getBalances: (employeeId) => api.get(`/leave/balances/${employeeId}`),
-
-  // ── Bulk leave import ──────────────────────────────────────────────────
-  /** Download the blank .xlsx template */
-  downloadTemplate: () =>
-    api.get('/leave/bulk/template', { responseType: 'blob' }),
-
-  /** Upload a filled .xlsx file — formData must contain field "leaveFile" */
-  bulkUpload: (formData) =>
-    api.post('/leave/bulk/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }),
-
-  /** HR: get all leaves with optional filters */
+  apply:          (data)       => api.post('/leave/apply', data),
+  getRequests:    (params)     => api.get('/leave/requests', { params }),
+  getPending:     (params)     => api.get('/leave/pending', { params }),
+  getStats:       ()           => api.get('/leave/stats'),
+  approve:        (data)       => api.put('/leave/approve', data),
+  reject:         (data)       => api.put('/leave/reject', data),
+  getDefaults:    ()           => api.get('/leave/defaults'),
+  updateDefaults: (data)       => api.put('/leave/defaults', data),
+  getBalances:    (employeeId) => api.get(`/leave/balances/${employeeId}`),
+  downloadTemplate: ()         => api.get('/leave/bulk/template', { responseType: 'blob' }),
+  bulkUpload: (formData)       => api.post('/leave/bulk/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
   getAllHR: (params) => api.get('/leave/hr/all', { params }),
 };
 
 export const payrollAPI = {
-  generate:         (data)      => api.post('/payroll/generate', data),
-  generateAll:      (data)      => api.post('/payroll/generate-all', data),
-  getPayroll:       (params)    => api.get('/payroll', { params }),
-  getBreakdown:     (payrollId) => api.get(`/payroll/breakdown/${payrollId}`),
-  process:          (data)      => api.post('/payroll/process', data),
-  pay:              (data)      => api.post('/payroll/pay', data),
-  requestDownload:  (data)      => api.post('/payroll/download-requests', data),
-  getMyDownloadRequests:    ()  => api.get('/payroll/download-requests/my'),
-  checkDownloadPermission:  (payrollId) => api.get(`/payroll/download-requests/check/${payrollId}`),
-  getPendingDownloadRequests: (params)  => api.get('/payroll/download-requests', { params }),
-  approveDownloadRequest: (data)        => api.post('/payroll/download-requests/approve', data),
-  rejectDownloadRequest:  (data)        => api.post('/payroll/download-requests/reject', data),
+  generate:                   (data)      => api.post('/payroll/generate', data),
+  generateAll:                (data)      => api.post('/payroll/generate-all', data),
+  getPayroll:                 (params)    => api.get('/payroll', { params }),
+  getBreakdown:               (payrollId) => api.get(`/payroll/breakdown/${payrollId}`),
+  process:                    (data)      => api.post('/payroll/process', data),
+  pay:                        (data)      => api.post('/payroll/pay', data),
+  requestDownload:            (data)      => api.post('/payroll/download-requests', data),
+  getMyDownloadRequests:      ()          => api.get('/payroll/download-requests/my'),
+  checkDownloadPermission:    (payrollId) => api.get(`/payroll/download-requests/check/${payrollId}`),
+  getPendingDownloadRequests: (params)    => api.get('/payroll/download-requests', { params }),
+  approveDownloadRequest:     (data)      => api.post('/payroll/download-requests/approve', data),
+  rejectDownloadRequest:      (data)      => api.post('/payroll/download-requests/reject', data),
 };
 
 export const performanceAPI = {
@@ -101,16 +91,16 @@ export const performanceAPI = {
 };
 
 export const holidayAPI = {
-  getAll:     (params)     => api.get('/holidays', { params }),
-  getById:    (id)         => api.get(`/holidays/${id}`),
-  create:     (data)       => api.post('/holidays', data),
-  bulkCreate: (formData)   => api.post('/holidays/bulk', formData, {
+  getAll:     (params)   => api.get('/holidays', { params }),
+  getById:    (id)       => api.get(`/holidays/${id}`),
+  create:     (data)     => api.post('/holidays', data),
+  bulkCreate: (formData) => api.post('/holidays/bulk', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
-  update:   (id, data)   => api.put(`/holidays/${id}`, data),
-  delete:   (id)         => api.delete(`/holidays/${id}`),
-  check:    (date)       => api.get('/holidays/check', { params: { date } }),
-  getStats: (year)       => api.get('/holidays/stats', { params: { year } }),
+  update:   (id, data) => api.put(`/holidays/${id}`, data),
+  delete:   (id)       => api.delete(`/holidays/${id}`),
+  check:    (date)     => api.get('/holidays/check', { params: { date } }),
+  getStats: (year)     => api.get('/holidays/stats', { params: { year } }),
 };
 
 export const notificationAPI = {
@@ -120,6 +110,46 @@ export const notificationAPI = {
   markAllRead:    ()       => api.put('/notifications/mark-all-read'),
   deleteOne:      (id)     => api.delete(`/notifications/${id}`),
   clearAll:       ()       => api.delete('/notifications/clear-all'),
+};
+
+// ── Office Documents (company-wide, admin/HR manages) ─────────────────────────
+export const officeDocumentAPI = {
+  /** Get all documents with optional filters: { category, department, search, isActive } */
+  getAll:    (params) => api.get('/office-documents', { params }),
+  getById:   (id)     => api.get(`/office-documents/${id}`),
+  getStats:  ()       => api.get('/office-documents/stats'),
+  create:    (formData) => api.post('/office-documents', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  update: (id, formData) => api.put(`/office-documents/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  delete:   (id) => api.delete(`/office-documents/${id}`),
+  /** Download — triggers browser "Save As" dialog (responseType: blob) */
+  download: (id) => api.get(`/office-documents/${id}/download`, { responseType: 'blob' }),
+  /** Preview — for rendering in browser (PDF/images), responseType: blob */
+  preview:  (id) => api.get(`/office-documents/${id}/preview`,  { responseType: 'blob' }),
+};
+
+// ── Personal Documents (private per-employee storage) ─────────────────────────
+// Each user can only see their OWN documents.
+// Even admin/HR cannot browse another employee's personal docs via the frontend.
+export const personalDocumentAPI = {
+  /** Get current user's documents. Optional filters: { category, search } */
+  getAll:   (params) => api.get('/personal-documents', { params }),
+  getById:  (id)     => api.get(`/personal-documents/${id}`),
+  getStats: ()       => api.get('/personal-documents/stats'),
+  create:   (formData) => api.post('/personal-documents', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  update: (id, formData) => api.put(`/personal-documents/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  delete:   (id) => api.delete(`/personal-documents/${id}`),
+  /** Download — triggers browser "Save As" dialog (responseType: blob) */
+  download: (id) => api.get(`/personal-documents/${id}/download`, { responseType: 'blob' }),
+  /** Preview — for rendering in browser (PDF/images), responseType: blob */
+  preview:  (id) => api.get(`/personal-documents/${id}/preview`,  { responseType: 'blob' }),
 };
 
 export default api;

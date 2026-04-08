@@ -224,6 +224,7 @@ const Navbar = () => {
     if (l.includes('dashboard'))   return 'bi-grid-fill';
     if (l.includes('attendance'))  return 'bi-clock';
     if (l.includes('leave'))       return 'bi-calendar-event';
+    if (l.includes('office document')) return 'bi-file-earmark-text';
     if (l.includes('payroll'))     return 'bi-currency-dollar';
     if (l.includes('employee'))    return 'bi-people';
     if (l.includes('document'))    return 'bi-file-earmark-text';
@@ -236,10 +237,10 @@ const Navbar = () => {
   const getMenuItems = () => {
     const base    = [{ label: 'Dashboard', path: '/dashboard' }];
     const profile = { label: 'Profile',   path: '/profile-settings' };
-    if (user?.role === 'admin')    return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' }, { label: 'Payroll', path: '/payroll' }, { label: 'Employees', path: '/employees' }, { label: 'Roles', path: '/roles' }, profile];
-    if (user?.role === 'hr')       return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' }, { label: 'Payroll', path: '/payroll' }, { label: 'Employees', path: '/employees' }, profile];
-    if (user?.role === 'manager')  return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' }, { label: 'Employees', path: '/employees' }, { label: 'Payroll', path: '/payroll' }, profile];
-    if (user?.role === 'employee') return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' }, { label: 'Payroll', path: '/payroll' }, profile];
+    if (user?.role === 'admin')    return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' },{ label: 'Office Documents', path: '/office-document-upload' }, { label: 'Payroll', path: '/payroll' }, { label: 'Employees', path: '/employees' }, { label: 'Roles', path: '/roles' }, profile];
+    if (user?.role === 'hr')       return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' },{ label: 'Office Documents', path: '/office-document-upload' }, { label: 'Payroll', path: '/payroll' }, { label: 'Employees', path: '/employees' }, profile];
+    if (user?.role === 'manager')  return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' },{ label: 'Office Documents', path: '/office-document-upload' }, { label: 'Employees', path: '/employees' }, { label: 'Payroll', path: '/payroll' }, profile];
+    if (user?.role === 'employee') return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' },{ label: 'Office Documents', path: '/office-document-upload' }, { label: 'Payroll', path: '/payroll' }, profile];
     return base;
   };
 
