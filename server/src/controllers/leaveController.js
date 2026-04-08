@@ -1,16 +1,18 @@
-const Leave        = require('../models/Leave');
+const Leave = require('../models/Leave');
 const LeaveBalance = require('../models/LeaveBalance');
-const LeaveDefaults= require('../models/LeaveDefaults');
-const User         = require('../models/User');
-const Payroll      = require('../models/Payroll');
-const nodemailer   = require('nodemailer');
+const LeaveDefaults = require('../models/LeaveDefaults');
+const User = require('../models/User');
+const Payroll = require('../models/Payroll');
+const nodemailer = require('nodemailer');
 const { createNotification, notifyAllHR } = require('./Notificationcontroller');
+const xlsx = require('xlsx');
+const Employee = require('../models/Employee');
 
 // ─── Email Transporter ────────────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER     || 'your-email@gmail.com',
+    user: process.env.EMAIL_USER || 'your-email@gmail.com',
     pass: process.env.EMAIL_PASSWORD || 'your-app-password'
   }
 });
@@ -18,7 +20,7 @@ const transporter = nodemailer.createTransport({
 const sendMail = (options) => {
   transporter.sendMail(options, (err, info) => {
     if (err) console.error('Email error:', err.message);
-    else     console.log('Email sent:', info.response);
+    else console.log('Email sent:', info.response);
   });
 };
 
@@ -29,14 +31,14 @@ const getOrCreateLeaveBalance = async (employeeId, year) => {
 
   if (!balance) {
     balance = await LeaveBalance.create({
-      employee:       employeeId,
+      employee: employeeId,
       year,
-      casualTotal:    defaults?.casualDefault   ?? 8,
-      sickTotal:      defaults?.sickDefault     ?? 6,
-      earnedTotal:    defaults?.earnedDefault   ?? 14,
-      maternityTotal: defaults?.maternityDefault?? 90,
-      paternityTotal: defaults?.paternityDefault?? 15,
-      shortLeaveTotal:defaults?.shortLeaveTotal ?? 3,
+      casualTotal: defaults?.casualDefault ?? 8,
+      sickTotal: defaults?.sickDefault ?? 6,
+      earnedTotal: defaults?.earnedDefault ?? 14,
+      maternityTotal: defaults?.maternityDefault ?? 90,
+      paternityTotal: defaults?.paternityDefault ?? 15,
+      shortLeaveTotal: defaults?.shortLeaveTotal ?? 3,
     });
   }
   return balance;
@@ -49,25 +51,25 @@ const getOrCreateLeaveBalance = async (employeeId, year) => {
  * Short leaves are counted separately by month.
  */
 const computeUsedLeaves = async (employeeId, year) => {
-  const yearStart = new Date(year,  0,  1, 0,  0,  0);
-  const yearEnd   = new Date(year, 11, 31, 23, 59, 59);
+  const yearStart = new Date(year, 0, 1, 0, 0, 0);
+  const yearEnd = new Date(year, 11, 31, 23, 59, 59);
 
   // Aggregate approved leaves for this year
   const agg = await Leave.aggregate([
     {
       $match: {
-        employee:  require('mongoose').Types.ObjectId.createFromHexString
+        employee: require('mongoose').Types.ObjectId.createFromHexString
           ? require('mongoose').Types.ObjectId.createFromHexString(String(employeeId))
           : new (require('mongoose').Types.ObjectId)(String(employeeId)),
-        status:    'approved',
+        status: 'approved',
         startDate: { $gte: yearStart, $lte: yearEnd }
       }
     },
     {
       $group: {
-        _id:      '$leaveType',
-        totalDays:{ $sum: '$numberOfDays' },
-        count:    { $sum: 1 }
+        _id: '$leaveType',
+        totalDays: { $sum: '$numberOfDays' },
+        count: { $sum: 1 }
       }
     }
   ]);
@@ -85,14 +87,14 @@ const computeUsedLeaves = async (employeeId, year) => {
 
 // ─── Helper: compute short leaves used THIS MONTH ────────────────────────────
 const computeShortLeavesThisMonth = async (employeeId) => {
-  const now   = new Date();
+  const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
   return await Leave.countDocuments({
-    employee:  employeeId,
+    employee: employeeId,
     leaveType: 'short',
-    status:    { $in: ['pending', 'approved'] },
+    status: { $in: ['pending', 'approved'] },
     startDate: { $gte: start, $lte: end }
   });
 };
@@ -112,7 +114,7 @@ class LeaveController {
       }
 
       const start = new Date(startDate);
-      const end   = endDate ? new Date(endDate) : new Date(startDate);
+      const end = endDate ? new Date(endDate) : new Date(startDate);
 
       // Clamp: end cannot be before start
       if (end < start) {
@@ -120,7 +122,7 @@ class LeaveController {
       }
 
       // numberOfDays: for Short leave always 0 (hour-based), for Full Day ≥ 1
-      const isShort      = leaveType === 'Short';
+      const isShort = leaveType === 'Short';
       const numberOfDays = isShort
         ? 0
         : Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
@@ -130,8 +132,8 @@ class LeaveController {
       // ── BALANCE CHECK ──────────────────────────────────────────────────────
       if (isShort) {
         // Short leave: check monthly limit
-        const shortUsed  = await computeShortLeavesThisMonth(employeeId);
-        const balance    = await getOrCreateLeaveBalance(employeeId, year);
+        const shortUsed = await computeShortLeavesThisMonth(employeeId);
+        const balance = await getOrCreateLeaveBalance(employeeId, year);
         if (shortUsed >= balance.shortLeaveLimit) {
           return res.status(400).json({
             message: `Short leave limit reached (${balance.shortLeaveLimit}/month). Please apply for a Full Day leave.`
@@ -140,7 +142,7 @@ class LeaveController {
       } else {
         // Full day: check yearly balance per leave type
         const balance = await getOrCreateLeaveBalance(employeeId, year);
-        const used    = await computeUsedLeaves(employeeId, year);
+        const used = await computeUsedLeaves(employeeId, year);
 
         if (leaveType === 'casual') {
           const remaining = balance.casualTotal - used.casual;
@@ -186,16 +188,16 @@ class LeaveController {
 
       // ── CREATE LEAVE REQUEST ───────────────────────────────────────────────
       const leave = new Leave({
-        employee:     employeeId,
+        employee: employeeId,
         leaveType,
-        startDate:    start,
-        endDate:      end,
+        startDate: start,
+        endDate: end,
         numberOfDays,
-        reason:       reason || '',
-        status:       'pending',
-        category:     category || 'Full',
-        fromTime:     fromTime || null,
-        toTime:       toTime   || null,
+        reason: reason || '',
+        status: 'pending',
+        category: category || 'Full',
+        fromTime: fromTime || null,
+        toTime: toTime || null,
       });
 
       await leave.save();
@@ -204,23 +206,23 @@ class LeaveController {
       // ── NOTIFY HR (in-app) ────────────────────────────────────────────────
       const empName = `${leave.employee.firstName} ${leave.employee.lastName}`;
       await notifyAllHR({
-        sender:   leave.employee._id,
-        type:     'leave_applied',
-        title:    'New Leave Request',
-        message:  `${empName} has applied for ${leaveType} leave (${numberOfDays} day${numberOfDays !== 1 ? 's' : ''}).`,
-        refId:    leave._id,
+        sender: leave.employee._id,
+        type: 'leave_applied',
+        title: 'New Leave Request',
+        message: `${empName} has applied for ${leaveType} leave (${numberOfDays} day${numberOfDays !== 1 ? 's' : ''}).`,
+        refId: leave._id,
         refModel: 'Leave',
-        meta:     { leaveType, numberOfDays, startDate, endDate },
+        meta: { leaveType, numberOfDays, startDate, endDate },
       });
 
       // ── NOTIFY HR (email) ─────────────────────────────────────────────────
       const hrManagers = await User.find({ role: 'hr' }, 'email firstName lastName');
       if (hrManagers.length > 0) {
-        const emp       = leave.employee;
+        const emp = leave.employee;
         const emailList = hrManagers.map(h => h.email).filter(Boolean).join(', ');
         sendMail({
-          from:    process.env.EMAIL_USER || 'your-email@gmail.com',
-          to:      emailList,
+          from: process.env.EMAIL_USER || 'your-email@gmail.com',
+          to: emailList,
           subject: `New Leave Request – ${emp.firstName} ${emp.lastName}`,
           html: `
             <h2>New Leave Request for Approval</h2>
@@ -262,13 +264,13 @@ class LeaveController {
         query.status = { $ne: 'left' };
       } else if (role === 'hr' || role === 'manager' || role === 'admin') {
         if (status) query.status = status;
-        else        query.status = { $ne: 'left' };
+        else query.status = { $ne: 'left' };
       } else if (status) {
         query.status = status;
       }
 
       const leaves = await Leave.find(query)
-        .populate({ path: 'employee',   select: 'firstName lastName email department designation dateOfJoining employeeId' })
+        .populate({ path: 'employee', select: 'firstName lastName email department designation dateOfJoining employeeId' })
         .populate({ path: 'approvedBy', select: 'firstName lastName' })
         .sort({ createdAt: -1 })
         .lean();
@@ -282,7 +284,7 @@ class LeaveController {
 
       const allLeavesForEmployees = await Leave.find({
         employee: { $in: employeeIds },
-        status:   { $ne: 'left' }
+        status: { $ne: 'left' }
       }).sort({ createdAt: -1 }).lean();
 
       const historyMap = {};
@@ -332,37 +334,37 @@ class LeaveController {
       const leave = await Leave.findById(leaveId)
         .populate('employee', 'firstName lastName email employeeId _id');
 
-      if (!leave)                        return res.status(404).json({ message: 'Leave not found.' });
-      if (leave.status === 'approved')   return res.status(400).json({ message: 'Leave is already approved.' });
-      if (leave.status === 'rejected')   return res.status(400).json({ message: 'Cannot approve a rejected leave. Ask employee to re-apply.' });
+      if (!leave) return res.status(404).json({ message: 'Leave not found.' });
+      if (leave.status === 'approved') return res.status(400).json({ message: 'Leave is already approved.' });
+      if (leave.status === 'rejected') return res.status(400).json({ message: 'Cannot approve a rejected leave. Ask employee to re-apply.' });
 
       // ── Update status ──────────────────────────────────────────────────────
       // NOTE: No balance deduction here — balances are computed dynamically
       // by aggregating approved records in getEmployeeBalances.
-      leave.status       = 'approved';
-      leave.approvedBy   = approverId;
+      leave.status = 'approved';
+      leave.approvedBy = approverId;
       leave.approvalDate = new Date();
-      leave.updatedAt    = new Date();
+      leave.updatedAt = new Date();
       await leave.save();
 
       // ── NOTIFY Employee (in-app) ───────────────────────────────────────────
       await createNotification({
         recipient: leave.employee._id,
-        sender:    approverId,
-        type:      'leave_approved',
-        title:     'Leave Request Approved ✅',
-        message:   `Your ${leave.leaveType} leave request (${leave.numberOfDays} day${leave.numberOfDays !== 1 ? 's' : ''}) has been approved.`,
-        refId:     leave._id,
-        refModel:  'Leave',
-        meta:      { leaveType: leave.leaveType, numberOfDays: leave.numberOfDays },
+        sender: approverId,
+        type: 'leave_approved',
+        title: 'Leave Request Approved ✅',
+        message: `Your ${leave.leaveType} leave request (${leave.numberOfDays} day${leave.numberOfDays !== 1 ? 's' : ''}) has been approved.`,
+        refId: leave._id,
+        refModel: 'Leave',
+        meta: { leaveType: leave.leaveType, numberOfDays: leave.numberOfDays },
       });
 
       // ── Send approval email ────────────────────────────────────────────────
       const approver = await User.findById(approverId).select('firstName lastName');
       if (leave.employee?.email) {
         sendMail({
-          from:    process.env.EMAIL_USER || 'your-email@gmail.com',
-          to:      leave.employee.email,
+          from: process.env.EMAIL_USER || 'your-email@gmail.com',
+          to: leave.employee.email,
           subject: 'Leave Request Approved ✅',
           html: `
             <h2>Your Leave Request Has Been Approved</h2>
@@ -383,13 +385,13 @@ class LeaveController {
       try {
         const payroll = await Payroll.findOne({
           employee: leave.employee._id,
-          month:    new Date().getMonth() + 1,
-          year:     new Date().getFullYear()
+          month: new Date().getMonth() + 1,
+          year: new Date().getFullYear()
         });
         if (payroll && leave.numberOfDays > 0) {
           const perDay = payroll.baseSalary / (payroll.workingDays || 26);
           payroll.deductions = (payroll.deductions || 0) + (perDay * leave.numberOfDays);
-          payroll.netSalary  = payroll.baseSalary - payroll.deductions;
+          payroll.netSalary = payroll.baseSalary - payroll.deductions;
           await payroll.save();
         }
       } catch (payrollErr) {
@@ -417,37 +419,37 @@ class LeaveController {
       const leave = await Leave.findById(leaveId)
         .populate('employee', 'firstName lastName email employeeId');
 
-      if (!leave)                       return res.status(404).json({ message: 'Leave not found.' });
-      if (leave.status === 'rejected')  return res.status(400).json({ message: 'Leave is already rejected.' });
+      if (!leave) return res.status(404).json({ message: 'Leave not found.' });
+      if (leave.status === 'rejected') return res.status(400).json({ message: 'Leave is already rejected.' });
 
       // ── Update status ──────────────────────────────────────────────────────
       // NOTE: No balance restoration needed — balances are computed dynamically.
       // Rejected records simply won't be counted in the approved aggregation.
-      leave.status          = 'rejected';
-      leave.approvedBy      = approverId;
-      leave.approvalDate    = new Date();
+      leave.status = 'rejected';
+      leave.approvedBy = approverId;
+      leave.approvalDate = new Date();
       leave.rejectionReason = rejectionReason || '';
-      leave.updatedAt       = new Date();
+      leave.updatedAt = new Date();
       await leave.save();
 
       // ── NOTIFY Employee (in-app) ───────────────────────────────────────────
       await createNotification({
         recipient: leave.employee._id,
-        sender:    approverId,
-        type:      'leave_rejected',
-        title:     'Leave Request Rejected ❌',
-        message:   `Your ${leave.leaveType} leave request has been rejected. Reason: ${rejectionReason || 'No reason provided'}.`,
-        refId:     leave._id,
-        refModel:  'Leave',
-        meta:      { leaveType: leave.leaveType, rejectionReason },
+        sender: approverId,
+        type: 'leave_rejected',
+        title: 'Leave Request Rejected ❌',
+        message: `Your ${leave.leaveType} leave request has been rejected. Reason: ${rejectionReason || 'No reason provided'}.`,
+        refId: leave._id,
+        refModel: 'Leave',
+        meta: { leaveType: leave.leaveType, rejectionReason },
       });
 
       // ── Send rejection email ───────────────────────────────────────────────
       const approver = await User.findById(approverId).select('firstName lastName');
       if (leave.employee?.email) {
         sendMail({
-          from:    process.env.EMAIL_USER || 'your-email@gmail.com',
-          to:      leave.employee.email,
+          from: process.env.EMAIL_USER || 'your-email@gmail.com',
+          to: leave.employee.email,
           subject: 'Leave Request Rejected ❌',
           html: `
             <h2>Your Leave Request Has Been Rejected</h2>
@@ -479,7 +481,7 @@ class LeaveController {
   getLeaveStats = async (req, res) => {
     try {
       const [pending, approved, rejected] = await Promise.all([
-        Leave.countDocuments({ status: 'pending'  }),
+        Leave.countDocuments({ status: 'pending' }),
         Leave.countDocuments({ status: 'approved' }),
         Leave.countDocuments({ status: 'rejected' }),
       ]);
@@ -497,10 +499,10 @@ class LeaveController {
       let defaults = await LeaveDefaults.findOne();
       if (!defaults) {
         defaults = await LeaveDefaults.create({
-          casualDefault:    8,
-          sickDefault:      6,
-          earnedDefault:    14,
-          shortLeaveLimit:  3
+          casualDefault: 8,
+          sickDefault: 6,
+          earnedDefault: 14,
+          shortLeaveLimit: 3
         });
       }
       return res.json(defaults);
@@ -524,9 +526,9 @@ class LeaveController {
       }
 
       const update = {};
-      if (casualDefault   !== undefined) update.casualDefault   = casualDefault;
-      if (sickDefault     !== undefined) update.sickDefault     = sickDefault;
-      if (earnedDefault   !== undefined) update.earnedDefault   = earnedDefault;
+      if (casualDefault !== undefined) update.casualDefault = casualDefault;
+      if (sickDefault !== undefined) update.sickDefault = sickDefault;
+      if (earnedDefault !== undefined) update.earnedDefault = earnedDefault;
       if (shortLeaveLimit !== undefined) update.shortLeaveLimit = shortLeaveLimit;
 
       const updatedDefaults = await LeaveDefaults.findOneAndUpdate(
@@ -561,48 +563,48 @@ class LeaveController {
       //    used = { casual: N, sick: N, earned: N, maternity: N, paternity: N, unpaid: N }
 
       // 3. Short leaves used THIS month (pending + approved)
-      const shortLeavesUsed  = await computeShortLeavesThisMonth(employeeId);
+      const shortLeavesUsed = await computeShortLeavesThisMonth(employeeId);
       const shortLeavesLimit = balance.shortLeaveTotal;
 
       // 4. Compute REMAINING = total - used  (clamp to 0)
       const clamp = (val) => Math.max(val, 0);
 
-      const casualRemaining    = clamp(balance.casualTotal    - used.casual);
-      const sickRemaining      = clamp(balance.sickTotal      - used.sick);
-      const earnedRemaining    = clamp(balance.earnedTotal     - used.earned);
-      const maternityRemaining = clamp(balance.maternityTotal  - used.maternity);
-      const paternityRemaining = clamp(balance.paternityTotal  - used.paternity);
+      const casualRemaining = clamp(balance.casualTotal - used.casual);
+      const sickRemaining = clamp(balance.sickTotal - used.sick);
+      const earnedRemaining = clamp(balance.earnedTotal - used.earned);
+      const maternityRemaining = clamp(balance.maternityTotal - used.maternity);
+      const paternityRemaining = clamp(balance.paternityTotal - used.paternity);
 
       return res.json({
         year,
         employee: employeeId,
 
         // ── Casual Leave ────────────────────────────────────────────────────
-        casualTotal:     balance.casualTotal,
-        casualUsed:      used.casual,
+        casualTotal: balance.casualTotal,
+        casualUsed: used.casual,
         casualRemaining,
 
         // ── Sick Leave ──────────────────────────────────────────────────────
-        sickTotal:       balance.sickTotal,
-        sickUsed:        used.sick,         // ✅ This now correctly reflects approved sick leaves
+        sickTotal: balance.sickTotal,
+        sickUsed: used.sick,         // ✅ This now correctly reflects approved sick leaves
         sickRemaining,
 
         // ── Earned / Annual Leave ───────────────────────────────────────────
-        earnedTotal:     balance.earnedTotal,
-        earnedUsed:      used.earned,        // ✅ Only earned-type leaves counted
+        earnedTotal: balance.earnedTotal,
+        earnedUsed: used.earned,        // ✅ Only earned-type leaves counted
         earnedRemaining,
         // Aliases for frontend compatibility
-        annualTotal:     balance.earnedTotal,
-        annualUsed:      used.earned,        // ✅ annualUsed = earned leave only, not casual/sick
+        annualTotal: balance.earnedTotal,
+        annualUsed: used.earned,        // ✅ annualUsed = earned leave only, not casual/sick
 
         // ── Maternity Leave ─────────────────────────────────────────────────
-        maternityTotal:     balance.maternityTotal,
-        maternityUsed:      used.maternity,
+        maternityTotal: balance.maternityTotal,
+        maternityUsed: used.maternity,
         maternityRemaining,
 
         // ── Paternity Leave ─────────────────────────────────────────────────
-        paternityTotal:     balance.paternityTotal,
-        paternityUsed:      used.paternity,
+        paternityTotal: balance.paternityTotal,
+        paternityUsed: used.paternity,
         paternityRemaining,
 
         // ── Short Leaves (monthly) ──────────────────────────────────────────
@@ -629,14 +631,14 @@ class LeaveController {
       const { casualTotal, sickTotal, earnedTotal, maternityTotal, paternityTotal, shortLeaveLimit, year } = req.body;
 
       const targetYear = year || new Date().getFullYear();
-      const balance    = await getOrCreateLeaveBalance(employeeId, targetYear);
+      const balance = await getOrCreateLeaveBalance(employeeId, targetYear);
 
-      if (casualTotal    !== undefined) balance.casualTotal    = casualTotal;
-      if (sickTotal      !== undefined) balance.sickTotal      = sickTotal;
-      if (earnedTotal    !== undefined) balance.earnedTotal    = earnedTotal;
+      if (casualTotal !== undefined) balance.casualTotal = casualTotal;
+      if (sickTotal !== undefined) balance.sickTotal = sickTotal;
+      if (earnedTotal !== undefined) balance.earnedTotal = earnedTotal;
       if (maternityTotal !== undefined) balance.maternityTotal = maternityTotal;
       if (paternityTotal !== undefined) balance.paternityTotal = paternityTotal;
-      if (shortLeaveLimit!== undefined) balance.shortLeaveLimit= shortLeaveLimit;
+      if (shortLeaveLimit !== undefined) balance.shortLeaveLimit = shortLeaveLimit;
       balance.updatedAt = new Date();
 
       await balance.save();
@@ -646,6 +648,370 @@ class LeaveController {
       return res.status(500).json({ message: error.message });
     }
   };
+
+  // ── paste starts here ──────────────────────────────────────────────────────
+
+  downloadLeaveTemplate = async (req, res) => {
+    try {
+      const xlsx = require('xlsx');
+      const headers = [
+        'Employee Name', 'Department', 'Designation', 'Intern/Probation', 'Leave Type',
+        'Leave Start Date', 'Leave End Date', 'Total Days', 'Leave Status',
+        'Medical Document Submitted', 'Applied On', 'Remarks',
+      ];
+      const sample = ['Jane Smith', 'Marketing', 'Manager', 'Full', 'sick', '01/06/2025', '02/06/2025', '2', 'approved', 'Yes', '31/05/2025', 'Fever and cold'];
+      const ws = xlsx.utils.aoa_to_sheet([headers, sample]);
+      const wb = xlsx.utils.book_new();
+      ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 4, 18) }));
+      xlsx.utils.book_append_sheet(wb, ws, 'Leave Data');
+      const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      res.setHeader('Content-Disposition', 'attachment; filename="leave_upload_template.xlsx"');
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      return res.send(buf);
+    } catch (error) {
+      console.error('downloadLeaveTemplate error:', error);
+      return res.status(500).json({ message: error.message });
+    }
+  };
+
+  bulkUploadLeaves = async (req, res) => {
+    try {
+      const xlsx = require('xlsx');
+      const Employee = require('../models/Employee');
+      if (!req.file) return res.status(400).json({ message: 'No file uploaded.' });
+
+      const workbook = xlsx.read(req.file.buffer, { type: 'buffer', cellDates: true });
+      const rows = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: '' });
+      if (!rows.length) return res.status(400).json({ message: 'Excel file is empty.' });
+
+      const parseDate = (val) => {
+        if (!val) return null;
+        if (val instanceof Date) return val;
+        const s = String(val).trim();
+        const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (dmy) return new Date(`${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`);
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : d;
+      };
+      const LEAVE_TYPE_MAP = { sick: 'sick', casual: 'casual', short: 'short', earned: 'earned', maternity: 'maternity', paternity: 'paternity', unpaid: 'unpaid', holidays: 'holidays', 'initial allocation': 'Initial Allocation' };
+      const STATUS_MAP = { pending: 'pending', approved: 'approved', rejected: 'rejected', left: 'left' };
+      const CATEGORY_MAP = { full: 'Full', prob: 'Prob', probation: 'Prob', intern: 'Intern' };
+
+      const allEmployees = await Employee.find({}, 'firstName lastName _id').lean();
+      const empMap = {};
+      allEmployees.forEach(e => { empMap[`${e.firstName} ${e.lastName}`.toLowerCase()] = e; });
+
+      const results = { inserted: 0, skipped: 0, errors: [] };
+      const docs = [];
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const rowNum = i + 2;
+        const empName = String(row['Employee Name'] || '').trim();
+        if (!empName) { results.skipped++; results.errors.push({ row: rowNum, message: 'Employee Name empty' }); continue; }
+        const emp = empMap[empName.toLowerCase()];
+        if (!emp) { results.skipped++; results.errors.push({ row: rowNum, message: `"${empName}" not found` }); continue; }
+        const startDate = parseDate(row['Leave Start Date']);
+        if (!startDate) { results.skipped++; results.errors.push({ row: rowNum, message: 'Invalid Start Date' }); continue; }
+        const endDate = parseDate(row['Leave End Date']) || startDate;
+        const totalDays = parseInt(row['Total Days']) || Math.ceil((endDate - startDate) / 86400000) + 1;
+        docs.push({
+          employee: emp._id,
+          leaveType: LEAVE_TYPE_MAP[String(row['Leave Type'] || 'casual').toLowerCase()] || 'casual',
+          startDate, endDate, numberOfDays: totalDays,
+          reason: String(row['Remarks'] || ''),
+          status: STATUS_MAP[String(row['Leave Status'] || 'pending').toLowerCase()] || 'pending',
+          category: CATEGORY_MAP[String(row['Intern/Probation'] || 'Full').toLowerCase()] || 'Full',
+          medicalDocumentSubmitted: String(row['Medical Document Submitted'] || '').toLowerCase().trim() === 'yes',  // ← ADD THIS LINE
+          createdAt: parseDate(row['Applied On']) || new Date(),
+          updatedAt: new Date(),
+        });
+        results.inserted++;
+      }
+
+      if (docs.length) await Leave.insertMany(docs, { ordered: false });
+      return res.json({ message: `Inserted: ${results.inserted}, Skipped: ${results.skipped}.`, ...results });
+    } catch (error) {
+      console.error('bulkUploadLeaves error:', error);
+      return res.status(500).json({ message: error.message });
+    }
+  };
+
+  getAllLeavesHR = async (req, res) => {
+    try {
+      const { leaveType, status, category, startDate, endDate, page = 1, limit = 200 } = req.query;
+      const query = { status: { $ne: 'left' } };
+      if (leaveType) query.leaveType = leaveType;
+      if (status && status !== 'all') query.status = status;
+      if (category) query.category = category;
+      if (startDate || endDate) {
+        query.startDate = {};
+        if (startDate) query.startDate.$gte = new Date(startDate);
+        if (endDate) query.startDate.$lte = new Date(endDate);
+      }
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      const total = await Leave.countDocuments(query);
+      const leaves = await Leave.find(query)
+        .populate({ path: 'employee', select: 'firstName lastName email department designation employeeId periodType status' })
+        .populate({ path: 'approvedBy', select: 'firstName lastName' })
+        .sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)).lean();
+      return res.json({ leaves, total, page: parseInt(page), limit: parseInt(limit) });
+    } catch (error) {
+      console.error('getAllLeavesHR error:', error);
+      return res.status(500).json({ message: error.message });
+    }
+  };
+
+  // ── paste ends here ────────────────────────────────────────────────────────
 }
+
+
+/**
+ * ─────────────────────────────────────────────────────────────────
+ *  LEAVE CONTROLLER ADDITIONS
+ *  Add these three methods inside the LeaveController class in
+ *  your existing leaveController.js file (before the closing brace).
+ *  Also add:  const xlsx = require('xlsx');   at the top of the file.
+ * ─────────────────────────────────────────────────────────────────
+ */
+
+// ─────────────────────────────────────────────────────────────────
+// ADD THIS AT TOP OF leaveController.js (with other requires):
+// const xlsx    = require('xlsx');
+// const Employee= require('../models/Employee');
+// const multer  = require('multer');
+// ─────────────────────────────────────────────────────────────────
+
+// ───────────────────────────────────────────────────────────────────────────
+// DOWNLOAD LEAVE TEMPLATE  (GET /leave/bulk/template)
+// Returns a preformatted .xlsx file the user fills and uploads.
+// ───────────────────────────────────────────────────────────────────────────
+downloadLeaveTemplate = async (req, res) => {
+  try {
+    const xlsx = require('xlsx');
+
+    const headers = [
+      'Employee Name',       // e.g. "John Doe"  — must match firstName+lastName in DB
+      'Department',          // e.g. "Engineering"
+      'Designation',         // e.g. "Developer"
+      'Intern/Probation',    // Full | Prob | Intern
+      'Leave Type',          // sick | casual | earned | maternity | paternity | unpaid | short | holidays
+      'Leave Start Date',    // DD/MM/YYYY
+      'Leave End Date',      // DD/MM/YYYY
+      'Total Days',          // number
+      'Leave Status',        // pending | approved | rejected
+      'Medical Document Submitted', // Yes | No
+      'Applied On',          // DD/MM/YYYY
+      'Remarks',             // free text
+    ];
+
+    // Sample row so user understands the format
+    const sample = [
+      'Jane Smith',
+      'Marketing',
+      'Manager',
+      'Full',
+      'sick',
+      '01/06/2025',
+      '02/06/2025',
+      '2',
+      'approved',
+      'Yes',
+      '31/05/2025',
+      'Fever and cold',
+    ];
+
+    const ws = xlsx.utils.aoa_to_sheet([headers, sample]);
+    const wb = xlsx.utils.book_new();
+
+    // Column widths
+    ws['!cols'] = headers.map((h) => ({ wch: Math.max(h.length + 4, 18) }));
+
+    // Style header row (SheetJS CE only supports basic styles via write options)
+    xlsx.utils.book_append_sheet(wb, ws, 'Leave Data');
+
+    const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Disposition', 'attachment; filename="leave_upload_template.xlsx"');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    return res.send(buf);
+  } catch (error) {
+    console.error('downloadLeaveTemplate error:', error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// ───────────────────────────────────────────────────────────────────────────
+// BULK UPLOAD LEAVES  (POST /leave/bulk/upload)
+// Accepts multipart/form-data with field "leaveFile" (.xlsx).
+// Parses rows, matches employees by name, and inserts Leave documents.
+// ───────────────────────────────────────────────────────────────────────────
+bulkUploadLeaves = async (req, res) => {
+  try {
+    const xlsx = require('xlsx');
+    const Employee = require('../models/Employee');
+
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded. Please attach an .xlsx file.' });
+    }
+
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer', cellDates: true });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+
+    if (!rows || rows.length === 0) {
+      return res.status(400).json({ message: 'Excel file is empty or unreadable.' });
+    }
+
+    // ── Helper: parse DD/MM/YYYY or any date cell → JS Date ─────────────────
+    const parseDate = (val) => {
+      if (!val) return null;
+      if (val instanceof Date) return val;
+      const s = String(val).trim();
+      // DD/MM/YYYY
+      const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (dmy) return new Date(`${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`);
+      // YYYY-MM-DD or ISO
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? null : d;
+    };
+
+    // ── Normalise leave type to enum values in Leave model ───────────────────
+    const LEAVE_TYPE_MAP = {
+      sick: 'sick', casual: 'casual', short: 'short', earned: 'earned',
+      maternity: 'maternity', paternity: 'paternity', unpaid: 'unpaid',
+      holidays: 'holidays', 'initial allocation': 'Initial Allocation',
+    };
+    const normaliseLeaveType = (v) => LEAVE_TYPE_MAP[String(v).toLowerCase().trim()] || 'casual';
+
+    const STATUS_MAP = { pending: 'pending', approved: 'approved', rejected: 'rejected', left: 'left' };
+    const normaliseStatus = (v) => STATUS_MAP[String(v).toLowerCase().trim()] || 'pending';
+
+    const CATEGORY_MAP = { full: 'Full', prob: 'Prob', probation: 'Prob', intern: 'Intern' };
+    const normaliseCategory = (v) => CATEGORY_MAP[String(v).toLowerCase().trim()] || 'Full';
+
+    const results = { inserted: 0, skipped: 0, errors: [] };
+    const leaveDocs = [];
+
+    // ── Cache all employees for name matching (avoid N+1 queries) ────────────
+    const allEmployees = await Employee.find({}, 'firstName lastName _id department designation').lean();
+    const empMap = {};
+    allEmployees.forEach(e => {
+      const key = `${e.firstName} ${e.lastName}`.toLowerCase().trim();
+      empMap[key] = e;
+    });
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 2; // 1-indexed, row 1 = header
+
+      try {
+        const empName = String(row['Employee Name'] || '').trim();
+        if (!empName) {
+          results.skipped++;
+          results.errors.push({ row: rowNum, message: 'Employee Name is empty — skipped.' });
+          continue;
+        }
+
+        const emp = empMap[empName.toLowerCase()];
+        if (!emp) {
+          results.skipped++;
+          results.errors.push({ row: rowNum, message: `Employee "${empName}" not found in database — skipped.` });
+          continue;
+        }
+
+        const startDate = parseDate(row['Leave Start Date']);
+        const endDate = parseDate(row['Leave End Date']);
+
+        if (!startDate) {
+          results.skipped++;
+          results.errors.push({ row: rowNum, message: `Invalid or missing "Leave Start Date" for "${empName}" — skipped.` });
+          continue;
+        }
+
+        const leaveType = normaliseLeaveType(row['Leave Type'] || 'casual');
+        const status = normaliseStatus(row['Leave Status'] || 'pending');
+        const category = normaliseCategory(row['Intern/Probation'] || 'Full');
+        const totalDays = parseInt(row['Total Days']) || (startDate && endDate
+          ? Math.ceil((endDate - startDate) / 86400000) + 1
+          : 1);
+        const remarks = String(row['Remarks'] || '').trim();
+        const appliedOn = parseDate(row['Applied On']) || new Date();
+
+        leaveDocs.push({
+          employee: emp._id,
+          leaveType,
+          startDate,
+          endDate: endDate || startDate,
+          numberOfDays: totalDays,
+          reason: remarks,
+          status,
+          category,
+          createdAt: appliedOn,
+          updatedAt: new Date(),
+        });
+
+        results.inserted++;
+      } catch (rowErr) {
+        results.errors.push({ row: rowNum, message: rowErr.message });
+        results.skipped++;
+      }
+    }
+
+    if (leaveDocs.length > 0) {
+      await Leave.insertMany(leaveDocs, { ordered: false });
+    }
+
+    return res.status(200).json({
+      message: `Bulk upload complete. Inserted: ${results.inserted}, Skipped: ${results.skipped}.`,
+      inserted: results.inserted,
+      skipped: results.skipped,
+      errors: results.errors,
+    });
+  } catch (error) {
+    console.error('bulkUploadLeaves error:', error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// ───────────────────────────────────────────────────────────────────────────
+// GET ALL LEAVES FOR HR  (GET /leave/hr/all)
+// Full leave list with optional filters: employeeName, department,
+// leaveType, status, startDate, endDate, category.
+// Used by the "View Leave Data" modal on HR dashboard.
+// ───────────────────────────────────────────────────────────────────────────
+getAllLeavesHR = async (req, res) => {
+  try {
+    const { leaveType, status, startDate, endDate, category, page = 1, limit = 200 } = req.query;
+
+    const query = { status: { $ne: 'left' } };
+    if (leaveType) query.leaveType = leaveType;
+    if (status && status !== 'all') query.status = status;
+    if (category) query.category = category;
+
+    if (startDate || endDate) {
+      query.startDate = {};
+      if (startDate) query.startDate.$gte = new Date(startDate);
+      if (endDate) query.startDate.$lte = new Date(endDate);
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const total = await Leave.countDocuments(query);
+
+    const leaves = await Leave.find(query)
+      .populate({ path: 'employee', select: 'firstName lastName email department designation employeeId periodType status' })
+      .populate({ path: 'approvedBy', select: 'firstName lastName' })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    return res.json({ leaves, total, page: parseInt(page), limit: parseInt(limit) });
+  } catch (error) {
+    console.error('getAllLeavesHR error:', error);
+    return res.status(500).json({ message: error.message });
+  }
+};
 
 module.exports = new LeaveController();
