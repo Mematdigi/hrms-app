@@ -2,7 +2,7 @@ const express = require('express');
 const multer  = require('multer');
 const path    = require('path');
 const fs      = require('fs');
-const personalDocumentController = require('../../controllers/personalDocumentController');
+const PersonalDocumentController = require('../../controllers/PersonalDocumentController')
 const { authMiddleware } = require('../../middleware/auth');
 
 const router = express.Router();
@@ -55,14 +55,14 @@ const upload = multer({
 // ── Routes ─────────────────────────────────────────────────────────────────
 // All routes require authentication; ownership enforced in controller.
 
-router.get('/stats',        authMiddleware, personalDocumentController.getStats);
-router.get('/',             authMiddleware, personalDocumentController.getMyDocuments);
-router.get('/:id',          authMiddleware, personalDocumentController.getById);
-router.get('/:id/download', authMiddleware, personalDocumentController.download);
-router.get('/:id/preview',  authMiddleware, personalDocumentController.preview);
+router.get('/stats',        authMiddleware, PersonalDocumentController.getStats);
+router.get('/',             authMiddleware, PersonalDocumentController.getMyDocuments);
+router.get('/:id',          authMiddleware, PersonalDocumentController.getById);
+router.get('/:id/download', authMiddleware, PersonalDocumentController.download);
+router.get('/:id/preview',  authMiddleware, PersonalDocumentController.preview);
 
-router.post('/',   authMiddleware, upload.single('documentFile'), personalDocumentController.create);
-router.put('/:id', authMiddleware, upload.single('documentFile'), personalDocumentController.update);
-router.delete('/:id', authMiddleware, personalDocumentController.delete);
+router.post('/',   authMiddleware, upload.single('documentFile'), PersonalDocumentController.create);
+router.put('/:id', authMiddleware, upload.single('documentFile'), PersonalDocumentController.update);
+router.delete('/:id', authMiddleware, PersonalDocumentController.delete);
 
 module.exports = router;
