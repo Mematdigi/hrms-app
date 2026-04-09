@@ -26,6 +26,7 @@ export const employeeAPI = {
   create:    (data)     => api.post('/employees', data),
   update:    (id, data) => api.put(`/employees/${id}`, data),
   delete:    (id)       => api.delete(`/employees/${id}`),
+  bulkDelete: (ids)     => api.delete('/employees/bulk/delete', { data: { ids } }),
   getPayrolls: ()       => api.get('/employees/all/payrolls'),
   bulkImport: (formData) => api.post('/employees/bulk-import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },

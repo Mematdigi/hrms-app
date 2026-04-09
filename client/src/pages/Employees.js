@@ -97,6 +97,10 @@ function Employees() {
 
     const { user } = useSelector((state) => state.auth);
 
+    // ── Bulk Selection State (admin only) ─────────────────────────────────────
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState([]);
+
     useEffect(() => { fetchEmployees(); }, []);
 
     const fetchEmployees = async () => {
@@ -266,6 +270,8 @@ function Employees() {
         setExistingDocs({});
         setFormTab('employee');
         setViewMode('grid');
+        setSelectionMode(false);
+        setSelectedIds([]);
     };
 
     const handleDelete = async (employeeId, employeeName) => {
@@ -275,6 +281,40 @@ function Employees() {
             setSuccessMessage('✅ Employee deleted successfully!');
             fetchEmployees();
         } catch (error) { setErrorMessage(error?.response?.data?.message || 'Error deleting employee'); }
+    };
+
+    // ── Selection Handlers (admin only) ───────────────────────────────────────
+    const toggleSelectionMode = () => {
+        setSelectionMode((prev) => !prev);
+        setSelectedIds([]);
+    };
+
+    const handleSelectToggle = (id) => {
+        setSelectedIds((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (selectedIds.length === filteredEmployees.length) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filteredEmployees.map((e) => e._id));
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0) return;
+        if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected employee(s)? This cannot be undone.`)) return;
+        try {
+            await employeeAPI.bulkDelete(selectedIds);
+            setSuccessMessage(`✅ ${selectedIds.length} employee(s) deleted successfully!`);
+            setSelectedIds([]);
+            setSelectionMode(false);
+            fetchEmployees();
+        } catch (error) {
+            setErrorMessage(error?.response?.data?.message || 'Error deleting employees');
+        }
     };
 
     // --- Bulk Import Handlers ---
@@ -408,6 +448,69 @@ function Employees() {
 
     return (
         <div className="employees-page">
+            {/* ── Bulk Selection CSS ── */}
+            <style>{`
+                .card-checkbox-wrap {
+                    position: absolute;
+                    top: 10px;
+                    left: 10px;
+                    z-index: 10;
+                }
+                .card-checkbox {
+                    width: 18px;
+                    height: 18px;
+                    cursor: pointer;
+                    accent-color: #2563eb;
+                }
+                .employee-card { position: relative; }
+                .card-selected {
+                    outline: 2px solid #2563eb;
+                    background: #eff6ff !important;
+                }
+                .row-selected { background: #eff6ff !important; }
+                .select-all-bar {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 8px 14px;
+                    background: #f0f7ff;
+                    border: 1px solid #bfdbfe;
+                    border-radius: 8px;
+                    margin-bottom: 12px;
+                    font-size: 14px;
+                    color: #1e40af;
+                }
+                .select-all-bar input[type="checkbox"] {
+                    width: 16px;
+                    height: 16px;
+                    accent-color: #2563eb;
+                    cursor: pointer;
+                }
+                .select-all-bar label { cursor: pointer; margin: 0; font-weight: 500; }
+                .selection-count {
+                    margin-left: auto;
+                    background: #2563eb;
+                    color: #fff;
+                    border-radius: 20px;
+                    padding: 2px 12px;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+                .btn-danger-delete {
+                    display: inline-flex;
+                    align-items: center;
+                    padding: 8px 16px;
+                    background: #dc2626;
+                    color: #fff;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 14px;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: background 0.2s;
+                }
+                .btn-danger-delete:hover { background: #b91c1c; }
+            `}</style>
             {successMessage && <div className="alert-toast success">{successMessage}</div>}
             {errorMessage && <div className="alert-toast error">{errorMessage}</div>}
 
@@ -431,6 +534,26 @@ function Employees() {
                 {(user?.role === 'admin' || user?.role === 'hr') && (
                     viewMode === 'grid' || viewMode === 'list' ? (
                         <div className="header-actions">
+                            {user?.role === 'admin' && (
+                                <>
+                                    {selectionMode ? (
+                                        <>
+                                            {selectedIds.length > 0 && (
+                                                <button className="btn-danger-delete" onClick={handleBulkDelete}>
+                                                    <i className="bi bi-trash3 me-2"></i>Delete Selected ({selectedIds.length})
+                                                </button>
+                                            )}
+                                            <button className="btn-secondary-add" onClick={toggleSelectionMode}>
+                                                <i className="bi bi-x me-2"></i>Cancel
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button className="btn-secondary-add" onClick={toggleSelectionMode}>
+                                            <i className="bi bi-check2-square me-2"></i>Select
+                                        </button>
+                                    )}
+                                </>
+                            )}
                             <button className="btn-secondary-add" onClick={() => { setBulkResult(null); setBulkFile(null); setSavedBulkFile(null); setBulkTab('sheet1'); setViewMode('bulk'); }}>
                                 <i className="bi bi-file-earmark-spreadsheet me-2"></i>Bulk Import
                             </button>
@@ -1016,6 +1139,26 @@ function Employees() {
                         </div>
                     </div>
 
+                    {/* ── Select All Bar (admin + selectionMode only) ── */}
+                    {selectionMode && user?.role === 'admin' && filteredEmployees.length > 0 && (
+                        <div className="select-all-bar">
+                            <input
+                                type="checkbox"
+                                id="selectAll"
+                                checked={selectedIds.length === filteredEmployees.length && filteredEmployees.length > 0}
+                                onChange={handleSelectAll}
+                            />
+                            <label htmlFor="selectAll">
+                                {selectedIds.length === filteredEmployees.length
+                                    ? 'Deselect All'
+                                    : `Select All (${filteredEmployees.length})`}
+                            </label>
+                            {selectedIds.length > 0 && (
+                                <span className="selection-count">{selectedIds.length} selected</span>
+                            )}
+                        </div>
+                    )}
+
                     {/* Empty state */}
                     {filteredEmployees.length === 0 && (
                         <div className="empty-state">
@@ -1036,7 +1179,23 @@ function Employees() {
                     {viewMode === 'grid' && filteredEmployees.length > 0 ? (
                         <div className="employees-grid">
                             {filteredEmployees.map((emp) => (
-                                <div className={`employee-card ${!emp.isActive ? 'inactive-card' : ''}`} key={emp._id}>
+                                <div
+                                    className={`employee-card ${!emp.isActive ? 'inactive-card' : ''} ${selectionMode && selectedIds.includes(emp._id) ? 'card-selected' : ''}`}
+                                    key={emp._id}
+                                    onClick={selectionMode ? () => handleSelectToggle(emp._id) : undefined}
+                                    style={selectionMode ? { cursor: 'pointer' } : {}}
+                                >
+                                    {/* Selection checkbox overlay (admin only) */}
+                                    {selectionMode && user?.role === 'admin' && (
+                                        <div className="card-checkbox-wrap" onClick={(e) => { e.stopPropagation(); handleSelectToggle(emp._id); }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.includes(emp._id)}
+                                                onChange={() => handleSelectToggle(emp._id)}
+                                                className="card-checkbox"
+                                            />
+                                        </div>
+                                    )}
                                     <div className="card-header-part">
                                         <div className="d-flex align-items-center gap-3">
                                             <div className="avatar" style={{ backgroundColor: emp.isActive ? getAvatarColor(emp.firstName) : '#9ca3af' }}>{emp.firstName[0]}</div>
@@ -1065,6 +1224,15 @@ function Employees() {
                             <table className="modern-table">
                                 <thead>
                                     <tr>
+                                        {selectionMode && user?.role === 'admin' && (
+                                            <th style={{ width: '40px' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.length === filteredEmployees.length && filteredEmployees.length > 0}
+                                                    onChange={handleSelectAll}
+                                                />
+                                            </th>
+                                        )}
                                         <th>EMPLOYEE</th>
                                         <th>DEPARTMENT</th>
                                         <th>WORK MODE</th>
@@ -1075,7 +1243,21 @@ function Employees() {
                                 </thead>
                                 <tbody>
                                     {filteredEmployees.map((emp) => (
-                                        <tr key={emp._id} className={!emp.isActive ? 'inactive-row' : ''}>
+                                        <tr
+                                            key={emp._id}
+                                            className={`${!emp.isActive ? 'inactive-row' : ''} ${selectionMode && selectedIds.includes(emp._id) ? 'row-selected' : ''}`}
+                                            onClick={selectionMode ? () => handleSelectToggle(emp._id) : undefined}
+                                            style={selectionMode ? { cursor: 'pointer' } : {}}
+                                        >
+                                            {selectionMode && user?.role === 'admin' && (
+                                                <td onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedIds.includes(emp._id)}
+                                                        onChange={() => handleSelectToggle(emp._id)}
+                                                    />
+                                                </td>
+                                            )}
                                             <td>
                                                 <div className="profile-cell">
                                                     <div className="avatar" style={{ backgroundColor: emp.isActive ? getAvatarColor(emp.firstName) : '#9ca3af' }}>{emp.firstName[0]}</div>

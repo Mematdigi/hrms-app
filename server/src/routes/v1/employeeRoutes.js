@@ -82,6 +82,14 @@ router.post(
   employeeController.createEmployee
 );
 
+// Bulk Delete (DELETE /employees/bulk/delete) — admin only
+router.delete(
+  '/bulk/delete',
+  authMiddleware,
+  roleMiddleware(['admin']),
+  employeeController.bulkDeleteEmployees
+);
+
 // Dynamic /:id routes — ALWAYS LAST
 router.get('/:id', authMiddleware, employeeController.getEmployeeById);
 
@@ -96,7 +104,7 @@ router.put(
 router.delete(
   '/:id',
   authMiddleware,
-  roleMiddleware(['admin', 'manager']),
+  roleMiddleware(['admin', 'hr']),
   employeeController.deleteEmployee
 );
 
