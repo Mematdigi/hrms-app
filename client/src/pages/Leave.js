@@ -20,6 +20,7 @@ import {
   ChevronRight
 } from 'react-bootstrap-icons';
 import LeaveImportExport from './LeaveImportExport';
+import BackButton from '../components/BackButton';
 
 function Leave() {
 
@@ -548,8 +549,8 @@ function Leave() {
       {/* ── Header ── */}
       <header className="dashboard-header">
         <div>
-          <h1>Leave Management</h1>
-          <p>Track and manage employee leave requests</p>
+          <h1><span className="m-3"><BackButton/></span>Leave Management</h1>
+          {/* <p>Track and manage employee leave requests</p> */}
         </div>
         <LeaveImportExport />
         <div className="header-actions">

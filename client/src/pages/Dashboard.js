@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import api, { attendanceAPI, leaveAPI, employeeAPI, performanceAPI } from "../services/api";
+import api, { attendanceAPI, leaveAPI, employeeAPI, performanceAPI, resignationAPI } from "../services/api";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Modal, Button, Form } from "react-bootstrap";
 
@@ -72,6 +72,22 @@ const Dashboard = () => {
    const [allReviews, setAllReviews] = useState([]);
    const [allEmployees, setAllEmployees] = useState([]);
    const [expandedReview, setExpandedReview] = useState(null); // review _id expanded in employee view
+
+   // ── Resignation State ──
+   const [myResignation, setMyResignation]               = useState(null);   // Employee's own resignation
+   const [showResignModal, setShowResignModal]           = useState(false);
+   const [resignFormData, setResignFormData]             = useState({ managerName: '', resignationReason: '' });
+   const [resignSubmitting, setResignSubmitting]         = useState(false);
+
+   // HR: all resignations panel
+   const [allResignations, setAllResignations]           = useState([]);
+   const [showHRResignPanel, setShowHRResignPanel]       = useState(false);
+
+   // HR: reject modal
+   const [showRejectModal, setShowRejectModal]           = useState(false);
+   const [rejectingId, setRejectingId]                   = useState(null);
+   const [rejectionReason, setRejectionReason]           = useState('');
+   const [resignActionLoading, setResignActionLoading]   = useState(false);
 
    // Determine Role
    const role = user?.role || "employee";
@@ -306,6 +322,24 @@ const Dashboard = () => {
                });
             }
 
+            // ── 4. ALWAYS: Fetch my resignation status ──
+            try {
+               const resRes = await resignationAPI.getMine();
+               setMyResignation(resRes.data?.data || null);
+            } catch (err) {
+               console.error("Resignation fetch failed", err);
+            }
+
+            // ── 5. HR: Fetch all resignations ──
+            if (isHR) {
+               try {
+                  const allResRes = await resignationAPI.getAll();
+                  setAllResignations(allResRes.data?.data || []);
+               } catch (err) {
+                  console.error("All resignations fetch failed", err);
+               }
+            }
+
          } catch (error) {
             console.error("Error fetching dashboard data:", error);
          } finally {
@@ -458,6 +492,67 @@ const Dashboard = () => {
       }
    };
 
+   // ── Resignation Handlers ──
+   const handleSubmitResignation = async () => {
+      if (!resignFormData.managerName.trim() || !resignFormData.resignationReason.trim()) {
+         alert('Please fill in all required fields.');
+         return;
+      }
+      try {
+         setResignSubmitting(true);
+         const res = await resignationAPI.submit({
+            managerName: resignFormData.managerName.trim(),
+            resignationReason: resignFormData.resignationReason.trim(),
+         });
+         setMyResignation(res.data?.data || null);
+         setShowResignModal(false);
+         setResignFormData({ managerName: '', resignationReason: '' });
+      } catch (err) {
+         alert(err?.response?.data?.message || 'Failed to submit resignation. Please try again.');
+      } finally {
+         setResignSubmitting(false);
+      }
+   };
+
+   const handleHRAccept = async (id) => {
+      try {
+         setResignActionLoading(true);
+         await resignationAPI.accept(id);
+         const updated = await resignationAPI.getAll();
+         setAllResignations(updated.data?.data || []);
+      } catch (err) {
+         alert(err?.response?.data?.message || 'Action failed.');
+      } finally {
+         setResignActionLoading(false);
+      }
+   };
+
+   const openRejectModal = (id) => {
+      setRejectingId(id);
+      setRejectionReason('');
+      setShowRejectModal(true);
+   };
+
+   const handleHRReject = async () => {
+      if (!rejectionReason.trim()) {
+         alert('Please enter a rejection reason.');
+         return;
+      }
+      try {
+         setResignActionLoading(true);
+         await resignationAPI.reject(rejectingId, { rejectionReason: rejectionReason.trim() });
+         const updated = await resignationAPI.getAll();
+         setAllResignations(updated.data?.data || []);
+         setShowRejectModal(false);
+         setRejectingId(null);
+         setRejectionReason('');
+      } catch (err) {
+         alert(err?.response?.data?.message || 'Rejection failed.');
+      } finally {
+         setResignActionLoading(false);
+      }
+   };
+
    // Helper for Animation
    const AnimatedNumber = ({ value }) => {
       return <span>{value}</span>;
@@ -491,6 +586,13 @@ const Dashboard = () => {
 
             <button className="btn-header-custom btn-gradient-blue" onClick={handleOpenLeaveModal}>
                <i className="bi bi-calendar-plus me-2"></i> Apply Leave
+            </button>
+            <button
+               className="btn-header-custom"
+               style={{ background: 'linear-gradient(135deg, #dc3545, #c82333)', color: '#fff', border: 'none' }}
+               onClick={() => setShowResignModal(true)}
+            >
+               <i className="bi bi-box-arrow-right me-2"></i> Resign
             </button>
             {
                isHR && (
@@ -721,6 +823,81 @@ const Dashboard = () => {
                   )}
                </div>
             </div>
+
+            {/* ── My Resignation Status Card (Employee) ── */}
+            {myResignation && (
+               <div className="mt-4">
+                  <div className="dashboard-card p-3">
+                     <div className="d-flex justify-content-between align-items-center mb-3">
+                        <h5 className="fw-bold mb-0">📋 My Resignation</h5>
+                        {myResignation.status === 'pending' && (
+                           <span className="badge rounded-pill" style={{ background: '#fff3cd', color: '#856404', border: '1px solid #ffc107', fontSize: '0.78rem', padding: '5px 14px' }}>
+                              ⏳ Pending Approval by HR
+                           </span>
+                        )}
+                        {myResignation.status === 'accepted' && (
+                           <span className="badge rounded-pill" style={{ background: '#d1e7dd', color: '#0a3622', border: '1px solid #198754', fontSize: '0.78rem', padding: '5px 14px' }}>
+                              ✅ Accepted
+                           </span>
+                        )}
+                        {myResignation.status === 'rejected' && (
+                           <span className="badge rounded-pill" style={{ background: '#f8d7da', color: '#842029', border: '1px solid #dc3545', fontSize: '0.78rem', padding: '5px 14px' }}>
+                              ❌ Rejected
+                           </span>
+                        )}
+                     </div>
+
+                     <div className="row g-3">
+                        <div className="col-md-4">
+                           <div className="small text-muted mb-1">Employee Name</div>
+                           <div className="fw-semibold">{myResignation.employeeName}</div>
+                        </div>
+                        <div className="col-md-4">
+                           <div className="small text-muted mb-1">Manager / TL</div>
+                           <div className="fw-semibold">{myResignation.managerName}</div>
+                        </div>
+                        <div className="col-md-4">
+                           <div className="small text-muted mb-1">Submitted On</div>
+                           <div className="fw-semibold">{new Date(myResignation.createdAt).toLocaleDateString('en-IN')}</div>
+                        </div>
+                        <div className="col-12">
+                           <div className="small text-muted mb-1">Reason for Resignation</div>
+                           <div className="p-2 rounded" style={{ background: '#f8f9fa', fontSize: '0.875rem', lineHeight: 1.6 }}>
+                              {myResignation.resignationReason}
+                           </div>
+                        </div>
+
+                        {/* HR rejection reason */}
+                        {myResignation.status === 'rejected' && myResignation.rejectionReason && (
+                           <div className="col-12">
+                              <div className="alert mb-0 p-3" style={{ background: '#f8d7da', border: '1px solid #f1aeb5', borderRadius: 10 }}>
+                                 <div className="fw-semibold small text-danger mb-1">
+                                    <i className="bi bi-info-circle me-1"></i>HR Rejection Reason:
+                                 </div>
+                                 <div className="small">{myResignation.rejectionReason}</div>
+                              </div>
+                           </div>
+                        )}
+
+                        {/* Re-apply option */}
+                        {myResignation.canReapply && myResignation.status === 'rejected' && (
+                           <div className="col-12">
+                              <button
+                                 className="btn btn-sm rounded-pill px-4 fw-semibold"
+                                 style={{ background: 'linear-gradient(135deg, #0d6efd, #0a58ca)', color: '#fff', border: 'none' }}
+                                 onClick={() => {
+                                    setResignFormData({ managerName: myResignation.managerName, resignationReason: '' });
+                                    setShowResignModal(true);
+                                 }}
+                              >
+                                 <i className="bi bi-arrow-repeat me-2"></i>Apply Again
+                              </button>
+                           </div>
+                        )}
+                     </div>
+                  </div>
+               </div>
+            )}
          </div>
       );
    };
@@ -903,6 +1080,118 @@ const Dashboard = () => {
                            );
                         })}
                      </div>
+                  )}
+               </div>
+            </div>
+
+            {/* ── Resignation Requests Panel (HR) ── */}
+            <div className="mt-4">
+               <div className="dashboard-card p-0 overflow-hidden">
+                  <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
+                     <div className="d-flex align-items-center gap-2">
+                        <h6 className="fw-bold mb-0">📋 Resignation Requests</h6>
+                        {allResignations.filter(r => r.status === 'pending').length > 0 && (
+                           <span
+                              className="badge rounded-pill"
+                              style={{ background: '#dc3545', color: '#fff', fontSize: '0.72rem', padding: '3px 9px' }}
+                           >
+                              {allResignations.filter(r => r.status === 'pending').length} pending
+                           </span>
+                        )}
+                     </div>
+                     <button
+                        className="btn btn-sm rounded-pill px-3"
+                        style={{ border: '1.5px solid #dee2e6', background: '#fff', fontSize: '0.8rem' }}
+                        onClick={() => setShowHRResignPanel(v => !v)}
+                     >
+                        {showHRResignPanel ? <><i className="bi bi-chevron-up me-1"></i>Hide</> : <><i className="bi bi-chevron-down me-1"></i>View All</>}
+                     </button>
+                  </div>
+
+                  {showHRResignPanel && (
+                     allResignations.length === 0 ? (
+                        <div className="p-4 text-center text-muted small">
+                           <div style={{ fontSize: '2rem', opacity: 0.3 }}>📋</div>
+                           <div className="mt-2">No resignation requests found.</div>
+                        </div>
+                     ) : (
+                        <div className="table-responsive">
+                           <table className="table table-hover mb-0" style={{ fontSize: '0.85rem' }}>
+                              <thead className="table-light">
+                                 <tr>
+                                    <th className="ps-3">Employee</th>
+                                    <th>Manager / TL</th>
+                                    <th style={{ maxWidth: 220 }}>Reason</th>
+                                    <th>Submitted</th>
+                                    <th>Status</th>
+                                    <th className="pe-3">Action</th>
+                                 </tr>
+                              </thead>
+                              <tbody>
+                                 {allResignations.map(r => (
+                                    <tr key={r._id}>
+                                       <td className="ps-3">
+                                          <div className="fw-semibold">{r.employeeName}</div>
+                                          <div className="text-muted" style={{ fontSize: '0.75rem' }}>{r.employeeId}</div>
+                                       </td>
+                                       <td className="align-middle">{r.managerName}</td>
+                                       <td className="align-middle" style={{ maxWidth: 220 }}>
+                                          <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200 }}
+                                             title={r.resignationReason}>
+                                             {r.resignationReason}
+                                          </div>
+                                          {r.status === 'rejected' && r.rejectionReason && (
+                                             <div className="text-danger mt-1" style={{ fontSize: '0.73rem' }}>
+                                                <i className="bi bi-reply me-1"></i>Rejected: {r.rejectionReason}
+                                             </div>
+                                          )}
+                                       </td>
+                                       <td className="align-middle text-muted">
+                                          {new Date(r.createdAt).toLocaleDateString('en-IN')}
+                                       </td>
+                                       <td className="align-middle">
+                                          {r.status === 'pending' && (
+                                             <span className="badge rounded-pill" style={{ background: '#fff3cd', color: '#856404', border: '1px solid #ffc107', padding: '4px 10px' }}>⏳ Pending</span>
+                                          )}
+                                          {r.status === 'accepted' && (
+                                             <span className="badge rounded-pill" style={{ background: '#d1e7dd', color: '#0a3622', border: '1px solid #198754', padding: '4px 10px' }}>✅ Accepted</span>
+                                          )}
+                                          {r.status === 'rejected' && (
+                                             <span className="badge rounded-pill" style={{ background: '#f8d7da', color: '#842029', border: '1px solid #dc3545', padding: '4px 10px' }}>❌ Rejected</span>
+                                          )}
+                                       </td>
+                                       <td className="align-middle pe-3">
+                                          {r.status === 'pending' ? (
+                                             <div className="d-flex gap-2">
+                                                <button
+                                                   className="btn btn-sm rounded-pill px-3 fw-semibold"
+                                                   style={{ background: '#198754', color: '#fff', border: 'none', fontSize: '0.78rem' }}
+                                                   disabled={resignActionLoading}
+                                                   onClick={() => handleHRAccept(r._id)}
+                                                >
+                                                   <i className="bi bi-check-lg me-1"></i>Accept
+                                                </button>
+                                                <button
+                                                   className="btn btn-sm rounded-pill px-3 fw-semibold"
+                                                   style={{ background: '#dc3545', color: '#fff', border: 'none', fontSize: '0.78rem' }}
+                                                   disabled={resignActionLoading}
+                                                   onClick={() => openRejectModal(r._id)}
+                                                >
+                                                   <i className="bi bi-x-lg me-1"></i>Reject
+                                                </button>
+                                             </div>
+                                          ) : (
+                                             <span className="text-muted small">
+                                                {r.reviewedAt ? `Reviewed ${new Date(r.reviewedAt).toLocaleDateString('en-IN')}` : '—'}
+                                             </span>
+                                          )}
+                                       </td>
+                                    </tr>
+                                 ))}
+                              </tbody>
+                           </table>
+                        </div>
+                     )
                   )}
                </div>
             </div>
@@ -1234,6 +1523,121 @@ const Dashboard = () => {
                </Modal.Footer>
             )}
          </Modal>
+
+         {/* ========================== */}
+         {/* SUBMIT RESIGNATION MODAL   */}
+         {/* ========================== */}
+         <Modal show={showResignModal} onHide={() => setShowResignModal(false)} centered className="leave-modal">
+            <Modal.Header closeButton className="border-0 pb-0">
+               <Modal.Title className="fw-bold fs-5">
+                  <i className="bi bi-box-arrow-right me-2 text-danger"></i>Submit Resignation
+               </Modal.Title>
+            </Modal.Header>
+            <Modal.Body className="pt-2">
+               <div className="alert py-2 small mb-3" style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 8 }}>
+                  <i className="bi bi-exclamation-triangle me-2 text-warning"></i>
+                  Your resignation will be sent to HR for review. Status will show as <strong>Pending Approval</strong> until acted upon.
+               </div>
+
+               {/* Employee name — auto-filled, read-only */}
+               <Form.Group className="mb-3">
+                  <Form.Label className="small fw-semibold">Employee Name</Form.Label>
+                  <Form.Control
+                     type="text"
+                     value={`${user?.firstName || ''} ${user?.lastName || ''}`.trim()}
+                     disabled
+                     style={{ background: '#f8f9fa', color: '#495057' }}
+                  />
+               </Form.Group>
+
+               {/* Manager / TL — filled by employee */}
+               <Form.Group className="mb-3">
+                  <Form.Label className="small fw-semibold">
+                     Manager / TL Name <span className="text-danger">*</span>
+                  </Form.Label>
+                  <Form.Control
+                     type="text"
+                     placeholder="Enter your reporting manager or TL name"
+                     value={resignFormData.managerName}
+                     onChange={e => setResignFormData({ ...resignFormData, managerName: e.target.value })}
+                  />
+               </Form.Group>
+
+               {/* Reason */}
+               <Form.Group className="mb-2">
+                  <Form.Label className="small fw-semibold">
+                     Reason for Resignation <span className="text-danger">*</span>
+                  </Form.Label>
+                  <Form.Control
+                     as="textarea"
+                     rows={4}
+                     placeholder="Please describe your reason for resignation..."
+                     value={resignFormData.resignationReason}
+                     onChange={e => setResignFormData({ ...resignFormData, resignationReason: e.target.value })}
+                  />
+               </Form.Group>
+            </Modal.Body>
+            <Modal.Footer className="border-0 pt-0 flex-column gap-2">
+               <Button
+                  className="w-100 rounded-pill fw-semibold"
+                  style={{ background: 'linear-gradient(135deg, #dc3545, #c82333)', border: 'none', color: '#fff' }}
+                  disabled={resignSubmitting || !resignFormData.managerName.trim() || !resignFormData.resignationReason.trim()}
+                  onClick={handleSubmitResignation}
+               >
+                  {resignSubmitting
+                     ? <><span className="spinner-border spinner-border-sm me-2"></span>Submitting...</>
+                     : <><i className="bi bi-send me-2"></i>Submit Resignation</>}
+               </Button>
+               <Button variant="light" className="w-100 rounded-pill" onClick={() => setShowResignModal(false)}>
+                  Cancel
+               </Button>
+            </Modal.Footer>
+         </Modal>
+
+         {/* ============================= */}
+         {/* HR — REJECTION REASON MODAL   */}
+         {/* ============================= */}
+         <Modal show={showRejectModal} onHide={() => setShowRejectModal(false)} centered className="leave-modal">
+            <Modal.Header closeButton className="border-0 pb-0">
+               <Modal.Title className="fw-bold fs-5">
+                  <i className="bi bi-x-circle me-2 text-danger"></i>Reject Resignation
+               </Modal.Title>
+            </Modal.Header>
+            <Modal.Body className="pt-2">
+               <div className="alert py-2 small mb-3" style={{ background: '#f8d7da', border: '1px solid #f1aeb5', borderRadius: 8 }}>
+                  <i className="bi bi-info-circle me-2 text-danger"></i>
+                  The employee will see this reason on their dashboard and will be allowed to re-apply.
+               </div>
+               <Form.Group>
+                  <Form.Label className="small fw-semibold">
+                     Rejection Reason <span className="text-danger">*</span>
+                  </Form.Label>
+                  <Form.Control
+                     as="textarea"
+                     rows={4}
+                     placeholder="Explain why you are rejecting this resignation request..."
+                     value={rejectionReason}
+                     onChange={e => setRejectionReason(e.target.value)}
+                  />
+               </Form.Group>
+            </Modal.Body>
+            <Modal.Footer className="border-0 pt-0">
+               <Button variant="light" className="rounded-pill px-4" onClick={() => setShowRejectModal(false)}>
+                  Cancel
+               </Button>
+               <Button
+                  variant="danger"
+                  className="rounded-pill px-4 fw-semibold"
+                  disabled={resignActionLoading || !rejectionReason.trim()}
+                  onClick={handleHRReject}
+               >
+                  {resignActionLoading
+                     ? <><span className="spinner-border spinner-border-sm me-2"></span>Rejecting...</>
+                     : <><i className="bi bi-x-lg me-2"></i>Confirm Reject</>}
+               </Button>
+            </Modal.Footer>
+         </Modal>
+
       </div>
    );
 };

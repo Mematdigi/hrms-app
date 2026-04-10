@@ -4,6 +4,7 @@ import { payrollAPI, employeeAPI } from '../services/api';
 import { Modal } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { useNotifications, NOTIF_TYPES } from '../context/NotificationContext';
+import BackButton from '../components/BackButton';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -496,14 +497,14 @@ function Payroll() {
       {/* ── Header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#1a237e' }}>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#1a237e' }}><span className="m-3"><BackButton/></span>
             {isHR ? '💰 Payroll Management' : '📄 My Payslip'}
           </h1>
-          <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: 14 }}>
+          {/* <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: 14 }}>
             {isHR
               ? 'Auto-calculated from attendance, leaves & salary data'
               : 'View and download your salary slip'}
-          </p>
+          </p> */}
         </div>
 
         {/* Controls */}

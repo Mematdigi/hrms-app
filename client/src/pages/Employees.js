@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { employeeAPI } from '../services/api';
+import { employeeAPI, offboardingAPI  } from '../services/api';
+import BackButton from '../components/BackButton';
 
 const EMPTY_PREV_EMP = {
     employeeName: '',
@@ -144,7 +145,7 @@ function Employees() {
             baseSalary: employee.baseSalary || '',
             status: employee.status || 'Full Time',
             periodType: employee.periodType || 'Permanent',
-            isActive: employee.isActive,
+            isActive: employee.isActive === true || employee.isActive === 'true',
             workMode: employee.workMode || 'Work From Office',
             gender: employee.gender || '',
             maritalStatus: employee.maritalStatus || '',
@@ -195,10 +196,30 @@ function Employees() {
         setViewMode('edit');
     };
 
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
-    };
+const handleChange = async (e) => {
+    const { name, value, type, checked } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
+ 
+    // When HR unticks "Active" in edit mode → save as inactive + go to offboarding
+    if (name === 'isActive' && type === 'checkbox' && !checked && viewMode === 'edit' && editingId) {
+        if (!window.confirm(`Marking this employee as inactive will start the offboarding process. Continue?`)) {
+            return; // User cancelled — do not change checkbox
+        }
+        try {
+            const data = new FormData();
+            data.append('isActive', 'false');
+            await employeeAPI.update(editingId, data);
+            fetchEmployees();
+            navigate(`/OffBoarding?employeeId=${editingId}`);
+        } catch (err) {
+            setErrorMessage('Failed to deactivate employee. Please try again.');
+        }
+        return;
+    }
+ 
+    // Use functional form of setState to avoid stale closure
+    setFormData((prev) => ({ ...prev, [name]: newValue }));
+};
 
     const handlePrevEmpChange = (e) => {
         const { name, value } = e.target;
@@ -238,7 +259,7 @@ function Employees() {
                 }
             });
 
-            data.append('isActive', formData.isActive.toString());
+            // data.append('isActive', formData.isActive.toString());
 
             const hasPrevEmpData = Object.values(prevEmpData).some(v => v !== '');
             if (hasPrevEmpData) {
@@ -537,19 +558,19 @@ function Employees() {
             {/* Header */}
             <div className="page-header">
                 <div>
-                    <h1>
+                    <h1><span className="m-3"><BackButton/></span>
                         {viewMode === 'add' ? 'Add New Employee'
                             : viewMode === 'edit' ? 'Edit Details'
                             : viewMode === 'bulk' ? 'Bulk Import Employees'
                             : 'Employees'}
                     </h1>
-                    <p>
+                    {/* <p>
                         {viewMode === 'grid' || viewMode === 'list'
                             ? 'Manage your team members.'
                             : viewMode === 'bulk'
                             ? 'Import multiple employees at once using an Excel sheet.'
                             : 'Manage employee information and documents.'}
-                    </p>
+                    </p> */}
                 </div>
                 {(user?.role === 'admin' || user?.role === 'hr') && (
                     viewMode === 'grid' || viewMode === 'list' ? (
