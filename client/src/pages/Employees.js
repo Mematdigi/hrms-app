@@ -97,9 +97,18 @@ function Employees() {
 
     const { user } = useSelector((state) => state.auth);
 
-    // ── Bulk Selection State (admin only) ─────────────────────────────────────
+    // Bulk Selection State (admin only)
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState([]);
+
+    // Known option lists for selects
+    const DEPARTMENTS = ['Development Team','SEO Team','Content Team','Video Team','HR Team','Insurance Team','Graphic Team','Accounts Team','Sales Team','PR Team'];
+    const STATUSES = ['Full Time','Internship'];
+    const PERIOD_TYPES = ['Probation','Permanent','Contractual'];
+    const WORK_MODES = ['Work From Office','Work From Home','Hybrid'];
+    const GENDERS = ['Male','Female','Other'];
+    const MARITAL_STATUSES = ['Single','Married','Divorced','Widowed'];
+    const RELATIONS = ['Spouse','Parent','Sibling','Child','Friend','Other'];
 
     useEffect(() => { fetchEmployees(); }, []);
 
@@ -283,7 +292,7 @@ function Employees() {
         } catch (error) { setErrorMessage(error?.response?.data?.message || 'Error deleting employee'); }
     };
 
-    // ── Selection Handlers (admin only) ───────────────────────────────────────
+    // Selection Handlers (admin only)
     const toggleSelectionMode = () => {
         setSelectionMode((prev) => !prev);
         setSelectedIds([]);
@@ -317,7 +326,7 @@ function Employees() {
         }
     };
 
-    // --- Bulk Import Handlers ---
+    // Bulk Import Handlers
     const handleBulkFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -420,17 +429,14 @@ function Employees() {
         }
     }, [successMessage, errorMessage]);
 
-    // ── Filtered employees: active/inactive + search ──────────────────────────
+    // Filtered employees: active/inactive + search
     const activeCount   = useMemo(() => employees.filter(e =>  e.isActive).length, [employees]);
     const inactiveCount = useMemo(() => employees.filter(e => !e.isActive).length, [employees]);
 
     const filteredEmployees = useMemo(() => {
         return employees.filter((emp) => {
-            // Active / Inactive filter
             if (activeFilter === 'active'   && !emp.isActive) return false;
             if (activeFilter === 'inactive' &&  emp.isActive) return false;
-
-            // Search filter
             const searchLower = searchQuery.toLowerCase();
             const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
             return fullName.includes(searchLower) || emp.email.toLowerCase().includes(searchLower);
@@ -444,11 +450,25 @@ function Employees() {
         return colors[Math.abs(hash) % colors.length];
     };
 
+    // ✅ Helper: render select with backend value fallback
+    const renderSelect = (name, value, options, placeholder, onChange) => (
+        <select name={name} value={value} onChange={onChange}>
+            {placeholder && <option value="">{placeholder}</option>}
+            {/* ✅ If backend value not in known options, add it dynamically */}
+            {value && !options.includes(value) && (
+                <option value={value}>{value}</option>
+            )}
+            {options.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+            ))}
+        </select>
+    );
+
     if (loading) return <div className="loading-spinner">Loading Employees...</div>;
 
     return (
         <div className="employees-page">
-            {/* ── Bulk Selection CSS ── */}
+            {/* Bulk Selection CSS */}
             <style>{`
                 .card-checkbox-wrap {
                     position: absolute;
@@ -569,7 +589,7 @@ function Employees() {
                 )}
             </div>
 
-            {/* --- BULK IMPORT VIEW --- */}
+            {/* BULK IMPORT VIEW */}
             {viewMode === 'bulk' && (
                 <div className="bulk-import-container fade-in">
                     <div className="bulk-import-card">
@@ -583,16 +603,10 @@ function Employees() {
 
                         {/* Bulk Tab Switcher */}
                         <div className="bulk-sheet-tabs">
-                            <button
-                                className={`bulk-tab-btn ${bulkTab === 'sheet1' ? 'active' : ''}`}
-                                onClick={() => setBulkTab('sheet1')}
-                            >
+                            <button className={`bulk-tab-btn ${bulkTab === 'sheet1' ? 'active' : ''}`} onClick={() => setBulkTab('sheet1')}>
                                 <i className="bi bi-person-lines-fill me-2"></i>Sheet 1 — Employee Details
                             </button>
-                            <button
-                                className={`bulk-tab-btn ${bulkTab === 'sheet2' ? 'active' : ''}`}
-                                onClick={() => setBulkTab('sheet2')}
-                            >
+                            <button className={`bulk-tab-btn ${bulkTab === 'sheet2' ? 'active' : ''}`} onClick={() => setBulkTab('sheet2')}>
                                 <i className="bi bi-box-arrow-right me-2"></i>Sheet 2 — Exit Details
                             </button>
                         </div>
@@ -611,9 +625,7 @@ function Employees() {
                                         'Bank Name', 'Last Working Day', 'Permanent Address', 'Current Address',
                                         'Marital Status', 'Emergency contact Name ', 'Emeregncy Contact Number ', 'Nationality'
                                     ].map((col) => (
-                                        <span key={col} className={`col-tag ${col.includes('*') ? 'required' : ''}`}>
-                                            {col}
-                                        </span>
+                                        <span key={col} className={`col-tag ${col.includes('*') ? 'required' : ''}`}>{col}</span>
                                     ))}
                                 </div>
                                 <p className="text-muted mt-2"><span className="col-tag required" style={{fontSize:'11px'}}>*</span> = Required fields</p>
@@ -633,9 +645,7 @@ function Employees() {
                                         'Fnf date', 'Exit Interview Date', 'Company Assets Returned',
                                         'HR Representative', 'Remarks'
                                     ].map((col) => (
-                                        <span key={col} className={`col-tag ${col.includes('*') ? 'required' : ''}`}>
-                                            {col}
-                                        </span>
+                                        <span key={col} className={`col-tag ${col.includes('*') ? 'required' : ''}`}>{col}</span>
                                     ))}
                                 </div>
                                 <p className="text-muted mt-2">
@@ -653,14 +663,7 @@ function Employees() {
 
                         <div className="bulk-upload-area">
                             <label htmlFor="bulkFileInput" className={`drop-zone ${bulkFile ? 'has-file' : ''}`}>
-                                <input
-                                    type="file"
-                                    id="bulkFileInput"
-                                    ref={bulkFileRef}
-                                    accept=".xlsx,.xls"
-                                    onChange={handleBulkFileChange}
-                                    hidden
-                                />
+                                <input type="file" id="bulkFileInput" ref={bulkFileRef} accept=".xlsx,.xls" onChange={handleBulkFileChange} hidden />
                                 <i className={`bi ${bulkFile ? 'bi-file-earmark-check' : 'bi-cloud-upload'}`}></i>
                                 <span>{bulkFile ? bulkFile.name : 'Click to select Excel file (.xlsx, .xls) with 2 sheets'}</span>
                                 {bulkFile && <small className="text-muted">{(bulkFile.size / 1024).toFixed(1)} KB</small>}
@@ -669,27 +672,16 @@ function Employees() {
 
                         <div className="bulk-actions">
                             {bulkFile && (
-                                <button
-                                    className="btn-clear-file"
-                                    onClick={() => { setBulkFile(null); setBulkResult(null); setSavedBulkFile(null); if (bulkFileRef.current) bulkFileRef.current.value = ''; }}
-                                >
+                                <button className="btn-clear-file" onClick={() => { setBulkFile(null); setBulkResult(null); setSavedBulkFile(null); if (bulkFileRef.current) bulkFileRef.current.value = ''; }}>
                                     <i className="bi bi-x me-1"></i>Clear
                                 </button>
                             )}
                             {savedBulkFile && (
-                                <button
-                                    className="btn-download-uploaded"
-                                    onClick={handleDownloadUploadedExcel}
-                                    title="Download the Excel file you just uploaded"
-                                >
+                                <button className="btn-download-uploaded" onClick={handleDownloadUploadedExcel} title="Download the Excel file you just uploaded">
                                     <i className="bi bi-file-earmark-arrow-down me-2"></i>Download Uploaded Excel
                                 </button>
                             )}
-                            <button
-                                className="btn-primary-add"
-                                onClick={handleBulkImport}
-                                disabled={!bulkFile || bulkLoading}
-                            >
+                            <button className="btn-primary-add" onClick={handleBulkImport} disabled={!bulkFile || bulkLoading}>
                                 {bulkLoading ? (
                                     <><span className="spinner-border spinner-border-sm me-2" role="status"></span>Importing...</>
                                 ) : (
@@ -715,26 +707,44 @@ function Employees() {
                                         <div><span className="count">{bulkResult.totalProcessed || 0}</span><span className="label">Total</span></div>
                                     </div>
                                 </div>
-
                                 {bulkResult.success?.length > 0 && (
-                                    <div className="result-table-wrap">
-                                        <h6 className="text-success"><i className="bi bi-check-circle me-2"></i>Successfully Imported</h6>
-                                        <table className="modern-table">
-                                            <thead><tr><th>Row</th><th>Name</th><th>Employee ID</th><th>Email</th></tr></thead>
-                                            <tbody>
-                                                {bulkResult.success.map((item, idx) => (
-                                                    <tr key={idx}>
-                                                        <td>{item.row}</td>
-                                                        <td>{item.name}</td>
-                                                        <td>{item.employeeId}</td>
-                                                        <td>{item.email}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-
+    <div className="result-table-wrap">
+        <h6 className="text-success"><i className="bi bi-check-circle me-2"></i>Successfully Processed</h6>
+        <table className="modern-table">
+            <thead>
+                <tr>
+                    <th>Row</th>
+                    <th>Name</th>
+                    <th>Employee ID</th>
+                    <th>Email</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {bulkResult.success.map((item, idx) => (
+                    <tr key={idx}>
+                        <td>{item.row}</td>
+                        <td>{item.name}</td>
+                        <td>{item.employeeId}</td>
+                        <td>{item.email}</td>
+                        <td>
+                            <span style={{
+                                padding: '2px 10px',
+                                borderRadius: '12px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                background: item.action === 'updated' ? '#fef3c7' : '#dcfce7',
+                                color: item.action === 'updated' ? '#92400e' : '#166534'
+                            }}>
+                                {item.action === 'updated' ? '🔄 Updated' : '✅ Created'}
+                            </span>
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    </div>
+)}
                                 {bulkResult.failed?.length > 0 && (
                                     <div className="result-table-wrap mt-3">
                                         <h6 className="text-danger"><i className="bi bi-x-circle me-2"></i>Failed Rows</h6>
@@ -742,11 +752,7 @@ function Employees() {
                                             <thead><tr><th>Row</th><th>Name</th><th>Reason</th></tr></thead>
                                             <tbody>
                                                 {bulkResult.failed.map((item, idx) => (
-                                                    <tr key={idx}>
-                                                        <td>{item.row}</td>
-                                                        <td>{item.name || '-'}</td>
-                                                        <td className="text-danger">{item.reason}</td>
-                                                    </tr>
+                                                    <tr key={idx}><td>{item.row}</td><td>{item.name || '-'}</td><td className="text-danger">{item.reason}</td></tr>
                                                 ))}
                                             </tbody>
                                         </table>
@@ -758,7 +764,7 @@ function Employees() {
                 </div>
             )}
 
-            {/* --- ADD / EDIT FORM VIEW --- */}
+            {/* ADD / EDIT FORM VIEW */}
             {(viewMode === 'add' || viewMode === 'edit') ? (
                 <form className="add-employee-container fade-in" onSubmit={handleSubmit} encType="multipart/form-data">
 
@@ -772,14 +778,11 @@ function Employees() {
                             </div>
                             <h3>{formData.firstName || 'First'} {formData.lastName || 'Last'}</h3>
                             <p className="role">{formData.designation || 'Designation'}</p>
-
                             <div className="divider"></div>
-
                             <div className="mini-info-row"><i className="bi bi-envelope"></i> <span>{formData.email || 'email@company.com'}</span></div>
                             <div className="mini-info-row"><i className="bi bi-telephone"></i> <span>{formData.contact || 'Contact No.'}</span></div>
                             <div className="mini-info-row"><i className="bi bi-geo-alt"></i> <span>{formData.address || 'Location'}</span></div>
                         </div>
-
                         <div className="form-section-card mt-3">
                             <h4>Quick Settings</h4>
                             <div className="input-group checkbox mt-2">
@@ -794,23 +797,15 @@ function Employees() {
 
                         {/* Form Tab Switcher */}
                         <div className="form-tab-switcher">
-                            <button
-                                type="button"
-                                className={`form-tab-btn ${formTab === 'employee' ? 'active' : ''}`}
-                                onClick={() => setFormTab('employee')}
-                            >
+                            <button type="button" className={`form-tab-btn ${formTab === 'employee' ? 'active' : ''}`} onClick={() => setFormTab('employee')}>
                                 <i className="bi bi-person-fill me-2"></i>Employee Details
                             </button>
-                            <button
-                                type="button"
-                                className={`form-tab-btn ${formTab === 'exit' ? 'active' : ''}`}
-                                onClick={() => setFormTab('exit')}
-                            >
+                            <button type="button" className={`form-tab-btn ${formTab === 'exit' ? 'active' : ''}`} onClick={() => setFormTab('exit')}>
                                 <i className="bi bi-box-arrow-right me-2"></i>Exit Details
                             </button>
                         </div>
 
-                        {/* ═══ TAB 1: Employee Details ═══ */}
+                        {/* TAB 1: Employee Details */}
                         {formTab === 'employee' && (
                             <>
                                 {/* Personal Information */}
@@ -825,25 +820,19 @@ function Employees() {
                                         <div className="input-group"><label>Email Address <span className="req">*</span></label><input type="email" name="email" value={formData.email} onChange={handleChange} required disabled={viewMode === 'edit'} /></div>
                                         <div className="input-group"><label>Personal Email</label><input type="email" name="personalEmail" value={formData.personalEmail} onChange={handleChange} placeholder="Personal email address" /></div>
                                         <div className="input-group"><label>Contact Number <span className="req">*</span></label><input type="tel" name="contact" value={formData.contact} onChange={handleChange} required /></div>
+
+                                        {/* ✅ Gender — backend value prefilled */}
                                         <div className="input-group">
                                             <label>Gender</label>
-                                            <select name="gender" value={formData.gender} onChange={handleChange}>
-                                                <option value="">Select Gender</option>
-                                                <option value="Male">Male</option>
-                                                <option value="Female">Female</option>
-                                                <option value="Other">Other</option>
-                                            </select>
+                                            {renderSelect('gender', formData.gender, GENDERS, 'Select Gender', handleChange)}
                                         </div>
+
+                                        {/* ✅ Marital Status — backend value prefilled */}
                                         <div className="input-group">
                                             <label>Marital Status</label>
-                                            <select name="maritalStatus" value={formData.maritalStatus} onChange={handleChange}>
-                                                <option value="">Select Status</option>
-                                                <option value="Single">Single</option>
-                                                <option value="Married">Married</option>
-                                                <option value="Divorced">Divorced</option>
-                                                <option value="Widowed">Widowed</option>
-                                            </select>
+                                            {renderSelect('maritalStatus', formData.maritalStatus, MARITAL_STATUSES, 'Select Status', handleChange)}
                                         </div>
+
                                         <div className="input-group"><label>Date of Birth</label><input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} /></div>
                                         <div className="input-group"><label>Nationality</label><input type="text" name="nationality" value={formData.nationality} onChange={handleChange} placeholder="e.g. Indian" /></div>
                                         <div className="input-group full-width"><label>Permanent Address</label><input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="Permanent address" /></div>
@@ -871,52 +860,40 @@ function Employees() {
                                     <h4>Employment Details</h4>
                                     <div className="form-row-grid">
                                         <div className="input-group"><label>Employee ID <span className="req">*</span></label><input type="text" name="employeeId" value={formData.employeeId} onChange={handleChange} required /></div>
+
+                                        {/* ✅ Department — backend value prefilled */}
                                         <div className="input-group">
                                             <label>Department</label>
-                                            <select name="department" value={formData.department} onChange={handleChange}>
-                                                <option value="" disabled>Select Department</option>
-                                                <option value="Development Team">Development</option>
-                                                <option value="SEO Team">SEO</option>
-                                                <option value="Content Team">Content</option>
-                                                <option value="Video Team">Video</option>
-                                                <option value="HR Team">HR</option>
-                                                <option value="Insurance Team">Insurance</option>
-                                                <option value="Graphic Team">Graphic Designing</option>
-                                                <option value="Accounts Team">Accounts</option>
-                                                <option value="Sales Team">Sales</option>
-                                                <option value="PR Team">PR</option>
-                                            </select>
+                                            {renderSelect('department', formData.department, DEPARTMENTS, 'Select Department', handleChange)}
                                         </div>
+
                                         <div className="input-group"><label>Designation</label><input type="text" name="designation" value={formData.designation} onChange={handleChange} /></div>
                                         <div className="input-group"><label>Joining Date</label><input type="date" name="dateOfJoining" value={formData.dateOfJoining} onChange={handleChange} /></div>
                                         <div className="input-group"><label>Last Working Day</label><input type="date" name="lastWorkingDay" value={formData.lastWorkingDay} onChange={handleChange} /></div>
+
+                                        {/* ✅ Employment Status — backend value prefilled */}
                                         <div className="input-group">
                                             <label>Employment Status</label>
-                                            <select name="status" value={formData.status} onChange={handleChange}>
-                                                <option value="" disabled>Select Employee Type</option>
-                                                <option value="Full Time">Full Time</option>
-                                                <option value="Internship">Internship</option>
-                                            </select>
+                                            {renderSelect('status', formData.status, STATUSES, 'Select Employee Type', handleChange)}
                                         </div>
+
+                                        {/* ✅ Period Type — backend value prefilled */}
                                         <div className="input-group">
                                             <label>Period Type</label>
-                                            <select name="periodType" value={formData.periodType} onChange={handleChange}>
-                                                <option value="" disabled>Select Period Type</option>
-                                                <option value="Probation">Probation</option>
-                                                <option value="Permanent">Permanent</option>
-                                                <option value="Contractual">Contractual</option>
-                                            </select>
+                                            {renderSelect('periodType', formData.periodType, PERIOD_TYPES, 'Select Period Type', handleChange)}
                                         </div>
+
+                                        {/* ✅ Work Mode — backend value prefilled */}
                                         <div className="input-group">
                                             <label>Work Mode</label>
-                                            <select name="workMode" value={formData.workMode} onChange={handleChange}>
-                                                <option value="Work From Office">Work From Office</option>
-                                                <option value="Work From Home">Work From Home</option>
-                                                <option value="Hybrid">Hybrid</option>
-                                            </select>
+                                            {renderSelect('workMode', formData.workMode, WORK_MODES, null, handleChange)}
                                         </div>
+
                                         <div className="input-group"><label>Base Salary</label><input type="number" name="baseSalary" value={formData.baseSalary} onChange={handleChange} /></div>
-                                        <div className="input-group"><label>Password {viewMode === 'add' && <span className="req">*</span>}</label><input type="password" name="password" value={formData.password} onChange={handleChange} required={viewMode === 'add'} placeholder={viewMode === 'edit' ? "Leave empty to keep current" : ""} /></div>
+                                        <div className="input-group">
+                                            <label>Password {viewMode === 'add' && <span className="req">*</span>}</label>
+                                            <input type="password" name="password" value={formData.password} onChange={handleChange} required={viewMode === 'add'} placeholder={viewMode === 'edit' ? "Leave empty to keep current" : ""} />
+                                        </div>
                                     </div>
                                 </div>
 
@@ -936,17 +913,11 @@ function Employees() {
                                     <div className="form-row-grid">
                                         <div className="input-group"><label>Contact Name</label><input type="text" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange} placeholder="Full name" /></div>
                                         <div className="input-group"><label>Contact Phone</label><input type="tel" name="emergencyContactPhone" value={formData.emergencyContactPhone} onChange={handleChange} placeholder="Phone number" /></div>
+
+                                        {/* ✅ Relation — backend value prefilled */}
                                         <div className="input-group">
                                             <label>Relationship</label>
-                                            <select name="emergencyContactRelation" value={formData.emergencyContactRelation} onChange={handleChange}>
-                                                <option value="">Select Relationship</option>
-                                                <option value="Spouse">Spouse</option>
-                                                <option value="Parent">Parent</option>
-                                                <option value="Sibling">Sibling</option>
-                                                <option value="Child">Child</option>
-                                                <option value="Friend">Friend</option>
-                                                <option value="Other">Other</option>
-                                            </select>
+                                            {renderSelect('emergencyContactRelation', formData.emergencyContactRelation, RELATIONS, 'Select Relationship', handleChange)}
                                         </div>
                                     </div>
                                 </div>
@@ -989,7 +960,7 @@ function Employees() {
                             </>
                         )}
 
-                        {/* ═══ TAB 2: Exit Details ═══ */}
+                        {/* TAB 2: Exit Details */}
                         {formTab === 'exit' && (
                             <>
                                 <div className="form-section-card">
@@ -999,32 +970,19 @@ function Employees() {
                                             <p className="text-muted small mb-0">This section is optional. Fill exit/relieving details of the employee.</p>
                                         </div>
                                     </div>
-
                                     <div className="form-row-grid mt-3">
-                                        <div className="input-group">
-                                            <label>Employee Name</label>
-                                            <input type="text" name="employeeName" value={prevEmpData.employeeName} onChange={handlePrevEmpChange} placeholder="Full name in previous company" />
-                                        </div>
-                                        <div className="input-group">
-                                            <label>Department</label>
-                                            <input type="text" name="department" value={prevEmpData.department} onChange={handlePrevEmpChange} placeholder="Department in last company" />
-                                        </div>
-                                        <div className="input-group">
-                                            <label>Designation</label>
-                                            <input type="text" name="designation" value={prevEmpData.designation} onChange={handlePrevEmpChange} placeholder="Designation in last company" />
-                                        </div>
-                                        <div className="input-group">
-                                            <label>Joining Date</label>
-                                            <input type="date" name="joiningDate" value={prevEmpData.joiningDate} onChange={handlePrevEmpChange} />
-                                        </div>
-                                        <div className="input-group">
-                                            <label>Last Working Day (LWD)</label>
-                                            <input type="date" name="lastWorkingDay" value={prevEmpData.lastWorkingDay} onChange={handlePrevEmpChange} />
-                                        </div>
+                                        <div className="input-group"><label>Employee Name</label><input type="text" name="employeeName" value={prevEmpData.employeeName} onChange={handlePrevEmpChange} placeholder="Full name in previous company" /></div>
+                                        <div className="input-group"><label>Department</label><input type="text" name="department" value={prevEmpData.department} onChange={handlePrevEmpChange} placeholder="Department in last company" /></div>
+                                        <div className="input-group"><label>Designation</label><input type="text" name="designation" value={prevEmpData.designation} onChange={handlePrevEmpChange} placeholder="Designation in last company" /></div>
+                                        <div className="input-group"><label>Joining Date</label><input type="date" name="joiningDate" value={prevEmpData.joiningDate} onChange={handlePrevEmpChange} /></div>
+                                        <div className="input-group"><label>Last Working Day (LWD)</label><input type="date" name="lastWorkingDay" value={prevEmpData.lastWorkingDay} onChange={handlePrevEmpChange} /></div>
                                         <div className="input-group">
                                             <label>Exit Type</label>
                                             <select name="exitType" value={prevEmpData.exitType} onChange={handlePrevEmpChange}>
                                                 <option value="">Select Exit Type</option>
+                                                {prevEmpData.exitType && !['Resignation','Termination','Retirement','Contract End','Layoff','Absconding','Other'].includes(prevEmpData.exitType) && (
+                                                    <option value={prevEmpData.exitType}>{prevEmpData.exitType}</option>
+                                                )}
                                                 <option value="Resignation">Resignation</option>
                                                 <option value="Termination">Termination</option>
                                                 <option value="Retirement">Retirement</option>
@@ -1034,18 +992,15 @@ function Employees() {
                                                 <option value="Other">Other</option>
                                             </select>
                                         </div>
-                                        <div className="input-group full-width">
-                                            <label>Reason for Exit</label>
-                                            <input type="text" name="reasonForExit" value={prevEmpData.reasonForExit} onChange={handlePrevEmpChange} placeholder="e.g. Better opportunity, Personal reasons" />
-                                        </div>
-                                        <div className="input-group">
-                                            <label>Manager / Supervisor Name</label>
-                                            <input type="text" name="managerName" value={prevEmpData.managerName} onChange={handlePrevEmpChange} placeholder="Reporting manager name" />
-                                        </div>
+                                        <div className="input-group full-width"><label>Reason for Exit</label><input type="text" name="reasonForExit" value={prevEmpData.reasonForExit} onChange={handlePrevEmpChange} placeholder="e.g. Better opportunity, Personal reasons" /></div>
+                                        <div className="input-group"><label>Manager / Supervisor Name</label><input type="text" name="managerName" value={prevEmpData.managerName} onChange={handlePrevEmpChange} placeholder="Reporting manager name" /></div>
                                         <div className="input-group">
                                             <label>Notice Period Served</label>
                                             <select name="noticePeriodServed" value={prevEmpData.noticePeriodServed} onChange={handlePrevEmpChange}>
                                                 <option value="">Select</option>
+                                                {prevEmpData.noticePeriodServed && !['Yes','No','Partial'].includes(prevEmpData.noticePeriodServed) && (
+                                                    <option value={prevEmpData.noticePeriodServed}>{prevEmpData.noticePeriodServed}</option>
+                                                )}
                                                 <option value="Yes">Yes</option>
                                                 <option value="No">No</option>
                                                 <option value="Partial">Partial</option>
@@ -1055,39 +1010,32 @@ function Employees() {
                                             <label>Final Settlement Done</label>
                                             <select name="finalSettlementDone" value={prevEmpData.finalSettlementDone} onChange={handlePrevEmpChange}>
                                                 <option value="">Select</option>
+                                                {prevEmpData.finalSettlementDone && !['Yes','No','Pending'].includes(prevEmpData.finalSettlementDone) && (
+                                                    <option value={prevEmpData.finalSettlementDone}>{prevEmpData.finalSettlementDone}</option>
+                                                )}
                                                 <option value="Yes">Yes</option>
                                                 <option value="No">No</option>
                                                 <option value="Pending">Pending</option>
                                             </select>
                                         </div>
-                                        <div className="input-group">
-                                            <label>FnF Date (Full &amp; Final Settlement)</label>
-                                            <input type="date" name="fnfDate" value={prevEmpData.fnfDate} onChange={handlePrevEmpChange} />
-                                        </div>
-                                        <div className="input-group">
-                                            <label>Exit Interview Date</label>
-                                            <input type="date" name="exitInterviewDate" value={prevEmpData.exitInterviewDate} onChange={handlePrevEmpChange} />
-                                        </div>
+                                        <div className="input-group"><label>FnF Date (Full &amp; Final Settlement)</label><input type="date" name="fnfDate" value={prevEmpData.fnfDate} onChange={handlePrevEmpChange} /></div>
+                                        <div className="input-group"><label>Exit Interview Date</label><input type="date" name="exitInterviewDate" value={prevEmpData.exitInterviewDate} onChange={handlePrevEmpChange} /></div>
                                         <div className="input-group">
                                             <label>Company Assets Returned</label>
                                             <select name="companyAssetsReturned" value={prevEmpData.companyAssetsReturned} onChange={handlePrevEmpChange}>
                                                 <option value="">Select</option>
+                                                {prevEmpData.companyAssetsReturned && !['Yes','No','Partial'].includes(prevEmpData.companyAssetsReturned) && (
+                                                    <option value={prevEmpData.companyAssetsReturned}>{prevEmpData.companyAssetsReturned}</option>
+                                                )}
                                                 <option value="Yes">Yes</option>
                                                 <option value="No">No</option>
                                                 <option value="Partial">Partial</option>
                                             </select>
                                         </div>
-                                        <div className="input-group">
-                                            <label>HR Representative</label>
-                                            <input type="text" name="hrRepresentative" value={prevEmpData.hrRepresentative} onChange={handlePrevEmpChange} placeholder="HR person who handled exit" />
-                                        </div>
-                                        <div className="input-group full-width">
-                                            <label>Remarks</label>
-                                            <input type="text" name="remarks" value={prevEmpData.remarks} onChange={handlePrevEmpChange} placeholder="Any additional notes" />
-                                        </div>
+                                        <div className="input-group"><label>HR Representative</label><input type="text" name="hrRepresentative" value={prevEmpData.hrRepresentative} onChange={handlePrevEmpChange} placeholder="HR person who handled exit" /></div>
+                                        <div className="input-group full-width"><label>Remarks</label><input type="text" name="remarks" value={prevEmpData.remarks} onChange={handlePrevEmpChange} placeholder="Any additional notes" /></div>
                                     </div>
                                 </div>
-
                                 <div className="form-footer-actions">
                                     <button type="button" className="btn-secondary-add" onClick={() => setFormTab('employee')}>
                                         <i className="bi bi-arrow-left me-2"></i>Back: Employee Details
@@ -1099,79 +1047,48 @@ function Employees() {
                     </div>
                 </form>
             ) : viewMode !== 'bulk' ? (
-                /* --- NORMAL VIEW (Grid/List) --- */
+                /* NORMAL VIEW (Grid/List) */
                 <>
-                    {/* ── Filter Bar ── */}
+                    {/* Filter Bar */}
                     <div className="filter-bar">
                         <div className="search-wrapper">
                             <i className="bi bi-search search-icon"></i>
-                            <input
-                                type="text"
-                                placeholder="Search by name or email..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
+                            <input type="text" placeholder="Search by name or email..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                         </div>
-
-                        {/* Active / Inactive Toggle */}
                         <div className="active-filter-toggle">
-                            <button
-                                className={`active-filter-btn ${activeFilter === 'active' ? 'selected active-selected' : ''}`}
-                                onClick={() => setActiveFilter('active')}
-                            >
-                                <span className="filter-dot active-dot"></span>
-                                Active
-                                <span className="filter-count">{activeCount}</span>
+                            <button className={`active-filter-btn ${activeFilter === 'active' ? 'selected active-selected' : ''}`} onClick={() => setActiveFilter('active')}>
+                                <span className="filter-dot active-dot"></span>Active<span className="filter-count">{activeCount}</span>
                             </button>
-                            <button
-                                className={`active-filter-btn ${activeFilter === 'inactive' ? 'selected inactive-selected' : ''}`}
-                                onClick={() => setActiveFilter('inactive')}
-                            >
-                                <span className="filter-dot inactive-dot"></span>
-                                Inactive
-                                <span className="filter-count">{inactiveCount}</span>
+                            <button className={`active-filter-btn ${activeFilter === 'inactive' ? 'selected inactive-selected' : ''}`} onClick={() => setActiveFilter('inactive')}>
+                                <span className="filter-dot inactive-dot"></span>Inactive<span className="filter-count">{inactiveCount}</span>
                             </button>
                         </div>
-
                         <div className="view-toggles">
                             <button className={`toggle-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')}><i className="bi bi-grid-fill"></i></button>
                             <button className={`toggle-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')}><i className="bi bi-list-ul"></i></button>
                         </div>
                     </div>
 
-                    {/* ── Select All Bar (admin + selectionMode only) ── */}
+                    {/* Select All Bar (admin + selectionMode only) */}
                     {selectionMode && user?.role === 'admin' && filteredEmployees.length > 0 && (
                         <div className="select-all-bar">
-                            <input
-                                type="checkbox"
-                                id="selectAll"
-                                checked={selectedIds.length === filteredEmployees.length && filteredEmployees.length > 0}
-                                onChange={handleSelectAll}
-                            />
+                            <input type="checkbox" id="selectAll" checked={selectedIds.length === filteredEmployees.length && filteredEmployees.length > 0} onChange={handleSelectAll} />
                             <label htmlFor="selectAll">
-                                {selectedIds.length === filteredEmployees.length
-                                    ? 'Deselect All'
-                                    : `Select All (${filteredEmployees.length})`}
+                                {selectedIds.length === filteredEmployees.length ? 'Deselect All' : `Select All (${filteredEmployees.length})`}
                             </label>
-                            {selectedIds.length > 0 && (
-                                <span className="selection-count">{selectedIds.length} selected</span>
-                            )}
+                            {selectedIds.length > 0 && <span className="selection-count">{selectedIds.length} selected</span>}
                         </div>
                     )}
 
                     {/* Empty state */}
                     {filteredEmployees.length === 0 && (
                         <div className="empty-state">
-                            <div className="empty-state-icon">
-                                {activeFilter === 'inactive' ? '😴' : '👥'}
-                            </div>
+                            <div className="empty-state-icon">{activeFilter === 'inactive' ? '😴' : '👥'}</div>
                             <h3>No {activeFilter === 'inactive' ? 'Inactive' : 'Active'} Employees Found</h3>
                             <p>
                                 {searchQuery
                                     ? `No results for "${searchQuery}". Try a different search.`
-                                    : activeFilter === 'inactive'
-                                    ? 'All employees are currently active.'
-                                    : 'No active employees found.'}
+                                    : activeFilter === 'inactive' ? 'All employees are currently active.' : 'No active employees found.'}
                             </p>
                         </div>
                     )}
@@ -1185,15 +1102,9 @@ function Employees() {
                                     onClick={selectionMode ? () => handleSelectToggle(emp._id) : undefined}
                                     style={selectionMode ? { cursor: 'pointer' } : {}}
                                 >
-                                    {/* Selection checkbox overlay (admin only) */}
                                     {selectionMode && user?.role === 'admin' && (
                                         <div className="card-checkbox-wrap" onClick={(e) => { e.stopPropagation(); handleSelectToggle(emp._id); }}>
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedIds.includes(emp._id)}
-                                                onChange={() => handleSelectToggle(emp._id)}
-                                                className="card-checkbox"
-                                            />
+                                            <input type="checkbox" checked={selectedIds.includes(emp._id)} onChange={() => handleSelectToggle(emp._id)} className="card-checkbox" />
                                         </div>
                                     )}
                                     <div className="card-header-part">
@@ -1211,9 +1122,7 @@ function Employees() {
                                         <div className="contact-row"><i className="bi bi-laptop"></i> <span>{emp.workMode || 'Work From Office'}</span></div>
                                     </div>
                                     <div className="card-footer-part">
-                                        <span className={`status-badge ${emp.isActive ? 'confirmed' : 'inactive'}`}>
-                                            {emp.isActive ? emp.status : 'Inactive'}
-                                        </span>
+                                        <span className={`status-badge ${emp.isActive ? 'confirmed' : 'inactive'}`}>{emp.isActive ? emp.status : 'Inactive'}</span>
                                         <button className="view-profile-link" onClick={() => navigate(`/EmployeeDetails/${emp._id}`)}>View Profile <i className="bi bi-arrow-up-right"></i></button>
                                     </div>
                                 </div>
@@ -1226,11 +1135,7 @@ function Employees() {
                                     <tr>
                                         {selectionMode && user?.role === 'admin' && (
                                             <th style={{ width: '40px' }}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedIds.length === filteredEmployees.length && filteredEmployees.length > 0}
-                                                    onChange={handleSelectAll}
-                                                />
+                                                <input type="checkbox" checked={selectedIds.length === filteredEmployees.length && filteredEmployees.length > 0} onChange={handleSelectAll} />
                                             </th>
                                         )}
                                         <th>EMPLOYEE</th>
@@ -1251,11 +1156,7 @@ function Employees() {
                                         >
                                             {selectionMode && user?.role === 'admin' && (
                                                 <td onClick={(e) => e.stopPropagation()}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedIds.includes(emp._id)}
-                                                        onChange={() => handleSelectToggle(emp._id)}
-                                                    />
+                                                    <input type="checkbox" checked={selectedIds.includes(emp._id)} onChange={() => handleSelectToggle(emp._id)} />
                                                 </td>
                                             )}
                                             <td>
@@ -1266,11 +1167,7 @@ function Employees() {
                                             </td>
                                             <td className="text-secondary">{emp.department || '-'}</td>
                                             <td className="text-secondary">{emp.workMode || 'WFO'}</td>
-                                            <td>
-                                                <span className={`status-pill ${emp.isActive ? 'active' : 'inactive'}`}>
-                                                    {emp.isActive ? emp.status : 'Inactive'}
-                                                </span>
-                                            </td>
+                                            <td><span className={`status-pill ${emp.isActive ? 'active' : 'inactive'}`}>{emp.isActive ? emp.status : 'Inactive'}</span></td>
                                             <td className="text-secondary">{emp.dateOfJoining ? new Date(emp.dateOfJoining).toLocaleDateString('en-GB') : '-'}</td>
                                             <td className="text-end action-cell-flex">
                                                 <button className="btn-link-action me-3" onClick={() => navigate(`/EmployeeDetails/${emp._id}`)}>View <i className="bi bi-arrow-up-right ms-1"></i></button>

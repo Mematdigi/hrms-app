@@ -65,12 +65,12 @@ const employeeSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Full Time', 'Internship'],
+    enum: ['Full Time', 'Internship','Inter-wfh','Target Based'],
     default: 'Full Time'
   },
   periodType: {
     type: String,
-    enum: ['Probation', 'Permanent', 'Contractual'],
+    enum: ['Probation', 'Permanent', 'Contractual', 'Target Based','Intern'],
     default: 'Permanent'
   },
   isActive: {
