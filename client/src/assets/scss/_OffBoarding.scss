@@ -1,0 +1,947 @@
+// _OffBoarding.scss — Rich UI Redesign with Micro-animations
+* { box-sizing: border-box; }
+
+// ── Tokens ─────────────────────────────────────────────────────────────────────
+$primary:       #6f5edb;
+$primary-light: #ede9fb;
+$primary-dark:  #5a4bc4;
+$warning:       #f59e0b;
+$warning-light: #fefce8;
+$warning-dark:  #d97706;
+$danger:        #ef4444;
+$danger-dark:   #dc2626;
+$danger-light:  #fef2f2;
+$success:       #10b981;
+$success-light: #ecfdf5;
+$success-dark:  #059669;
+$bg:            #f4f5f9;
+$surface:       #ffffff;
+$surface-2:     #fafbfc;
+$border:        #e8eaed;
+$border-dark:   #d1d5db;
+$text-primary:  #111827;
+$text-secondary:#5c6370;
+$text-muted:    #9ca3af;
+$radius:        14px;
+$radius-sm:     9px;
+$radius-xs:     6px;
+$shadow-sm:     0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+$shadow:        0 4px 14px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+$shadow-lg:     0 12px 32px rgba(0,0,0,.11), 0 4px 8px rgba(0,0,0,.06);
+
+// ── Keyframes ──────────────────────────────────────────────────────────────────
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(40px) scale(.94); }
+  to   { opacity: 1; transform: translateX(0)    scale(1);   }
+}
+
+@keyframes checkPop {
+  0%   { transform: scale(.55) rotate(-8deg); opacity: 0; }
+  65%  { transform: scale(1.18) rotate(2deg); }
+  100% { transform: scale(1)    rotate(0);    opacity: 1; }
+}
+
+@keyframes pulseRing {
+  0%   { box-shadow: 0 0 0 0   rgba(111,94,219,.40); }
+  70%  { box-shadow: 0 0 0 9px rgba(111,94,219,.00); }
+  100% { box-shadow: 0 0 0 0   rgba(111,94,219,.00); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes iconWiggle {
+  0%,100% { transform: rotate(0); }
+  25%      { transform: rotate(-8deg) scale(1.1); }
+  75%      { transform: rotate(8deg)  scale(1.1); }
+}
+
+// ── Page Wrapper ───────────────────────────────────────────────────────────────
+.offboarding-page {
+  padding: 32px;
+  background: $bg;
+  min-height: 100vh;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  color: $text-primary;
+
+  > * { animation: fadeSlideIn .35s ease both; }
+  > *:nth-child(2) { animation-delay: .05s; }
+  > *:nth-child(3) { animation-delay: .10s; }
+  > *:nth-child(4) { animation-delay: .15s; }
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────────
+.ob-toast {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 9999;
+  padding: 14px 20px 14px 14px;
+  border-radius: $radius-sm;
+  font-size: 13.5px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: $shadow-lg;
+  animation: toastIn .32s cubic-bezier(.34,1.56,.64,1) both;
+  max-width: 380px;
+
+  &::before {
+    content: '';
+    width: 4px;
+    align-self: stretch;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  &--success {
+    background: $surface;
+    color: #064e3b;
+    border: 1px solid #6ee7b7;
+    &::before { background: $success; }
+  }
+  &--error {
+    background: $surface;
+    color: #7f1d1d;
+    border: 1px solid #fca5a5;
+    &::before { background: $danger; }
+  }
+}
+
+// ── Page Header ────────────────────────────────────────────────────────────────
+.ob-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+
+  h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 26px;
+    font-weight: 700;
+    color: $text-primary;
+    margin: 0 0 5px;
+    letter-spacing: -.3px;
+  }
+
+  p { color: $text-secondary; font-size: 14px; margin: 0; }
+}
+
+.ob-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1.5px solid $border-dark;
+  border-radius: $radius-sm;
+  background: $surface;
+  color: $text-secondary;
+  cursor: pointer;
+  transition: all .2s;
+  flex-shrink: 0;
+  box-shadow: $shadow-sm;
+
+  &:hover {
+    background: $primary-light;
+    border-color: $primary;
+    color: $primary;
+    transform: translateX(-3px);
+  }
+}
+
+// ── Loading / Empty ────────────────────────────────────────────────────────────
+.ob-loading {
+  text-align: center;
+  padding: 80px;
+  color: $text-muted;
+  font-size: 15px;
+
+  &::after {
+    content: '';
+    display: block;
+    width: 32px;
+    height: 32px;
+    border: 3px solid $border;
+    border-top-color: $primary;
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+    margin: 16px auto 0;
+  }
+}
+
+.ob-empty-state {
+  text-align: center;
+  padding: 80px 40px;
+  background: $surface;
+  border-radius: $radius;
+  border: 1.5px dashed $border-dark;
+  animation: fadeSlideIn .4s ease;
+
+  .ob-empty-icon { font-size: 56px; margin-bottom: 16px; display: block; }
+  h3  { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  p   { color: $text-secondary; font-size: 14px; max-width: 340px; margin: 0 auto; line-height: 1.6; }
+}
+
+// ── Filter Bar ─────────────────────────────────────────────────────────────────
+.ob-filter-bar {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 24px;
+  background: $surface;
+  padding: 5px;
+  border-radius: $radius-sm;
+  border: 1px solid $border;
+  width: fit-content;
+  box-shadow: $shadow-sm;
+}
+
+.ob-filter-btn {
+  padding: 7px 20px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: $text-secondary;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .2s;
+
+  &:hover  { background: $surface-2; color: $text-primary; }
+  &.active { background: $primary; color: #fff; box-shadow: 0 2px 8px rgba(111,94,219,.3); }
+}
+
+// ── Records Grid ───────────────────────────────────────────────────────────────
+.ob-records-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(370px, 1fr));
+  gap: 20px;
+}
+
+.ob-record-card {
+  background: $surface;
+  border-radius: $radius;
+  border: 1px solid $border;
+  box-shadow: $shadow-sm;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all .25s cubic-bezier(.4,0,.2,1);
+  animation: fadeSlideIn .35s ease both;
+
+  &:hover { transform: translateY(-4px); box-shadow: $shadow; border-color: $border-dark; }
+  &.completed { border-top: 3px solid $success; }
+  &.pending   { border-top: 3px solid $warning;  }
+}
+
+.ob-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid $border;
+  background: $surface-2;
+}
+
+.ob-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, $primary 0%, #9333ea 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(111,94,219,.28);
+}
+
+.ob-card-info {
+  flex: 1;
+  min-width: 0;
+  h3 { font-size: 15px; font-weight: 700; color: $text-primary; margin: 0 0 2px; }
+  p  { font-size: 12px; color: $text-secondary; margin: 0; }
+  .ob-emp-id { color: $text-muted; font-size: 11px; font-family: monospace; margin-top: 2px; }
+}
+
+.ob-status-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &.completed { background: $success-light; color: #065f46; border: 1px solid #a7f3d0; }
+  &.pending   { background: $warning-light;  color: #92400e; border: 1px solid #fcd34d; }
+}
+
+.ob-card-body  { padding: 14px 18px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.ob-info-row   { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.ob-info-label { color: $text-muted; font-size: 11px; min-width: 100px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+
+.ob-action-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+
+  &.voluntary   { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+  &.involuntary { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+}
+
+.ob-card-footer {
+  padding: 12px 18px;
+  border-top: 1px solid $border;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: $surface-2;
+}
+
+// ── Buttons ────────────────────────────────────────────────────────────────────
+.ob-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 20px;
+  border-radius: $radius-sm;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all .2s cubic-bezier(.4,0,.2,1);
+
+  &--primary {
+    background: $primary;
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(111,94,219,.3);
+    &:hover { background: $primary-dark; box-shadow: 0 6px 18px rgba(111,94,219,.4); transform: translateY(-2px); }
+    &:active { transform: translateY(0); }
+  }
+  &--warning {
+    background: $warning;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(245,158,11,.25);
+    &:hover { background: $warning-dark; transform: translateY(-1px); }
+  }
+  &--danger  { background: $danger; color: #fff; &:hover { background: $danger-dark; transform: translateY(-1px); } }
+  &--success { background: $success; color: #fff; &:hover { background: $success-dark; transform: translateY(-1px); } }
+  &--outline {
+    background: $surface;
+    border: 1.5px solid $border-dark;
+    color: $text-secondary;
+    &:hover { border-color: $primary; color: $primary; background: $primary-light; }
+  }
+  &--ghost { background: transparent; color: $text-secondary; &:hover { background: $surface-2; color: $text-primary; } }
+  &--full  { width: 100%; }
+  &--sm    { padding: 7px 14px; font-size: 12.5px; }
+  &:disabled { opacity: .5; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+}
+
+// ── Employee Banner ────────────────────────────────────────────────────────────
+.ob-employee-banner {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius;
+  padding: 22px 26px 22px 30px;
+  margin-bottom: 28px;
+  box-shadow: $shadow-sm;
+  animation: fadeSlideIn .35s ease;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: linear-gradient(to bottom, $primary, #9333ea);
+    border-radius: 0 2px 2px 0;
+  }
+}
+
+.ob-banner-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, $primary 0%, #9333ea 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(111,94,219,.32);
+}
+
+.ob-banner-info {
+  h2 { font-size: 20px; font-weight: 700; margin: 0 0 8px; letter-spacing: -.2px; }
+}
+
+.ob-banner-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  font-size: 13px;
+  color: $text-secondary;
+}
+
+.ob-inactive-badge {
+  background: $danger-light;
+  color: #991b1b;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid #fca5a5;
+}
+
+// ── Steps ──────────────────────────────────────────────────────────────────────
+.ob-steps {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  background: $surface;
+  padding: 16px 24px;
+  border-radius: $radius;
+  border: 1px solid $border;
+  box-shadow: $shadow-sm;
+}
+
+.ob-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+
+  span { font-size: 12px; font-weight: 600; color: $text-muted; transition: color .3s; letter-spacing: .2px; }
+
+  &.active {
+    .ob-step-circle { background: $primary; color: #fff; border-color: $primary; animation: pulseRing 2s infinite; }
+    span { color: $primary; }
+  }
+  &.done {
+    .ob-step-circle { background: $success; border-color: $success; color: #fff; animation: checkPop .4s cubic-bezier(.34,1.56,.64,1); }
+    span { color: $success; }
+  }
+}
+
+.ob-step-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid $border-dark;
+  background: $surface;
+  color: $text-muted;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+}
+
+.ob-step-connector { flex: 1; height: 2px; background: $border; margin-bottom: 22px; margin-inline: 10px; border-radius: 2px; }
+
+// ── Section Cards ──────────────────────────────────────────────────────────────
+.ob-section {
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius;
+  padding: 26px;
+  margin-bottom: 20px;
+  box-shadow: $shadow-sm;
+  animation: fadeSlideIn .4s ease both;
+
+  @for $i from 1 through 7 {
+    &:nth-of-type(#{$i}) { animation-delay: #{$i * 0.06}s; }
+  }
+}
+
+.ob-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: $text-primary;
+  margin: 0 0 5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -.1px;
+}
+
+.ob-section-subtitle {
+  font-size: 13px;
+  color: $text-secondary;
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+// ── Action Cards ───────────────────────────────────────────────────────────────
+.ob-action-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  @media (max-width: 640px) { grid-template-columns: 1fr; }
+}
+
+.ob-action-card {
+  background: $surface;
+  border: 2px solid $border;
+  border-radius: $radius;
+  padding: 28px 22px;
+  cursor: pointer;
+  transition: all .25s cubic-bezier(.4,0,.2,1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  .ob-action-icon { font-size: 36px; display: block; transition: transform .3s; }
+  h3 { font-size: 18px; font-weight: 700; color: $text-primary; margin: 0; }
+  p  { font-size: 13px; color: $text-secondary; margin: 0; line-height: 1.5; }
+  ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; color: $text-secondary; li { margin-bottom: 4px; } }
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: $shadow;
+    .ob-action-icon { animation: iconWiggle .5s ease; }
+  }
+
+  &.voluntary   { &:hover, &.selected { border-color: $primary; background: $primary-light; box-shadow: 0 8px 24px rgba(111,94,219,.15); } }
+  &.involuntary { &:hover, &.selected { border-color: $warning;  background: $warning-light; box-shadow: 0 8px 24px rgba(245,158,11,.15);  } }
+}
+
+// ── Action Header (Step 2 bar) ─────────────────────────────────────────────────
+.ob-action-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: $radius;
+  margin-bottom: 20px;
+  border: 1.5px solid;
+  animation: slideInRight .3s ease;
+
+  .ob-action-header-icon { font-size: 30px; flex-shrink: 0; }
+  h3 { font-size: 16px; font-weight: 700; margin: 0 0 3px; }
+  p  { font-size: 13px; margin: 0; opacity: .8; }
+
+  &.voluntary   { background: $primary-light; border-color: #c4b5fd; h3,p { color: #4c1d95; } }
+  &.involuntary { background: $warning-light;  border-color: #fcd34d; h3,p { color: #78350f; } }
+}
+
+.ob-change-action-btn {
+  margin-left: auto;
+  padding: 7px 14px;
+  border: 1.5px solid currentColor;
+  border-radius: $radius-xs;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color: inherit;
+  opacity: .65;
+  flex-shrink: 0;
+  transition: opacity .15s;
+  &:hover { opacity: 1; }
+}
+
+// ── Reason Grid ────────────────────────────────────────────────────────────────
+.ob-reason-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.ob-reason-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 10px;
+  border: 1.5px solid $border;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: $text-secondary;
+  transition: all .22s cubic-bezier(.4,0,.2,1);
+  text-align: center;
+  background: $surface;
+  user-select: none;
+
+  input[type="radio"] { display: none; }
+  .ob-reason-icon { font-size: 22px; transition: transform .22s; }
+
+  &:hover {
+    border-color: $warning;
+    color: $text-primary;
+    transform: translateY(-3px);
+    box-shadow: 0 5px 14px rgba(245,158,11,.14);
+    .ob-reason-icon { transform: scale(1.22); }
+  }
+  &.selected {
+    border-color: $warning;
+    background: $warning-light;
+    color: #78350f;
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(245,158,11,.2);
+  }
+}
+
+.ob-other-input-wrap {
+  label { display: block; font-size: 13px; font-weight: 600; color: $text-secondary; margin-bottom: 7px; }
+}
+
+// ── Assets ─────────────────────────────────────────────────────────────────────
+.ob-assets-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+
+.ob-asset-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 18px 22px;
+  border: 1.5px solid $border;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: $text-secondary;
+  transition: all .22s cubic-bezier(.4,0,.2,1);
+  min-width: 108px;
+  background: $surface;
+  user-select: none;
+
+  input[type="checkbox"] { display: none; }
+  .ob-asset-icon { font-size: 26px; transition: transform .25s; }
+
+  .ob-asset-check {
+    position: absolute;
+    top: 8px; right: 8px;
+    color: $success;
+    font-size: 14px;
+    animation: checkPop .3s cubic-bezier(.34,1.56,.64,1);
+  }
+
+  &:hover { border-color: $primary; color: $text-primary; transform: translateY(-3px); box-shadow: 0 6px 16px rgba(111,94,219,.12); .ob-asset-icon { transform: scale(1.2) rotate(-4deg); } }
+
+  &.checked { border-color: $success; background: $success-light; color: #065f46; font-weight: 700; box-shadow: 0 4px 14px rgba(16,185,129,.18); }
+
+  &--other {
+    .ob-remove-asset-btn {
+      position: absolute;
+      top: 5px; left: 7px;
+      background: none;
+      border: none;
+      color: $danger;
+      font-size: 17px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+      opacity: 0;
+      transition: opacity .15s;
+      font-weight: 700;
+    }
+    &:hover .ob-remove-asset-btn { opacity: 1; }
+  }
+}
+
+.ob-add-other-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+
+// ── Inputs ─────────────────────────────────────────────────────────────────────
+.ob-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid $border;
+  border-radius: $radius-sm;
+  font-size: 13.5px;
+  color: $text-primary;
+  background: $surface;
+  outline: none;
+  font-family: 'Inter', sans-serif;
+  transition: all .2s;
+
+  &:focus { border-color: $primary; box-shadow: 0 0 0 3px rgba(111,94,219,.12); }
+  &::placeholder { color: $text-muted; }
+  &--sm { width: auto; flex: 1; }
+}
+
+.ob-textarea { @extend .ob-input; resize: vertical; min-height: 100px; line-height: 1.6; }
+
+// ── Notice Period ──────────────────────────────────────────────────────────────
+.ob-radio-group { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.ob-radio-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border: 1.5px solid $border;
+  border-radius: 30px;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: $text-secondary;
+  transition: all .2s;
+  background: $surface;
+  user-select: none;
+
+  input[type="radio"] { display: none; }
+  &:hover { border-color: $primary; color: $primary; background: $primary-light; }
+  &.selected { border-color: $primary; background: $primary; color: #fff; font-weight: 700; box-shadow: 0 3px 12px rgba(111,94,219,.3); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ──  FNF  —  FULL REDESIGN  ────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+.ob-fnf-table {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+// Each row is a self-contained card
+.ob-fnf-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: $surface-2;
+  border: 1.5px solid $border;
+  border-radius: $radius-sm;
+  padding: 16px 18px;
+  transition: all .22s cubic-bezier(.4,0,.2,1);
+  position: relative;
+  overflow: hidden;
+
+  // Thin left accent bar
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 3px 0 0 3px;
+    background: $border-dark;
+    transition: background .2s;
+  }
+
+  &:hover {
+    border-color: $border-dark;
+    box-shadow: $shadow-sm;
+    background: $surface;
+  }
+
+  // Dynamic accent colour based on current selection (set via JS class on the row)
+  &.fnf-yes    { &::before { background: $success; } border-color: #a7f3d0; background: #f0fdf4; }
+  &.fnf-no     { &::before { background: $danger;  } border-color: #fca5a5; background: $danger-light; }
+  &.fnf-na     { &::before { background: #9ca3af;  } border-color: $border-dark; }
+}
+
+// Label area — left side
+.ob-fnf-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ob-fnf-doc-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: $text-primary;
+  letter-spacing: -.1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .ob-fnf-abbr {
+    font-size: 11px;
+    font-weight: 700;
+    background: $primary-light;
+    color: $primary;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: .3px;
+    flex-shrink: 0;
+  }
+}
+
+.ob-fnf-doc-desc {
+  font-size: 12px;
+  color: $text-muted;
+}
+
+// Status dot (right side) — reacts to selection
+.ob-fnf-status-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  border: 2px solid $border;
+  background: $surface;
+  color: $text-muted;
+  flex-shrink: 0;
+  transition: all .3s cubic-bezier(.34,1.56,.64,1);
+
+  &.yes { background: $success; border-color: $success; color: #fff; box-shadow: 0 2px 8px rgba(16,185,129,.35); animation: checkPop .35s cubic-bezier(.34,1.56,.64,1); }
+  &.no  { background: $danger;  border-color: $danger;  color: #fff; box-shadow: 0 2px 8px rgba(239,68,68,.3);  animation: checkPop .35s cubic-bezier(.34,1.56,.64,1); }
+  &.na  { background: #f3f4f6;  border-color: #9ca3af;  color: #6b7280; animation: checkPop .3s ease; }
+}
+
+// The three pill buttons
+.ob-fnf-options {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ob-fnf-option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 16px;
+  border: 1.5px solid $border;
+  border-radius: 30px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: $text-secondary;
+  background: $surface;
+  transition: all .2s cubic-bezier(.4,0,.2,1);
+  user-select: none;
+  white-space: nowrap;
+
+  input[type="radio"] { display: none; }
+
+  // Hover state
+  &:hover { border-color: $border-dark; color: $text-primary; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,.07); }
+
+  // YES pill
+  &[data-value="Yes"] {
+    &:hover { border-color: $success; color: $success; }
+    &.selected {
+      background: $success;
+      border-color: $success;
+      color: #fff;
+      box-shadow: 0 3px 10px rgba(16,185,129,.35);
+      animation: checkPop .3s cubic-bezier(.34,1.56,.64,1);
+    }
+  }
+
+  // NO pill
+  &[data-value="No"] {
+    &:hover { border-color: $danger; color: $danger; }
+    &.selected {
+      background: $danger;
+      border-color: $danger;
+      color: #fff;
+      box-shadow: 0 3px 10px rgba(239,68,68,.3);
+      animation: checkPop .3s cubic-bezier(.34,1.56,.64,1);
+    }
+  }
+
+  // N/A pill
+  &[data-value="Not Applicable"] {
+    &:hover { border-color: #9ca3af; color: #374151; }
+    &.selected {
+      background: #f3f4f6;
+      border-color: #9ca3af;
+      color: #374151;
+      font-weight: 700;
+      animation: checkPop .3s ease;
+    }
+  }
+}
+
+// ── Form Actions ───────────────────────────────────────────────────────────────
+.ob-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+  padding-bottom: 36px;
+}
+
+// ── Responsive ─────────────────────────────────────────────────────────────────
+@media (max-width: 768px) {
+  .offboarding-page { padding: 16px; }
+  .ob-records-grid  { grid-template-columns: 1fr; }
+
+  .ob-fnf-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    .ob-fnf-status-dot { position: absolute; top: 14px; right: 16px; }
+  }
+  .ob-fnf-options { flex-wrap: wrap; }
+  .ob-employee-banner { flex-wrap: wrap; }
+  .ob-form-actions { flex-direction: column-reverse; }
+  .ob-btn { width: 100%; justify-content: center; }
+  .ob-reason-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+// ── FNF Mini Badges (list card view) ──────────────────────────────────────────
+.ob-fnf-mini-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid;
+  white-space: nowrap;
+
+  &.fnf-mini-yes { background: $success-light; color: #065f46; border-color: #a7f3d0; }
+  &.fnf-mini-no  { background: $danger-light;  color: #991b1b; border-color: #fca5a5; }
+  &.fnf-mini-na  { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; }
+}
+
+// ── Banner "editing existing" tag ─────────────────────────────────────────────
+.ob-banner-record-tag {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  background: $primary-light;
+  color: $primary;
+  border: 1px solid #c4b5fd;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}

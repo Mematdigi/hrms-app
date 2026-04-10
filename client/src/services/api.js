@@ -153,4 +153,53 @@ export const personalDocumentAPI = {
   preview:  (id) => api.get(`/personal-documents/${id}/preview`,  { responseType: 'blob' }),
 };
 
+// ── Resignation ───────────────────────────────────────────────────────────────
+export const resignationAPI = {
+  /** Employee: submit a resignation */
+  submit:       (data) => api.post('/resignations', data),
+
+  /** Employee: get own latest resignation */
+  getMine:      ()     => api.get('/resignations/my'),
+
+  /** Employee: withdraw own pending resignation */
+  withdrawMine: ()     => api.delete('/resignations/my'),
+
+  /** HR/Admin: list all (optional ?status=pending|accepted|rejected) */
+  getAll:       (params) => api.get('/resignations', { params }),
+
+  /** HR/Admin: get one by id */
+  getById:      (id)   => api.get(`/resignations/${id}`),
+
+  /** HR/Admin: accept */
+  accept:       (id)   => api.put(`/resignations/${id}/accept`),
+
+  /** HR/Admin: reject — body: { rejectionReason } */
+  reject:       (id, data) => api.put(`/resignations/${id}/reject`, data),
+};
+
+// ── Add this block to api.js (after resignationAPI) ─────────────────────────
+
+export const offboardingAPI = {
+  /** Get all offboarding records. Optional: { status: 'pending' | 'completed' } */
+  getAll:         (params) => api.get('/offboarding', { params }),
+
+  /** Get offboarding record for a specific employee */
+  getByEmployee:  (employeeId) => api.get(`/offboarding/employee/${employeeId}`),
+
+  /** Get single record by offboarding record ID */
+  getById:        (id) => api.get(`/offboarding/${id}`),
+
+  /** Create new offboarding record (also deactivates employee) */
+  create:         (data) => api.post('/offboarding', data),
+
+  /** Update existing offboarding record */
+  update:         (id, data) => api.put(`/offboarding/${id}`, data),
+
+  /** Mark offboarding as completed */
+  markComplete:   (id) => api.patch(`/offboarding/${id}/complete`),
+
+  /** Delete offboarding record (admin only) */
+  delete:         (id) => api.delete(`/offboarding/${id}`),
+};
+
 export default api;
