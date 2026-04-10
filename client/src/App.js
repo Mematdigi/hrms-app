@@ -19,6 +19,7 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 import UserProfile from './pages/UserProfile';
 import { NotificationProvider } from './context/NotificationContext';
 import UploadOfficeDocument from './pages/UploadOfficeDocument';
+import OffBoarding from './pages/OffBoarding';
 
 function App() {
   const { token } = useSelector((state) => state.auth);
@@ -37,6 +38,7 @@ function App() {
           <Route path="/payroll" element={token ? <Payroll /> : <Navigate to="/login" />} />
           <Route path="/performance" element={token ? <Performance /> : <Navigate to="/login" />} />
           <Route path="/roles" element={token ? <RoleManagement /> : <Navigate to="/login" />} />
+          <Route path="/offboarding" element={token ? <OffBoarding /> : <Navigate to="/login" />} />
           <Route path="/office-document-upload" element={token ? <UploadOfficeDocument /> : <Navigate to="/login" />} />
           <Route path="/profile-settings" element={token ? <UserProfile /> : <Navigate to="/login" />} />
           <Route path="/all_employee_attendance" element={token ? <AllEmployeesAttendance /> : <Navigate to="/login" />} />

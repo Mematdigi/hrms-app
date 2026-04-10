@@ -13,3 +13,7 @@ module.exports.performanceController = require('./performanceController');
 module.exports.roleController        = require('./roleController');
 module.exports.holidayController     = require('./holidayController');
 module.exports.notificationController = require('./Notificationcontroller');
+module.exports.officeDocumentController = require('./officeDocumentController');
+module.exports.personalDocumentController = require('./PersonalDocumentController');
+module.exports.resignationController = require('./resignationController'); 
+module.exports.offboardingController = require('./offboardingController');
