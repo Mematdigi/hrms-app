@@ -754,6 +754,43 @@ class EmployeeController {
     }
   };
 
+  // ─── BULK DELETE EMPLOYEES (admin only) ───────────────────────────────────
+  // Expects: { ids: ['id1', 'id2', ...] } in request body
+  bulkDeleteEmployees = async (req, res) => {
+    try {
+      const { ids } = req.body;
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: 'No employee IDs provided' });
+      }
+
+      // Fetch employees to get their emails for User table cleanup
+      const employees = await Employee.find({ _id: { $in: ids } }).select('email').lean();
+
+      if (employees.length === 0) {
+        return res.status(404).json({ message: 'No matching employees found' });
+      }
+
+      const emails = employees.map((e) => e.email);
+
+      // Delete from all related collections in parallel
+      await Promise.all([
+        Employee.deleteMany({ _id: { $in: ids } }),
+        User.deleteMany({ email: { $in: emails } }),
+        Documents.deleteMany({ employee: { $in: ids } }),
+        Payroll.deleteMany({ employee: { $in: ids } }),
+        PreviousEmployment.deleteMany({ employee: { $in: ids } }),
+      ]);
+
+      res.json({
+        message: `${employees.length} employee(s) deleted successfully`,
+        deletedCount: employees.length,
+      });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  };
+
   // ─── GET EMPLOYEE PAYROLLS ─────────────────────────────────────────────────
   getEmployeePayrolls = catchAsync(async (req, res) => {
     try {
