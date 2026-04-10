@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import api from '../services/api';
+import BackButton from '../components/BackButton';
 // import '../styles/RoleManagement.css';
 
 const RoleManagement = () => {
@@ -104,8 +105,9 @@ const RoleManagement = () => {
   return (
     <div className="role-management-container">
       <div className="role-header">
-        <h1>Role Management</h1>
-        <p>Manage user roles and permissions</p>
+        
+        <h1><span className="m-3"><BackButton/></span>🔐Role Management</h1>
+        {/* <p>Manage user roles and permissions</p> */}
       </div>
 
       {error   && <div className="error-message">{error}</div>}

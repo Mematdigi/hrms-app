@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { employeeAPI, offboardingAPI  } from '../services/api';
+import BackButton from '../components/BackButton';
 
 const EMPTY_PREV_EMP = {
     employeeName: '',
@@ -537,19 +538,19 @@ const handleChange = async (e) => {
             {/* Header */}
             <div className="page-header">
                 <div>
-                    <h1>
+                    <h1><span className="m-3"><BackButton/></span>
                         {viewMode === 'add' ? 'Add New Employee'
                             : viewMode === 'edit' ? 'Edit Details'
                             : viewMode === 'bulk' ? 'Bulk Import Employees'
                             : 'Employees'}
                     </h1>
-                    <p>
+                    {/* <p>
                         {viewMode === 'grid' || viewMode === 'list'
                             ? 'Manage your team members.'
                             : viewMode === 'bulk'
                             ? 'Import multiple employees at once using an Excel sheet.'
                             : 'Manage employee information and documents.'}
-                    </p>
+                    </p> */}
                 </div>
                 {(user?.role === 'admin' || user?.role === 'hr') && (
                     viewMode === 'grid' || viewMode === 'list' ? (

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { attendanceAPI } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import BackButton from '../components/BackButton';
 
 function Attendance() {
   const navigate = useNavigate();
@@ -283,8 +284,8 @@ function Attendance() {
       {/* HEADER SECTION */}
       <header className="page-header">
         <div className="header-left">
-          <h1>Attendance</h1>
-          <p>Track your {isHR ? 'employee' : 'monthly'} attendance records</p>
+          <h1><span className="m-3"><BackButton/></span> Attendance</h1>
+          {/* <p>Track your {isHR ? 'employee' : 'monthly'} attendance records</p> */}
         </div>
 
         <div className="header-right">
