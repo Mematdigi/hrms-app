@@ -518,3 +518,38 @@
     background: #f3f4f6;
     .icon { color: #2563eb; }
 }
+
+// Back button css
+/* src/components/common/BackButton.css
+   Import this once in BackButton.jsx OR in your global stylesheet. */
+
+.back-btn {
+  display:        inline-flex;
+  align-items:    center;
+  gap:            6px;
+  padding:        8px 16px;
+  border:         none;
+  border-radius:  8px;
+  background:     #f0f0f0;
+  color:          #333;
+  font-size:      14px;
+  font-weight:    500;
+  cursor:         pointer;
+  transition:     background 0.2s, transform 0.1s;
+
+  /* Top-left position inside any page */
+  position:       relative;   /* change to absolute/fixed if needed */
+  margin-bottom:  16px;       /* space below the button before page content */
+}
+
+.back-btn:hover {
+  background: #e0e0e0;
+}
+
+.back-btn:active {
+  transform: scale(0.97);
+}
+
+.back-btn svg {
+  flex-shrink: 0;
+}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { officeDocumentAPI, personalDocumentAPI } from '../services/api';
+import BackButton from '../components/BackButton';
 // import '../styles/_uploadOfficeDocument.scss';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -843,15 +844,15 @@ function UploadOfficeDocument() {
       {/* ── Header ── */}
       <div className="od-header">
         <div>
-          <h1>
-            <i className={activeTab === 'office' ? 'bi bi-folder2-open' : 'bi bi-person-lock'} />
+          <h1><span><BackButton/></span>
+            <i className={activeTab === 'office' ? 'bi bi-folder2-open mb-2' : 'bi bi-person-lock mb-2'} />
             {activeTab === 'office' ? 'Office Documents' : 'My Documents'}
           </h1>
-          <p>
+          {/* <p>
             {activeTab === 'office'
               ? 'Company-wide policies, guidelines, and resources'
               : 'Your private documents — only you can see these'}
-          </p>
+          </p> */}
         </div>
         <div className="od-header-btns">
           {activeTab === 'office' && canManage && (
