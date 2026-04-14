@@ -662,7 +662,7 @@ function DocumentPanel({
               <tr>
                 <th>Document</th><th>Category</th>
                 {showDeptFilter && <th>Department</th>}
-                <th>Size</th><th>Status</th><th>Uploaded</th><th className="od-th-actions">Actions</th>
+                <th>Size</th><th>Status</th><th>Uploaded</th><th>Date</th><th className="od-th-actions">Actions</th>
               </tr>
             </thead>
             <tbody>

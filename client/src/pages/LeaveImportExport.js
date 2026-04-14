@@ -201,8 +201,8 @@ const UploadModal = ({ open, onClose }) => {
                 <div style={{ background: '#F9FAFB', borderRadius: 8, padding: '12px 14px' }}>
                     <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 600, color: '#344054' }}>Required columns:</p>
                     <p style={{ margin: 0, fontSize: 11, color: '#667085', lineHeight: 1.8 }}>
-                        Employee Name · Department · Designation · Intern/Probation · Leave Type ·
-                        Leave Start Date · Leave End Date · Total Days · Leave Status ·
+                        <strong>Employee Phone</strong> (primary key) · Employee Name · Department · Designation ·
+                        Intern/Probation · Leave Type · Leave Start Date · Leave End Date · Total Days · Leave Status ·
                         Medical Document Submitted · Applied On · Remarks
                     </p>
                 </div>
@@ -449,6 +449,7 @@ const ViewLeavesModal = ({ open, onClose }) => {
                                                 {fullName}
                                                 {emp.employeeId && <span style={{ display: 'block', fontSize: 11, color: '#667085', fontWeight: 400 }}>{emp.employeeId}</span>}
                                             </td>
+                                            {/* <td style={{ padding: '10px 14px', color: '#344054', whiteSpace: 'nowrap', borderBottom: '1px solid #F2F4F7' }}>{leave.employeePhone}</td> */}
                                             <td style={{ padding: '10px 14px', color: '#344054', whiteSpace: 'nowrap', borderBottom: '1px solid #F2F4F7' }}>{emp.department || '—'}</td>
                                             <td style={{ padding: '10px 14px', color: '#344054', whiteSpace: 'nowrap', borderBottom: '1px solid #F2F4F7' }}>{emp.designation || '—'}</td>
                                             <td style={{ padding: '10px 14px', color: '#344054', borderBottom: '1px solid #F2F4F7' }}>
