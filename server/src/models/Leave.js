@@ -11,6 +11,8 @@ const leaveSchema = new mongoose.Schema({
     ref:      'User',
     required: true
   },
+  // After the `employee` field:
+employeePhone: { type: String, default: '' },
 
   leaveType: {
     type:     String,

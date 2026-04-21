@@ -45,17 +45,52 @@ const notifyAllHR = async ({ sender, type, title, message, refId = null, refMode
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HELPER: Send birthday notifications to all HR for a given employee
+// HELPER: Notify ALL active employees (used for birthday notifications)
+// ─────────────────────────────────────────────────────────────────────────────
+const notifyAllEmployees = async ({ sender, type, title, message, refId = null, refModel = null, meta = {} }) => {
+  try {
+    const allUsers = await User.find({ isActive: true }).select('_id');
+    if (!allUsers.length) return;
+
+    const docs = allUsers
+      .filter(u => u._id.toString() !== (sender ? sender.toString() : ''))
+      .map(u => ({
+        recipient: u._id,
+        sender,
+        type,
+        title,
+        message,
+        refId,
+        refModel,
+        meta,
+        isRead: false,
+      }));
+
+    if (docs.length) await Notification.insertMany(docs, { ordered: false });
+  } catch (err) {
+    console.error('notifyAllEmployees error:', err.message);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPER: Send birthday notifications to ALL active users for a given employee
+// type: 'today' (D-0) | 'eve' (D-1)
 // Called by the birthday cron job
 // ─────────────────────────────────────────────────────────────────────────────
-const sendBirthdayNotification = async (employee) => {
+const sendBirthdayNotification = async (employee, type = 'today') => {
   try {
     const fullName = `${employee.firstName} ${employee.lastName}`;
-    await notifyAllHR({
+    const isEve    = type === 'eve';
+
+    await notifyAllEmployees({
       sender:   employee._id,
       type:     'birthday',
-      title:    `🎂 Birthday Today — ${fullName}`,
-      message:  `Today is ${fullName}'s birthday! Wish them a wonderful day. 🎉`,
+      title:    isEve
+                  ? `🎉 Birthday Tomorrow — ${fullName}`
+                  : `🎂 Birthday Today — ${fullName}`,
+      message:  isEve
+                  ? `Tomorrow is ${fullName}'s birthday! Don't forget to wish them. 🎉`
+                  : `Today is ${fullName}'s birthday! Wish them a wonderful day. 🎂`,
       refId:    employee._id,
       refModel: 'User',
       meta:     { employeeId: employee.employeeId, department: employee.department },
@@ -176,4 +211,4 @@ const notificationController = {
   },
 };
 
-module.exports = { notificationController, createNotification, notifyAllHR, sendBirthdayNotification };
+module.exports = { notificationController, createNotification, notifyAllHR, notifyAllEmployees, sendBirthdayNotification };
