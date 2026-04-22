@@ -27,17 +27,137 @@ const safe = (val, fallback = '') =>
   (val !== undefined && val !== null && val !== '') ? val : fallback;
 
 // Helper: parse excel date values
-const parseExcelDate = (val) => {
-  if (!val || val === '') return null;
-  if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
-  if (typeof val === 'number') {
-    try {
-      const parsed = xlsx.SSF.parse_date_code(val);
-      if (parsed) return new Date(parsed.y, parsed.m - 1, parsed.d);
-    } catch { return null; }
-  }
-  const d = new Date(val);
-  return isNaN(d.getTime()) ? null : d;
+const parseExcelDate = (value) => {
+    if (!value && value !== 0) return null;
+
+    // ── Already a JS Date (from cellDates: true) ──
+    if (value instanceof Date) {
+        return isNaN(value.getTime()) ? null : value;
+    }
+
+    const str = String(value).trim();
+    if (!str || str === '' || str === 'undefined' || str === 'null') return null;
+
+    // ── Excel serial number ──
+    if (/^\d{4,5}$/.test(str)) {
+        const serial = parseInt(str);
+        const date = new Date((serial - 25569) * 86400 * 1000);
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    // ── Month name map (handles typos like "Janurary", "Febuary", etc.) ──
+    const monthMap = {
+        // Full names + common typos
+        'january': 0,  'janurary': 0, 'jan': 0,
+        'february': 1, 'febuary': 1,  'feb': 1,
+        'march': 2,    'mar': 2,
+        'april': 3,    'apr': 3,
+        'may': 4,
+        'june': 5,     'jun': 5,
+        'july': 6,     'jul': 6,
+        'august': 7,   'aug': 7,
+        'september': 8,'sep': 8, 'sept': 8,
+        'october': 9,  'oct': 9,
+        'november': 10,'nov': 10,
+        'december': 11,'dec': 11,
+    };
+
+    // ── Remove ordinal suffixes: 1st, 2nd, 3rd, 23rd, 4th etc. ──
+    const cleanStr = str.replace(/(\d+)(st|nd|rd|th)/gi, '$1').trim();
+
+    // ── Format: "1 January 2026" or "January 1 2026" or "1st January 2026" ──
+    const wordDateMatch = cleanStr.match(
+        /^(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})$|^([a-zA-Z]+)\s+(\d{1,2})\s+(\d{4})$/
+    );
+    if (wordDateMatch) {
+        let day, monthStr, year;
+        if (wordDateMatch[1]) {
+            // "1 January 2026"
+            day      = parseInt(wordDateMatch[1]);
+            monthStr = wordDateMatch[2].toLowerCase();
+            year     = parseInt(wordDateMatch[3]);
+        } else {
+            // "January 1 2026"
+            monthStr = wordDateMatch[4].toLowerCase();
+            day      = parseInt(wordDateMatch[5]);
+            year     = parseInt(wordDateMatch[6]);
+        }
+        const month = monthMap[monthStr];
+        if (month !== undefined && day >= 1 && day <= 31 && year >= 1900) {
+            const date = new Date(year, month, day);
+            return isNaN(date.getTime()) ? null : date;
+        }
+    }
+
+    // ── Format: "January 2026" (no day — default to 1st) ──
+    const monthYearMatch = cleanStr.match(/^([a-zA-Z]+)\s+(\d{4})$/);
+    if (monthYearMatch) {
+        const monthStr = monthYearMatch[1].toLowerCase();
+        const year     = parseInt(monthYearMatch[2]);
+        const month    = monthMap[monthStr];
+        if (month !== undefined && year >= 1900) {
+            return new Date(year, month, 1);
+        }
+    }
+
+    // ── Format: DD/MM/YYYY or D/M/YYYY ──
+    const dmySlash = cleanStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (dmySlash) {
+        const date = new Date(
+            parseInt(dmySlash[3]),
+            parseInt(dmySlash[2]) - 1,
+            parseInt(dmySlash[1])
+        );
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    // ── Format: DD-MM-YYYY or D-M-YYYY ──
+    const dmyDash = cleanStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (dmyDash) {
+        const date = new Date(
+            parseInt(dmyDash[3]),
+            parseInt(dmyDash[2]) - 1,
+            parseInt(dmyDash[1])
+        );
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    // ── Format: YYYY-MM-DD (ISO) ──
+    const iso = cleanStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (iso) {
+        const date = new Date(
+            parseInt(iso[1]),
+            parseInt(iso[2]) - 1,
+            parseInt(iso[3])
+        );
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    // ── Format: MM/DD/YYYY (US format) ──
+    const mdySlash = cleanStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (mdySlash) {
+        const date = new Date(
+            parseInt(mdySlash[3]),
+            parseInt(mdySlash[1]) - 1,
+            parseInt(mdySlash[2])
+        );
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    // ── Format: DD.MM.YYYY ──
+    const dmyDot = cleanStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (dmyDot) {
+        const date = new Date(
+            parseInt(dmyDot[3]),
+            parseInt(dmyDot[2]) - 1,
+            parseInt(dmyDot[1])
+        );
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    // ── Fallback: let JS try to parse it ──
+    const fallback = new Date(cleanStr);
+    return isNaN(fallback.getTime()) ? null : fallback;
 };
 
 class EmployeeController {
@@ -287,32 +407,77 @@ class EmployeeController {
 
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer', cellDates: true });
 
-    // ── Sheet 1: Employee Details ──
+    // ── Sheet 1: Employee Details — auto-detect header row ──
     const sheet1Name = workbook.SheetNames[0];
     const sheet1     = workbook.Sheets[sheet1Name];
-    const rows       = xlsx.utils.sheet_to_json(sheet1, { defval: '' });
 
-    // ── Sheet 2: Exit/Previous Employment Details ──
+    const rawRows1 = xlsx.utils.sheet_to_json(sheet1, { defval: '', header: 1 });
+
+    // Find the row that contains actual headers
+    let headerRowIndex1 = 0;
+    for (let i = 0; i < rawRows1.length; i++) {
+        const rowVals = rawRows1[i].map(v => String(v).trim());
+        if (rowVals.includes('Employee ID') || rowVals.includes('Name') || rowVals.includes('Email')) {
+            headerRowIndex1 = i;
+            break;
+        }
+    }
+
+    const headers1 = rawRows1[headerRowIndex1].map(h => String(h).trim());
+    const rows = rawRows1
+        .slice(headerRowIndex1 + 1)
+        .filter(row => row.some(v => v !== '' && v !== null && v !== undefined))
+        .map(row => {
+            const obj = {};
+            headers1.forEach((h, i) => {
+                obj[h] = row[i] !== undefined ? row[i] : '';
+            });
+            return obj;
+        });
+
+    // ── Sheet 2: Exit/Previous Employment Details — auto-detect header row ──
     let exitRows = [];
     if (workbook.SheetNames.length > 1) {
-      const sheet2Name = workbook.SheetNames[1];
-      const sheet2     = workbook.Sheets[sheet2Name];
-      exitRows = xlsx.utils.sheet_to_json(sheet2, { defval: '' });
+        const sheet2Name = workbook.SheetNames[1];
+        const sheet2     = workbook.Sheets[sheet2Name];
+
+        const rawRows2 = xlsx.utils.sheet_to_json(sheet2, { defval: '', header: 1 });
+
+        let headerRowIndex2 = 0;
+        for (let i = 0; i < rawRows2.length; i++) {
+            const rowVals = rawRows2[i].map(v => String(v).trim());
+            if (rowVals.includes('Employee Name') || rowVals.includes('S.No')) {
+                headerRowIndex2 = i;
+                break;
+            }
+        }
+
+        const headers2 = rawRows2[headerRowIndex2].map(h => String(h).trim());
+        exitRows = rawRows2
+            .slice(headerRowIndex2 + 1)
+            .filter(row => row.some(v => v !== '' && v !== null && v !== undefined))
+            .map(row => {
+                const obj = {};
+                headers2.forEach((h, i) => {
+                    obj[h] = row[i] !== undefined ? row[i] : '';
+                });
+                return obj;
+            });
     }
 
     const exitDataMap = {};
     exitRows.forEach((row) => {
-      const name = String(safe(row['Employee Name'])).trim();
-      if (name) exitDataMap[name.toLowerCase()] = row;
+        const name = String(safe(row['Employee Name'])).trim();
+        if (name) exitDataMap[name.toLowerCase()] = row;
     });
 
     if (!rows || rows.length === 0) {
-      return res.status(400).json({ message: 'Excel file is empty or has no data rows in Sheet 1' });
+        return res.status(400).json({ message: 'Excel file is empty or has no data rows in Sheet 1' });
     }
 
     // ── Save uploaded file to disk for re-download ──
     if (!fs.existsSync(UPLOADED_EXCEL_DIR)) {
-      fs.mkdirSync(UPLOADED_EXCEL_DIR, { recursive: true });
+        fs.mkdirSync(UPLOADED_EXCEL_DIR, { recursive: true });
     }
     const savedFileName = `bulk-import-${Date.now()}.xlsx`;
     const savedFilePath = path.join(UPLOADED_EXCEL_DIR, savedFileName);
@@ -324,205 +489,409 @@ class EmployeeController {
     const defaultCasual = defaultLeave ? defaultLeave.casualDefault : 12;
     const defaultSick   = defaultLeave ? defaultLeave.sickDefault   : 10;
 
+    // ── Enhanced parseExcelDate — handles all formats ──
+   // ── Enhanced parseExcelDate — handles all formats ──
+const parseExcelDate = (value) => {
+    if (!value && value !== 0) return null;
+
+    if (value instanceof Date) {
+        return isNaN(value.getTime()) ? null : value;
+    }
+
+    const str = String(value).trim();
+    if (!str || str === '' || str === 'undefined' || str === 'null') return null;
+
+    if (/^\d{4,5}$/.test(str)) {
+        const serial = parseInt(str);
+        const date = new Date((serial - 25569) * 86400 * 1000);
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    const monthMap = {
+        'january': 0,  'janurary': 0, 'jan': 0,
+        'february': 1, 'febuary': 1,  'feb': 1,
+        'march': 2,    'mar': 2,
+        'april': 3,    'apr': 3,
+        'may': 4,
+        'june': 5,     'jun': 5,
+        'july': 6,     'jul': 6,
+        'august': 7,   'aug': 7,
+        'september': 8,'sep': 8, 'sept': 8,
+        'october': 9,  'oct': 9,
+        'november': 10,'nov': 10,
+        'december': 11,'dec': 11,
+    };
+
+    // ── Strip ordinal suffixes FIRST:
+    //    "11th March 2025"  → "11 March 2025"
+    //    "22nd December 2025" → "22 December 2025"
+    //    "3rd April 2025"   → "3 April 2025"
+    //    "1st Jan 2025"     → "1 Jan 2025"
+    const cleanStr = str.replace(/(\d+)(st|nd|rd|th)/gi, '$1').trim();
+
+    // ── Word-date match covers:
+    //    "11 March 2025" / "March 11 2025"  (after ordinal strip above)
+    const wordDateMatch = cleanStr.match(
+        /^(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})$|^([a-zA-Z]+)\s+(\d{1,2})\s+(\d{4})$/
+    );
+    if (wordDateMatch) {
+        let day, monthStr, year;
+        if (wordDateMatch[1]) {
+            day      = parseInt(wordDateMatch[1]);
+            monthStr = wordDateMatch[2].toLowerCase();
+            year     = parseInt(wordDateMatch[3]);
+        } else {
+            monthStr = wordDateMatch[4].toLowerCase();
+            day      = parseInt(wordDateMatch[5]);
+            year     = parseInt(wordDateMatch[6]);
+        }
+        const month = monthMap[monthStr];
+        if (month !== undefined && day >= 1 && day <= 31 && year >= 1900) {
+            const date = new Date(year, month, day);
+            return isNaN(date.getTime()) ? null : date;
+        }
+    }
+
+    const monthYearMatch = cleanStr.match(/^([a-zA-Z]+)\s+(\d{4})$/);
+    if (monthYearMatch) {
+        const monthStr = monthYearMatch[1].toLowerCase();
+        const year     = parseInt(monthYearMatch[2]);
+        const month    = monthMap[monthStr];
+        if (month !== undefined && year >= 1900) {
+            return new Date(year, month, 1);
+        }
+    }
+
+    const dmySlash = cleanStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (dmySlash) {
+        const date = new Date(parseInt(dmySlash[3]), parseInt(dmySlash[2]) - 1, parseInt(dmySlash[1]));
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    const dmyDash = cleanStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (dmyDash) {
+        const date = new Date(parseInt(dmyDash[3]), parseInt(dmyDash[2]) - 1, parseInt(dmyDash[1]));
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    const iso = cleanStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (iso) {
+        const date = new Date(parseInt(iso[1]), parseInt(iso[2]) - 1, parseInt(iso[3]));
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    const dmyDot = cleanStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (dmyDot) {
+        const date = new Date(parseInt(dmyDot[3]), parseInt(dmyDot[2]) - 1, parseInt(dmyDot[1]));
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    const fallback = new Date(cleanStr);
+    return isNaN(fallback.getTime()) ? null : fallback;
+};
+
+    // ── Helper to build encrypted fields ──
+    const buildEncFields = (f) => encryptEmployee({
+        contact:                  f.contact,
+        address:                  f.permanentAddress,
+        currentAddress:           f.currentAddress,
+        personalEmail:            f.personalEmail,
+        gender:                   f.gender,
+        maritalStatus:            f.maritalStatus,
+        nationality:              f.nationality,
+        panNumber:                f.panNumber,
+        aadharNumber:             f.aadharNumber,
+        bankName:                 f.bankName,
+        bankAccountNumber:        f.bankAccountNumber,
+        ifscCode:                 f.ifscCode,
+        emergencyContactName:     f.emergencyContactName,
+        emergencyContactPhone:    f.emergencyContactPhone,
+        emergencyContactRelation: '',
+        baseSalary:               f.baseSalary,
+    });
+
+    // ── Helper to update exit data ──
+    const updateExitData = async (employeeObjId, fullName, fullNameLower) => {
+        const exitRow = exitDataMap[fullNameLower];
+        if (!exitRow) return;
+        await PreviousEmployment.findOneAndUpdate(
+            { employee: employeeObjId },
+            {
+                employee:              employeeObjId,
+                employeeName:          fullName,
+                department:            String(safe(exitRow['Department'])).trim(),
+                designation:           String(safe(exitRow['Designation'] || exitRow['Designation '])).trim(),
+                joiningDate:           parseExcelDate(exitRow['Joining Date']),
+                lastWorkingDay:        parseExcelDate(exitRow['LWD']),
+                exitType:              String(safe(exitRow['Exit Type'] || exitRow[' Exit Type'])).trim(),
+                reasonForExit:         String(safe(exitRow['Reason for Exit'])).trim(),
+                managerName:           String(safe(exitRow['Manager/Supervisor Name'] || exitRow[' Manager/Supervisor Name'])).trim(),
+                noticePeriodServed:    String(safe(exitRow['Notice Period Served'])).trim(),
+                finalSettlementDone:   String(safe(exitRow['Final Settlement Done'] || exitRow[' Final Settlement Done'])).trim(),
+                fnfDate:               parseExcelDate(exitRow['Fnf date']),
+                exitInterviewDate:     parseExcelDate(exitRow['Exit Interview Date']),
+                companyAssetsReturned: String(safe(exitRow['Company Assets Returned'])).trim(),
+                hrRepresentative:      String(safe(exitRow['HR Representative'] || exitRow[' HR Representative'])).trim(),
+                remarks:               String(safe(exitRow['Remarks'])).trim(),
+            },
+            { upsert: true, new: true }
+        );
+    };
+
     for (let i = 0; i < rows.length; i++) {
-      const row    = rows[i];
-      const rowNum = i + 2;
+        const row    = rows[i];
+        const rowNum = i + headerRowIndex1 + 2;
 
-      // Skip completely empty rows
-      const vals = Object.values(row).filter(v => v !== '' && v !== null && v !== undefined);
-      if (vals.length === 0) continue;
+        const vals = Object.values(row).filter(v => v !== '' && v !== null && v !== undefined);
+        if (vals.length === 0) continue;
 
-      let user = null, employee = null, leave = null, payroll = null, prevEmp = null;
+        let user = null, employee = null, leave = null, payroll = null;
 
-      try {
-        const employeeId     = String(safe(row['Employee ID'])).trim();
-        const fullName       = String(safe(row['Name'])).trim();
-        const nameParts      = fullName.split(' ');
-        const firstName      = nameParts[0] || '';
-        const lastName       = nameParts.slice(1).join(' ') || ' ';
-        const email          = String(safe(row['Email'])).trim().toLowerCase();
-        const officeMailRaw  = row['Office mail id '] || row['Office mail id'] || row['Office Mail Id'] || '';
-        const personalEmail  = String(safe(officeMailRaw)).trim().toLowerCase();
-        const contact        = String(safe(row['Contact Number'])).trim();
-        const department     = String(safe(row['Department'])).trim();
-        const designation    = String(safe(row['Designation'])).trim();
-        const baseSalary     = parseFloat(row['Salary']) || 0;
-        const gender         = String(safe(row['Gender'])).trim();
+        try {
+            const employeeId     = String(safe(row['Employee ID'])).trim();
+            const fullName       = String(safe(row['Name'])).trim();
+            const nameParts      = fullName.split(' ');
+            const firstName      = nameParts[0] || '';
+            const lastName       = nameParts.slice(1).join(' ') || ' ';
+            const email          = String(safe(row['Email'])).trim().toLowerCase();
+            const officeMailRaw  = row['Office mail id'] || row['Office mail id '] || row['Office Mail Id'] || '';
+            const personalEmail  = String(safe(officeMailRaw)).trim().toLowerCase();
+            const contact        = String(safe(row['Contact Number'])).trim();
+            const department     = String(safe(row['Department'])).trim();
+            const designation    = String(safe(row['Designation'])).trim();
+            const baseSalary     = parseFloat(row['Salary']) || 0;
+            const gender         = String(safe(row['Gender'])).trim();
 
-        const rawStatus = String(safe(row['Employee Type'])).trim().toLowerCase();
-        let empStatus = 'Full Time';
-        if (rawStatus.includes('intern')) empStatus = 'Internship';
+            const rawStatus = String(safe(row['Employee Type'])).trim().toLowerCase();
+            let empStatus = 'Full Time';
+            if (rawStatus.includes('intern')) empStatus = 'Internship';
 
-        const rawPeriodType = String(safe(row['Employee period type'] || row['Period Type'])).trim().toLowerCase();
-        let empPeriodType = 'Permanent';
-        if (rawPeriodType.includes('probation')) empPeriodType = 'Probation';
-        else if (rawPeriodType.includes('contract')) empPeriodType = 'Contractual';
+            const rawPeriodType = String(safe(row['Employee period type'] || row['Period Type'])).trim().toLowerCase();
+            let empPeriodType = 'Permanent';
+            if (rawPeriodType.includes('probation')) empPeriodType = 'Probation';
+            else if (rawPeriodType.includes('contract')) empPeriodType = 'Contractual';
 
-        const panNumber             = String(safe(row['PAN Number'])).trim();
-        const aadharNumber          = String(safe(row['Aadhar Number'])).trim();
-        const bankAccountNumber     = String(safe(row['Bank Account No'])).trim();
-        const ifscCode              = String(safe(row['IFSC Code'])).trim();
-        const bankName              = String(safe(row['Bank Name'])).trim();
-        const permanentAddress      = String(safe(row['Permanent Address'])).trim();
-        const currentAddress        = String(safe(row['Current Address'])).trim();
-        const maritalStatus         = String(safe(row['Marital Status'])).trim();
-        const emergencyContactName  = String(safe(row['Emergency contact Name '] || row['Emergency contact Name'])).trim();
-        const emergencyContactPhone = String(safe(row['Emeregncy Contact Number '] || row['Emergency Contact Number'])).trim();
-        const nationality           = String(safe(row['Nationality'])).trim();
+            const panNumber             = String(safe(row['PAN Number'])).trim();
+            const aadharNumber          = String(safe(row['Aadhar Number'])).trim();
+            const bankAccountNumber     = String(safe(row['Bank Account No'])).trim();
+            const ifscCode              = String(safe(row['IFSC Code'])).trim();
+            const bankName              = String(safe(row['Bank Name'])).trim();
+            const permanentAddress      = String(safe(row['Permanent Address'])).trim();
+            const currentAddress        = String(safe(row['Current Address'])).trim();
+            const maritalStatus         = String(safe(row['Marital Status'])).trim();
+            const emergencyContactName  = String(safe(row['Emergency contact Name'] || row['Emergency contact Name '])).trim();
+            const emergencyContactPhone = String(safe(row['Emeregncy Contact Number'] || row['Emeregncy Contact Number '] || row['Emergency Contact Number'])).trim();
+            const nationality           = String(safe(row['Nationality'])).trim();
 
-        const dateOfJoining  = parseExcelDate(row['DATE OF JOINING']);
-        const dateOfBirth    = parseExcelDate(row['Date of Birth']);
-        const lastWorkingDay = parseExcelDate(row['Last Working Day']);
+            const dateOfJoining  = parseExcelDate(row['DATE OF JOINING']);
+            const dateOfBirth    = parseExcelDate(row['Date of Birth']);
+            const lastWorkingDay = parseExcelDate(row['Last Working Day']);
 
-        if (!employeeId) { results.failed.push({ row: rowNum, name: fullName, reason: 'Employee ID is required' }); continue; }
-        if (!email)      { results.failed.push({ row: rowNum, name: fullName, reason: 'Email is required' });       continue; }
-        if (!firstName)  { results.failed.push({ row: rowNum, name: fullName, reason: 'Name is required' });        continue; }
+            if (!employeeId) { results.failed.push({ row: rowNum, name: fullName, reason: 'Employee ID is required' }); continue; }
+            if (!email)      { results.failed.push({ row: rowNum, name: fullName, reason: 'Email is required' });       continue; }
+            if (!firstName)  { results.failed.push({ row: rowNum, name: fullName, reason: 'Name is required' });        continue; }
 
-        const existingUser = await User.findOne({ email });
-        if (existingUser) { results.failed.push({ row: rowNum, name: fullName, reason: `Email ${email} already exists` }); continue; }
+            const fullNameLower = fullName.toLowerCase().trim();
+            const fields = {
+                contact, permanentAddress, currentAddress, personalEmail, gender,
+                maritalStatus, nationality, panNumber, aadharNumber, bankName,
+                bankAccountNumber, ifscCode, emergencyContactName, emergencyContactPhone, baseSalary
+            };
 
-        const existingEmp = await Employee.findOne({ employeeId });
-        if (existingEmp)  { results.failed.push({ row: rowNum, name: fullName, reason: `Employee ID ${employeeId} already exists` }); continue; }
+            // ✅ PRIORITY 1: Check by employeeId — if exists, UPDATE
+            const existingEmp = await Employee.findOne({ employeeId });
+            if (existingEmp) {
+                try {
+                    const enc = buildEncFields(fields);
 
-        const defaultPassword = `${employeeId}@123`;
+                    await User.findByIdAndUpdate(existingEmp._id, {
+                        firstName, lastName, employeeId, isActive: true,
+                    });
 
-        // ── Encrypt all sensitive fields before saving ──
-        const enc = encryptEmployee({
-          contact,
-          address:                  permanentAddress,
-          currentAddress,
-          personalEmail,
-          gender,
-          maritalStatus,
-          nationality,
-          panNumber,
-          aadharNumber,
-          bankName,
-          bankAccountNumber,
-          ifscCode,
-          emergencyContactName,
-          emergencyContactPhone,
-          emergencyContactRelation: '',
-          baseSalary,
-        });
+                    await Employee.findByIdAndUpdate(existingEmp._id, {
+                        employeeId, firstName, lastName,
+                        department, designation,
+                        dateOfJoining, dateOfBirth, lastWorkingDay,
+                        baseSalary:               enc.baseSalary,
+                        status:                   empStatus,
+                        periodType:               empPeriodType,
+                        contact:                  enc.contact,
+                        personalEmail:            enc.personalEmail,
+                        address:                  enc.address,
+                        currentAddress:           enc.currentAddress,
+                        gender:                   enc.gender,
+                        maritalStatus:            enc.maritalStatus,
+                        nationality:              enc.nationality,
+                        panNumber:                enc.panNumber,
+                        aadharNumber:             enc.aadharNumber,
+                        bankName:                 enc.bankName,
+                        bankAccountNumber:        enc.bankAccountNumber,
+                        ifscCode:                 enc.ifscCode,
+                        emergencyContactName:     enc.emergencyContactName,
+                        emergencyContactPhone:    enc.emergencyContactPhone,
+                        emergencyContactRelation: enc.emergencyContactRelation,
+                    });
 
-        // ── User model: ONLY these 7 fields (as shown in DB screenshot) ──
-        user = new User({
-          firstName,
-          lastName,
-          email,
-          password:   defaultPassword,
-          role:       'employee',
-          employeeId,
-          isActive:   true,
-        });
-        await user.save();
+                    await updateExitData(existingEmp._id, fullName, fullNameLower);
 
-        // ── Employee model: all details including encrypted sensitive fields ──
-        employee = new Employee({
-          _id: user._id,
-          employeeId, firstName, lastName, email,
-          password:   defaultPassword,
-          department, designation,
-          dateOfJoining, dateOfBirth, lastWorkingDay,
-          baseSalary:   enc.baseSalary,
-          status:       empStatus,
-          periodType:   empPeriodType,
-          workMode:     'Work From Office',
+                    results.success.push({ row: rowNum, name: fullName, employeeId, email, action: 'updated' });
+                    continue;
 
-          // ── ENCRYPTED SENSITIVE FIELDS ──
-          contact:                  enc.contact,
-          personalEmail:            enc.personalEmail,
-          address:                  enc.address,
-          currentAddress:           enc.currentAddress,
-          gender:                   enc.gender,
-          maritalStatus:            enc.maritalStatus,
-          nationality:              enc.nationality,
-          panNumber:                enc.panNumber,
-          aadharNumber:             enc.aadharNumber,
-          bankName:                 enc.bankName,
-          bankAccountNumber:        enc.bankAccountNumber,
-          ifscCode:                 enc.ifscCode,
-          emergencyContactName:     enc.emergencyContactName,
-          emergencyContactPhone:    enc.emergencyContactPhone,
-          emergencyContactRelation: enc.emergencyContactRelation,
-        });
-        await employee.save();
+                } catch (updateError) {
+                    console.error(`Bulk update row ${rowNum} error:`, updateError.message);
+                    results.failed.push({ row: rowNum, name: fullName, reason: 'Update failed: ' + updateError.message });
+                    continue;
+                }
+            }
 
-        // ── Match exit data from Sheet 2 by employee name ──
-        const exitRow = exitDataMap[fullName.toLowerCase()];
-        if (exitRow) {
-          prevEmp = new PreviousEmployment({
-            employee:              employee._id,
-            employeeName:          fullName,
-            department:            String(safe(exitRow['Department'])).trim(),
-            designation:           String(safe(exitRow['Designation '] || exitRow['Designation'])).trim(),
-            joiningDate:           parseExcelDate(exitRow['Joining Date']),
-            lastWorkingDay:        parseExcelDate(exitRow['LWD']),
-            exitType:              String(safe(exitRow[' Exit Type'] || exitRow['Exit Type'])).trim(),
-            reasonForExit:         String(safe(exitRow['Reason for Exit'])).trim(),
-            managerName:           String(safe(exitRow[' Manager/Supervisor Name'] || exitRow['Manager/Supervisor Name'])).trim(),
-            noticePeriodServed:    String(safe(exitRow['Notice Period Served'])).trim(),
-            finalSettlementDone:   String(safe(exitRow[' Final Settlement Done'] || exitRow['Final Settlement Done'])).trim(),
-            fnfDate:               parseExcelDate(exitRow['Fnf date']),
-            exitInterviewDate:     parseExcelDate(exitRow['Exit Interview Date']),
-            companyAssetsReturned: String(safe(exitRow['Company Assets Returned'])).trim(),
-            hrRepresentative:      String(safe(exitRow[' HR Representative'] || exitRow['HR Representative'])).trim(),
-            remarks:               String(safe(exitRow['Remarks'])).trim(),
-          });
-          await prevEmp.save();
+            // ✅ PRIORITY 2: Check by email — if exists and name matches, UPDATE
+            const existingUser = await User.findOne({ email });
+            if (existingUser) {
+                const existingFullName = `${existingUser.firstName} ${existingUser.lastName}`.toLowerCase().trim();
+
+                if (existingFullName === fullNameLower) {
+                    try {
+                        const enc = buildEncFields(fields);
+
+                        await User.findByIdAndUpdate(existingUser._id, {
+                            firstName, lastName, employeeId, isActive: true,
+                        });
+
+                        await Employee.findByIdAndUpdate(existingUser._id, {
+                            employeeId, firstName, lastName, email,
+                            department, designation,
+                            dateOfJoining, dateOfBirth, lastWorkingDay,
+                            baseSalary:               enc.baseSalary,
+                            status:                   empStatus,
+                            periodType:               empPeriodType,
+                            contact:                  enc.contact,
+                            personalEmail:            enc.personalEmail,
+                            address:                  enc.address,
+                            currentAddress:           enc.currentAddress,
+                            gender:                   enc.gender,
+                            maritalStatus:            enc.maritalStatus,
+                            nationality:              enc.nationality,
+                            panNumber:                enc.panNumber,
+                            aadharNumber:             enc.aadharNumber,
+                            bankName:                 enc.bankName,
+                            bankAccountNumber:        enc.bankAccountNumber,
+                            ifscCode:                 enc.ifscCode,
+                            emergencyContactName:     enc.emergencyContactName,
+                            emergencyContactPhone:    enc.emergencyContactPhone,
+                            emergencyContactRelation: enc.emergencyContactRelation,
+                        });
+
+                        await updateExitData(existingUser._id, fullName, fullNameLower);
+
+                        results.success.push({ row: rowNum, name: fullName, employeeId, email, action: 'updated' });
+                        continue;
+
+                    } catch (updateError) {
+                        console.error(`Bulk update row ${rowNum} error:`, updateError.message);
+                        results.failed.push({ row: rowNum, name: fullName, reason: 'Update failed: ' + updateError.message });
+                        continue;
+                    }
+                } else {
+                    results.failed.push({
+                        row: rowNum,
+                        name: fullName,
+                        reason: `Email ${email} already belongs to a different employee`
+                    });
+                    continue;
+                }
+            }
+
+            // ✅ PRIORITY 3: CREATE new employee
+            const defaultPassword = `${employeeId}@123`;
+            const enc = buildEncFields(fields);
+
+            user = new User({
+                firstName, lastName, email,
+                password:   defaultPassword,
+                role:       'employee',
+                employeeId,
+                isActive:   true,
+            });
+            await user.save();
+
+            employee = new Employee({
+                _id: user._id,
+                employeeId, firstName, lastName, email,
+                password:   defaultPassword,
+                department, designation,
+                dateOfJoining, dateOfBirth, lastWorkingDay,
+                baseSalary:   enc.baseSalary,
+                status:       empStatus,
+                periodType:   empPeriodType,
+                workMode:     'Work From Office',
+                contact:                  enc.contact,
+                personalEmail:            enc.personalEmail,
+                address:                  enc.address,
+                currentAddress:           enc.currentAddress,
+                gender:                   enc.gender,
+                maritalStatus:            enc.maritalStatus,
+                nationality:              enc.nationality,
+                panNumber:                enc.panNumber,
+                aadharNumber:             enc.aadharNumber,
+                bankName:                 enc.bankName,
+                bankAccountNumber:        enc.bankAccountNumber,
+                ifscCode:                 enc.ifscCode,
+                emergencyContactName:     enc.emergencyContactName,
+                emergencyContactPhone:    enc.emergencyContactPhone,
+                emergencyContactRelation: enc.emergencyContactRelation,
+            });
+            await employee.save();
+
+            await updateExitData(employee._id, fullName, fullNameLower);
+
+            // Leave Balance
+            let casualLeave = defaultCasual;
+            let sickLeave   = defaultSick;
+            if (dateOfJoining) {
+                const remainingMonths = 12 - dateOfJoining.getMonth();
+                casualLeave = Math.max(0, Math.ceil(defaultCasual * remainingMonths / 12));
+                sickLeave   = Math.max(0, Math.ceil(defaultSick   * remainingMonths / 12));
+            }
+
+            leave = new Leave({
+                employee:     user._id,
+                leaveType:    'Initial Allocation',
+                numberOfDays: 0,
+                status:       'approved',
+                casualLeave, sickLeave, earnedLeave: 0,
+            });
+            await leave.save();
+
+            const now = new Date();
+            const payroll = new Payroll({
+                employee:    user._id,
+                month:       now.getMonth() + 1,
+                year:        now.getFullYear(),
+                baseSalary, workedDays: 0, deductions: 0,
+                workingDays: 24, netSalary: baseSalary, status: 'draft',
+            });
+            await payroll.save();
+
+            results.success.push({ row: rowNum, name: fullName, employeeId, email, action: 'created' });
+
+        } catch (error) {
+            console.error(`Bulk import row ${rowNum} error:`, error.message);
+            if (user)     await User.deleteOne({ _id: user._id }).catch(() => {});
+            if (employee) await Employee.deleteOne({ _id: employee._id }).catch(() => {});
+            if (leave)    await Leave.deleteOne({ _id: leave._id }).catch(() => {});
+            if (payroll)  await Payroll.deleteOne({ _id: payroll._id }).catch(() => {});
+            results.failed.push({ row: rowNum, name: String(row['Name'] || ''), reason: error.message });
         }
-
-        // ── Leave Balance ──
-        let casualLeave = defaultCasual;
-        let sickLeave   = defaultSick;
-        if (dateOfJoining) {
-          const remainingMonths = 12 - dateOfJoining.getMonth();
-          casualLeave = Math.max(0, Math.ceil(defaultCasual * remainingMonths / 12));
-          sickLeave   = Math.max(0, Math.ceil(defaultSick   * remainingMonths / 12));
-        }
-
-        leave = new Leave({
-          employee:     user._id,
-          leaveType:    'Initial Allocation',
-          numberOfDays: 0,
-          status:       'approved',
-          casualLeave, sickLeave, earnedLeave: 0,
-        });
-        await leave.save();
-
-        // ── Payroll record ──
-        const now = new Date();
-        payroll = new Payroll({
-          employee:    user._id,
-          month:       now.getMonth() + 1,
-          year:        now.getFullYear(),
-          baseSalary, workedDays: 0, deductions: 0,
-          workingDays: 24, netSalary: baseSalary, status: 'draft',
-        });
-        await payroll.save();
-
-        results.success.push({ row: rowNum, name: fullName, employeeId, email });
-
-      } catch (error) {
-        console.error(`Bulk import row ${rowNum} error:`, error.message);
-        if (user)     await User.deleteOne({ _id: user._id }).catch(() => {});
-        if (employee) await Employee.deleteOne({ _id: employee._id }).catch(() => {});
-        if (leave)    await Leave.deleteOne({ _id: leave._id }).catch(() => {});
-        if (payroll)  await Payroll.deleteOne({ _id: payroll._id }).catch(() => {});
-        if (prevEmp)  await PreviousEmployment.deleteOne({ _id: prevEmp._id }).catch(() => {});
-        results.failed.push({ row: rowNum, name: String(row['Name'] || ''), reason: error.message });
-      }
     }
 
     res.status(200).json({
-      message: `Bulk import completed. ${results.success.length} added, ${results.failed.length} failed.`,
-      success: results.success,
-      failed:  results.failed,
-      totalProcessed: results.success.length + results.failed.length,
-      savedFile: savedFileName,
+        message: `Bulk import completed. ${results.success.length} processed, ${results.failed.length} failed.`,
+        success: results.success,
+        failed:  results.failed,
+        totalProcessed: results.success.length + results.failed.length,
+        savedFile: savedFileName,
     });
-  });
+});
 
   // ─── DOWNLOAD UPLOADED BULK EXCEL ─────────────────────────────────────────
   downloadUploadedExcel = catchAsync(async (req, res) => {
