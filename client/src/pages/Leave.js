@@ -24,6 +24,19 @@ import BackButton from '../components/BackButton';
 
 function Leave() {
 
+  // ── Helper: format any date to "08 Apr 2026" ──
+  // Used everywhere on this page for a consistent date display.
+  const formatDate = (dateInput) => {
+    if (!dateInput) return '—';
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('en-GB', {
+      day:   '2-digit',
+      month: 'short',
+      year:  'numeric'
+    });
+  };
+
   // ── State ──
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,7 +52,8 @@ function Leave() {
     endDate: new Date().toISOString().split('T')[0],
     fromTime: '',
     toTime: '',
-    reason: ''
+    reason: '',
+    halfDayPeriod: 'first' // 'first' = morning, 'second' = afternoon (only used for Half Day)
   });
 
   const [successMessage, setSuccessMessage] = useState('');
@@ -101,7 +115,7 @@ function Leave() {
           id: h._id || String(i),
           isoDate: rawDate ? rawDate.toISOString().split('T')[0] : '',
           displayDate: rawDate
-            ? rawDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+            ? rawDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
             : (h.date || ''),
           day: h.day || (rawDate ? rawDate.toLocaleDateString('en-GB', { weekday: 'long' }) : ''),
         };
@@ -186,6 +200,12 @@ function Leave() {
   const shortLeavesLimit = balances?.shortLeavesLimit ?? 3;
   const shortLeavesLeft = Math.max(shortLeavesLimit - shortLeavesUsed, 0);
 
+  // ── Half day leave remaining this year ──
+  const halfDayUsed      = balances?.halfDayUsed      ?? 0;
+  const halfDayLimit     = balances?.halfDayTotal     ?? 12;
+  const halfDayLeft      = balances?.halfDayRemaining ?? Math.max(halfDayLimit - halfDayUsed, 0);
+  const isHalfDayLimitReached = halfDayLeft === 0;
+
   const CASUAL_MONTHLY_LIMIT = 1;
   const SICK_MONTHLY_LIMIT = 1;
 
@@ -209,6 +229,7 @@ function Leave() {
     if (isCasualLimitReached) msgs.push('Casual Leave');
     if (isSickLimitReached) msgs.push('Sick Leave');
     if (shortLeavesLeft === 0) msgs.push('Short Leave');
+    if (isHalfDayLimitReached) msgs.push('Half Day Leave');
     if (msgs.length === 0) return '';
     return `⚠️ Your limit for ${msgs.join(', ')} is full for this month.`;
   };
@@ -218,7 +239,7 @@ function Leave() {
   const handleApplySubmit = async (e) => {
     e.preventDefault();
 
-    if (formData.category !== 'Short') {
+    if (formData.category !== 'Short' && formData.category !== 'Half') {
       if (formData.leaveType === 'casual' && isCasualLimitReached) {
         setErrorMessage('⚠️ Your Casual Leave limit is full for this month.');
         setTimeout(() => setErrorMessage(''), 4000);
@@ -235,6 +256,11 @@ function Leave() {
       setTimeout(() => setErrorMessage(''), 4000);
       return;
     }
+    if (formData.category === 'Half' && isHalfDayLimitReached) {
+      setErrorMessage('⚠️ Your Half Day Leave limit is full for this year.');
+      setTimeout(() => setErrorMessage(''), 4000);
+      return;
+    }
 
     try {
       const payload = {
@@ -242,13 +268,20 @@ function Leave() {
         leaveType: formData.leaveType,
         category: formData.category,
         startDate: formData.startDate,
-        endDate: formData.category === 'Short' ? formData.startDate : formData.endDate,
+        endDate: (formData.category === 'Short' || formData.category === 'Half')
+          ? formData.startDate
+          : formData.endDate,
         reason: formData.reason,
         ...(formData.category === 'Short' && {
           fromTime: formData.fromTime,
           toTime: formData.toTime,
           leaveType: 'short',
           category: 'Full'
+        }),
+        ...(formData.category === 'Half' && {
+          leaveType: 'half',
+          category: 'Full',
+          halfDayPeriod: formData.halfDayPeriod || 'first',
         })
       };
 
@@ -267,7 +300,8 @@ function Leave() {
         endDate: new Date().toISOString().split('T')[0],
         fromTime: '',
         toTime: '',
-        reason: ''
+        reason: '',
+        halfDayPeriod: 'first'
       });
       setIsApplyModalOpen(false);
       fetchLeaves();
@@ -642,6 +676,19 @@ function Leave() {
               </div>
             </div>
           </div>
+          <div className="b-card">
+            <div className="icon"><Calendar3 className="c-blue" /></div>
+            <div className="b-info">
+              <small>Half Day Leave</small>
+              <div className="count-row">
+                <strong>{halfDayUsed}</strong>
+                <span> / {halfDayLimit} used</span>
+              </div>
+              <div className="progress">
+                <div style={{ width: `${calculateProgress(halfDayUsed, halfDayLimit)}%` }} className="blue"></div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -720,23 +767,32 @@ function Leave() {
 
                       <td className="col-type">
                         <span className={`type-tag ${leave.leaveType}`}>
-                          {leave.leaveType?.charAt(0).toUpperCase() + leave.leaveType?.slice(1)}
+                          {leave.leaveType === 'half'
+                            ? 'Half Day'
+                            : leave.leaveType?.charAt(0).toUpperCase() + leave.leaveType?.slice(1)}
                         </span>
                         {leave.category === 'Short' && <span className="sub-text"> (Short)</span>}
+                        {leave.leaveType === 'half' && leave.halfDayPeriod && (
+                          <span className="sub-text"> ({leave.halfDayPeriod === 'first' ? 'Morning' : 'Afternoon'})</span>
+                        )}
                       </td>
 
                       <td>
                         <div className="date-range">
-                          {new Date(leave.startDate).toLocaleDateString()}
+                          {formatDate(leave.startDate)}
                           {leave.endDate && leave.endDate !== leave.startDate
-                            ? ` → ${new Date(leave.endDate).toLocaleDateString()}`
+                            ? ` → ${formatDate(leave.endDate)}`
                             : ''}
                         </div>
-                        <div className="duration-text">{leave.numberOfDays} Day{leave.numberOfDays !== 1 ? 's' : ''}</div>
+                        <div className="duration-text">
+                          {leave.leaveType === 'half'
+                            ? '0.5 Day'
+                            : `${leave.numberOfDays} Day${leave.numberOfDays !== 1 ? 's' : ''}`}
+                        </div>
                       </td>
 
                       {isHR && (
-                        <td><div className="applied-date">{new Date(leave.createdAt).toLocaleDateString()}</div></td>
+                        <td><div className="applied-date">{formatDate(leave.createdAt)}</div></td>
                       )}
 
                       <td>
@@ -923,8 +979,25 @@ function Leave() {
                 </button>
                 <button
                   type="button"
+                  className={`toggle-card ${formData.category === 'Half' ? 'active' : ''} ${isHalfDayLimitReached ? 'disabled' : ''}`}
+                  onClick={() => {
+                    if (isHalfDayLimitReached) return;
+                    setFormData({
+                      ...formData,
+                      category: 'Half',
+                      leaveType: 'half',
+                      endDate: formData.startDate, // half day is always single date
+                    });
+                  }}
+                >
+                  <span className="toggle-icon">🌓</span>
+                  <div className="fw-bold">Half Day</div>
+                  <div className="small text-muted">0.5 day</div>
+                </button>
+                <button
+                  type="button"
                   className={`toggle-card ${formData.category === 'Full' ? 'active' : ''}`}
-                  onClick={() => setFormData({ ...formData, category: 'Full' })}
+                  onClick={() => setFormData({ ...formData, category: 'Full', leaveType: 'casual' })}
                 >
                   <span className="toggle-icon">📅</span>
                   <div className="fw-bold">Full Day Leave</div>
@@ -939,6 +1012,16 @@ function Leave() {
               {shortLeavesLeft === 0 && (
                 <div className="warning-banner">
                   ⚠️ Short leave limit reached ({shortLeavesLimit}/month). Please apply for Full Day Leave.
+                </div>
+              )}
+              {formData.category === 'Half' && !isHalfDayLimitReached && (
+                <div className="info-banner">
+                  ℹ️ {halfDayLeft} half day leave{halfDayLeft !== 1 ? 's' : ''} remaining this year
+                </div>
+              )}
+              {isHalfDayLimitReached && (
+                <div className="warning-banner">
+                  ⚠️ Half day leave limit reached ({halfDayLimit}/year). Please apply for Full Day Leave.
                 </div>
               )}
               {formData.category === 'Full' && (
@@ -965,12 +1048,23 @@ function Leave() {
                   )}
                 </>
               )}
-              <label>Date{formData.category === 'Full' ? ' (From)' : ''}</label>
+              <label>
+                Date{formData.category === 'Full'
+                  ? ' (From)'
+                  : formData.category === 'Half'
+                    ? ' (Half Day)'
+                    : ''}
+              </label>
               <input
                 type="date"
                 value={formData.startDate}
                 min={new Date().toISOString().split('T')[0]}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  startDate: e.target.value,
+                  // For Half Day, endDate must always match startDate
+                  ...(formData.category === 'Half' && { endDate: e.target.value })
+                })}
                 required
               />
               {formData.category === 'Full' && (
@@ -983,6 +1077,33 @@ function Leave() {
                     onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                     required
                   />
+                </>
+              )}
+              {formData.category === 'Half' && (
+                <>
+                  <label>Which Half of the Day?</label>
+                  <div className="time-row" style={{ gap: 10 }}>
+                    <button
+                      type="button"
+                      className={`toggle-card ${formData.halfDayPeriod === 'first' ? 'active' : ''}`}
+                      style={{ flex: 1, padding: '10px 14px' }}
+                      onClick={() => setFormData({ ...formData, halfDayPeriod: 'first' })}
+                    >
+                      <span className="toggle-icon">🌅</span>
+                      <div className="fw-bold">First Half</div>
+                      <div className="small text-muted">Morning</div>
+                    </button>
+                    <button
+                      type="button"
+                      className={`toggle-card ${formData.halfDayPeriod === 'second' ? 'active' : ''}`}
+                      style={{ flex: 1, padding: '10px 14px' }}
+                      onClick={() => setFormData({ ...formData, halfDayPeriod: 'second' })}
+                    >
+                      <span className="toggle-icon">🌇</span>
+                      <div className="fw-bold">Second Half</div>
+                      <div className="small text-muted">Afternoon</div>
+                    </button>
+                  </div>
                 </>
               )}
               {formData.category === 'Short' && (
@@ -1150,6 +1271,33 @@ function Leave() {
                   </div>
                 </div>
 
+                {/* Half Day Leave */}
+                <div className="b-card">
+                  <div className="icon"><Calendar3 className="c-blue" /></div>
+                  <div className="b-info">
+                    <small>Half Day Leave (this year)</small>
+                    <div className="count-row">
+                      <strong>{selectedEmployeeBalances?.halfDayUsed ?? 0}</strong>
+                      <span style={{ fontSize: 12, color: '#888' }}> / {selectedEmployeeBalances?.halfDayTotal ?? 12} used</span>
+                    </div>
+                    <div className="progress">
+                      <div
+                        className="blue"
+                        style={{
+                          width: `${calculateProgress(
+                            selectedEmployeeBalances?.halfDayUsed ?? 0,
+                            selectedEmployeeBalances?.halfDayTotal ?? 12
+                          )}%`,
+                          transition: 'width 0.4s ease'
+                        }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 11, color: '#05CD99', marginTop: 3 }}>
+                      {selectedEmployeeBalances?.halfDayRemaining ?? 12} remaining
+                    </div>
+                  </div>
+                </div>
+
               </div>
             )}
 
@@ -1164,9 +1312,16 @@ function Leave() {
                   .slice(0, 10)
                   .map((lv, i) => (
                     <tr key={i}>
-                      <td>{lv.leaveType}</td>
-                      <td>{lv.startDate ? new Date(lv.startDate).toLocaleDateString() : '—'}</td>
-                      <td>{lv.endDate ? new Date(lv.endDate).toLocaleDateString() : '—'}</td>
+                      <td>
+                        {lv.leaveType === 'half' ? 'Half Day' : lv.leaveType}
+                        {lv.leaveType === 'half' && lv.halfDayPeriod && (
+                          <span style={{ color: '#888', fontSize: 11 }}>
+                            {' '}({lv.halfDayPeriod === 'first' ? 'Morning' : 'Afternoon'})
+                          </span>
+                        )}
+                      </td>
+                      <td>{formatDate(lv.startDate)}</td>
+                      <td>{formatDate(lv.endDate)}</td>
                       <td>{lv.numberOfDays}</td>
                       <td><span className={`status-badge ${lv.status}`}>{lv.status}</span></td>
                       <td className='text-danger'>{lv.rejectionReason}</td>
@@ -1366,7 +1521,7 @@ function Leave() {
                 />
                 {addHolidayForm.date && (
                   <div style={{ marginTop: 6, fontSize: 12, color: '#6b7280' }}>
-                    📅 {new Date(addHolidayForm.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    📅 {new Date(addHolidayForm.date).toLocaleDateString('en-GB', { weekday: 'long' })}, {formatDate(addHolidayForm.date)}
                   </div>
                 )}
               </div>

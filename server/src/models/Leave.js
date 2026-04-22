@@ -12,24 +12,29 @@ const leaveSchema = new mongoose.Schema({
     required: true
   },
   // After the `employee` field:
-employeePhone: { type: String, default: '' },
+  employeePhone: { type: String, default: '' },
 
   leaveType: {
     type:     String,
-    enum:     ['sick', 'casual','short','earned', 'maternity', 'paternity', 'unpaid', 'holidays', 'Initial Allocation'],
+    enum:     ['sick', 'casual', 'short', 'half', 'earned', 'maternity', 'paternity', 'unpaid', 'holidays', 'Initial Allocation'],
     required: true
   },
 
   // Leave duration
   startDate:    { type: Date,   default: null },
   endDate:      { type: Date,   default: null },
+  // numberOfDays: 0 for short leave, 0.5 for half day, whole numbers for full-day leaves
   numberOfDays: { type: Number, default: 0    },
 
   // Request details
   reason:   { type: String, default: '' },
-  category: { type: String, enum: ['Prob', 'Full','Intern'], default: 'Full' },  // Short = hour-based
-  fromTime: { type: String, default: null },  // for Short leave
-  toTime:   { type: String, default: null },  // for Short leave
+  category: { type: String, enum: ['Prob', 'Full', 'Intern'], default: 'Full' },
+  fromTime: { type: String, default: null },  // for Short / Half Day leave (optional)
+  toTime:   { type: String, default: null },  // for Short / Half Day leave (optional)
+
+  // Half day specific: which half of the day
+  // 'first' = morning half, 'second' = afternoon half
+  halfDayPeriod: { type: String, enum: ['first', 'second', null], default: null },
 
   // Status lifecycle: pending → approved / rejected
   status: {
@@ -37,7 +42,7 @@ employeePhone: { type: String, default: '' },
     enum:    ['pending', 'approved', 'rejected', 'left'],
     default: 'pending'
   },
-  
+
   // Medical document
   medicalDocumentSubmitted: { type: Boolean, default: false },
 

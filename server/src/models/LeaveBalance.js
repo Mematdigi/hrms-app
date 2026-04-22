@@ -26,6 +26,7 @@ const leaveBalanceSchema = new mongoose.Schema({
   paternityTotal: { type: Number, default: 15 },
   unpaidTotal:    { type: Number, default: 0  }, // unlimited — track separately
   shortLeaveTotal:{ type: Number, default: 3  }, // per month
+  halfDayTotal:   { type: Number, default: 12 }, // half-day leaves per year (each = 0.5 day)
 
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }

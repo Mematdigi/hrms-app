@@ -72,7 +72,8 @@ const getOrCreateLeaveBalance = async (employeeId, year) => {
       earnedTotal:     defaults?.earnedDefault    ?? 14,
       maternityTotal:  defaults?.maternityDefault ?? 90,
       paternityTotal:  defaults?.paternityDefault ?? 15,
-      shortLeaveTotal: defaults?.shortLeaveTotal  ?? 3,
+      shortLeaveTotal: defaults?.shortLeaveDefault ?? 3,
+      halfDayTotal:    defaults?.halfDayDefault   ?? 12,
     });
   }
   return balance;
@@ -102,7 +103,10 @@ const computeUsedLeaves = async (employeeId, year) => {
     }
   ]);
 
-  const usedMap = { casual: 0, sick: 0, earned: 0, maternity: 0, paternity: 0, unpaid: 0, short: 0 };
+  const usedMap = {
+    casual: 0, sick: 0, earned: 0, maternity: 0,
+    paternity: 0, unpaid: 0, short: 0, half: 0
+  };
   agg.forEach(row => {
     if (usedMap.hasOwnProperty(row._id)) {
       usedMap[row._id] = row.totalDays;
@@ -134,7 +138,10 @@ class LeaveController {
   // ───────────────────────────────────────────────────────────────────────────
   applyLeave = async (req, res) => {
     try {
-      const { employeeId, leaveType, startDate, endDate, reason, category, fromTime, toTime } = req.body;
+      const {
+        employeeId, leaveType, startDate, endDate,
+        reason, category, fromTime, toTime, halfDayPeriod
+      } = req.body;
 
       if (!employeeId || !leaveType || !startDate) {
         return res.status(400).json({ message: 'employeeId, leaveType and startDate are required.' });
@@ -147,10 +154,29 @@ class LeaveController {
         return res.status(400).json({ message: 'End date cannot be before start date.' });
       }
 
-      const isShort      = leaveType === 'Short';
+      const isShort   = leaveType === 'short';
+      const isHalfDay = leaveType === 'half';
+
+      // Half day always occupies the same single date (start === end)
+      if (isHalfDay && startDate !== (endDate || startDate)) {
+        const s = new Date(startDate).toDateString();
+        const e = new Date(endDate || startDate).toDateString();
+        if (s !== e) {
+          return res.status(400).json({ message: 'Half day leave must be on a single date.' });
+        }
+      }
+
+      // Validate halfDayPeriod
+      if (isHalfDay && halfDayPeriod && !['first', 'second'].includes(halfDayPeriod)) {
+        return res.status(400).json({ message: 'halfDayPeriod must be "first" or "second".' });
+      }
+
+      // numberOfDays: 0 for short, 0.5 for half day, whole numbers for full-day leaves
       const numberOfDays = isShort
         ? 0
-        : Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+        : isHalfDay
+          ? 0.5
+          : Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
       const year = start.getFullYear();
 
@@ -158,9 +184,20 @@ class LeaveController {
       if (isShort) {
         const shortUsed = await computeShortLeavesThisMonth(employeeId);
         const balance   = await getOrCreateLeaveBalance(employeeId, year);
-        if (shortUsed >= balance.shortLeaveLimit) {
+        if (shortUsed >= balance.shortLeaveTotal) {
           return res.status(400).json({
-            message: `Short leave limit reached (${balance.shortLeaveLimit}/month). Please apply for a Full Day leave.`
+            message: `Short leave limit reached (${balance.shortLeaveTotal}/month). Please apply for a Full Day leave.`
+          });
+        }
+      } else if (isHalfDay) {
+        const balance = await getOrCreateLeaveBalance(employeeId, year);
+        const used    = await computeUsedLeaves(employeeId, year);
+        // used.half stores cumulative numberOfDays (each half day = 0.5)
+        const halfDayUsedCount = used.half / 0.5;         // number of half-day instances used
+        const halfDayLimit     = balance.halfDayTotal;     // number of half-day instances allowed
+        if (halfDayUsedCount >= halfDayLimit) {
+          return res.status(400).json({
+            message: `Half day leave limit reached (${halfDayLimit} per year). You have used all your half day allowance.`
           });
         }
       } else {
@@ -196,28 +233,33 @@ class LeaveController {
 
       // ── CREATE LEAVE REQUEST ───────────────────────────────────────────────
       const leave = new Leave({
-        employee:     employeeId,
+        employee:      employeeId,
         leaveType,
-        startDate:    start,
-        endDate:      end,
+        startDate:     start,
+        endDate:       end,
         numberOfDays,
-        reason:       reason || '',
-        status:       'pending',
-        category:     category || 'Full',
-        fromTime:     fromTime || null,
-        toTime:       toTime   || null,
+        reason:        reason || '',
+        status:        'pending',
+        category:      category || 'Full',
+        fromTime:      fromTime      || null,
+        toTime:        toTime        || null,
+        halfDayPeriod: isHalfDay ? (halfDayPeriod || null) : null,
       });
 
       await leave.save();
       await leave.populate('employee', 'firstName lastName email department');
 
       // ── NOTIFY HR (in-app) ────────────────────────────────────────────────
-      const empName = `${leave.employee.firstName} ${leave.employee.lastName}`;
+      const empName    = `${leave.employee.firstName} ${leave.employee.lastName}`;
+      const dayLabel   = isHalfDay
+        ? '0.5 day (Half Day)'
+        : `${numberOfDays} day${numberOfDays !== 1 ? 's' : ''}`;
+
       await notifyAllHR({
         sender:   leave.employee._id,
         type:     'leave_applied',
         title:    'New Leave Request',
-        message:  `${empName} has applied for ${leaveType} leave (${numberOfDays} day${numberOfDays !== 1 ? 's' : ''}).`,
+        message:  `${empName} has applied for ${leaveType} leave (${dayLabel}).`,
         refId:    leave._id,
         refModel: 'Leave',
         meta:     { leaveType, numberOfDays, startDate, endDate },
@@ -228,6 +270,9 @@ class LeaveController {
       if (hrManagers.length > 0) {
         const emp       = leave.employee;
         const emailList = hrManagers.map(h => h.email).filter(Boolean).join(', ');
+        const halfDayPeriodLabel = isHalfDay && halfDayPeriod
+          ? ` (${halfDayPeriod === 'first' ? 'First Half / Morning' : 'Second Half / Afternoon'})`
+          : '';
         sendMail({
           from:    process.env.EMAIL_USER || 'your-email@gmail.com',
           to:      emailList,
@@ -236,7 +281,7 @@ class LeaveController {
             <h2>New Leave Request for Approval</h2>
             <p><strong>Employee:</strong> ${emp.firstName} ${emp.lastName}</p>
             <p><strong>Department:</strong> ${emp.department || 'N/A'}</p>
-            <p><strong>Leave Type:</strong> ${leaveType}</p>
+            <p><strong>Leave Type:</strong> ${leaveType}${halfDayPeriodLabel}</p>
             <p><strong>Category:</strong> ${category || 'Full Day'}</p>
             <p><strong>Start Date:</strong> ${start.toLocaleDateString()}</p>
             <p><strong>End Date:</strong> ${end.toLocaleDateString()}</p>
@@ -317,8 +362,8 @@ class LeaveController {
           ...l,
           employee: {
             ...empDecrypted,
-            department:  deptDesig.department  || empDecrypted?.department  || '',  // ← from Employee table
-            designation: deptDesig.designation || empDecrypted?.designation || '',  // ← from Employee table
+            department:  deptDesig.department  || empDecrypted?.department  || '',
+            designation: deptDesig.designation || empDecrypted?.designation || '',
           },
           employeeLeaveHistory: id ? historyMap[id] || [] : [],
         };
@@ -355,8 +400,8 @@ class LeaveController {
           ...l,
           employee: {
             ...empDecrypted,
-            department:  deptDesig.department  || empDecrypted?.department  || '',  // ← from Employee table
-            designation: deptDesig.designation || empDecrypted?.designation || '',  // ← from Employee table
+            department:  deptDesig.department  || empDecrypted?.department  || '',
+            designation: deptDesig.designation || empDecrypted?.designation || '',
           },
         };
       });
@@ -391,12 +436,16 @@ class LeaveController {
       leave.updatedAt    = new Date();
       await leave.save();
 
+      const daysLabel = leave.leaveType === 'half'
+        ? '0.5 day (Half Day)'
+        : `${leave.numberOfDays} day${leave.numberOfDays !== 1 ? 's' : ''}`;
+
       await createNotification({
         recipient: leave.employee._id,
         sender:    approverId,
         type:      'leave_approved',
         title:     'Leave Request Approved ✅',
-        message:   `Your ${leave.leaveType} leave request (${leave.numberOfDays} day${leave.numberOfDays !== 1 ? 's' : ''}) has been approved.`,
+        message:   `Your ${leave.leaveType} leave request (${daysLabel}) has been approved.`,
         refId:     leave._id,
         refModel:  'Leave',
         meta:      { leaveType: leave.leaveType, numberOfDays: leave.numberOfDays },
@@ -429,6 +478,7 @@ class LeaveController {
           month:    new Date().getMonth() + 1,
           year:     new Date().getFullYear()
         });
+        // Half day deducts 0.5 day from payroll (numberOfDays is already 0.5)
         if (payroll && leave.numberOfDays > 0) {
           const perDay = payroll.baseSalary / (payroll.workingDays || 26);
           payroll.deductions = (payroll.deductions || 0) + (perDay * leave.numberOfDays);
@@ -535,10 +585,11 @@ class LeaveController {
       let defaults = await LeaveDefaults.findOne();
       if (!defaults) {
         defaults = await LeaveDefaults.create({
-          casualDefault:   8,
-          sickDefault:     6,
-          earnedDefault:   14,
-          shortLeaveLimit: 3
+          casualDefault:    8,
+          sickDefault:      6,
+          earnedDefault:    14,
+          shortLeaveDefault: 3,
+          halfDayDefault:   12,
         });
       }
       return res.json(defaults);
@@ -552,7 +603,7 @@ class LeaveController {
   // ───────────────────────────────────────────────────────────────────────────
   updateDefaults = async (req, res) => {
     try {
-      const { casualDefault, sickDefault, earnedDefault, shortLeaveLimit } = req.body;
+      const { casualDefault, sickDefault, earnedDefault, shortLeaveLimit, halfDayDefault } = req.body;
 
       if (casualDefault !== undefined && typeof casualDefault !== 'number')
         return res.status(400).json({ message: 'casualDefault must be a number.' });
@@ -563,7 +614,8 @@ class LeaveController {
       if (casualDefault   !== undefined) update.casualDefault   = casualDefault;
       if (sickDefault     !== undefined) update.sickDefault     = sickDefault;
       if (earnedDefault   !== undefined) update.earnedDefault   = earnedDefault;
-      if (shortLeaveLimit !== undefined) update.shortLeaveLimit = shortLeaveLimit;
+      if (shortLeaveLimit !== undefined) update.shortLeaveDefault = shortLeaveLimit;
+      if (halfDayDefault  !== undefined) update.halfDayDefault  = halfDayDefault;
 
       const updatedDefaults = await LeaveDefaults.findOneAndUpdate(
         {},
@@ -592,6 +644,13 @@ class LeaveController {
 
       const shortLeavesUsed  = await computeShortLeavesThisMonth(employeeId);
       const shortLeavesLimit = balance.shortLeaveTotal;
+
+      // Half day: used.half is cumulative numberOfDays (e.g. 3 uses = 1.5 days stored)
+      // We expose both the "count" (instances) and "days" (0.5 × count)
+      const halfDayUsedInstances  = used.half / 0.5;   // number of half-day leaves taken
+      const halfDayLimit          = balance.halfDayTotal; // number of half-day leaves allowed
+      const halfDayRemaining      = Math.max(halfDayLimit - halfDayUsedInstances, 0);
+
       const clamp = (val) => Math.max(val, 0);
 
       return res.json({
@@ -624,7 +683,13 @@ class LeaveController {
         shortLeavesLimit,
         shortLeavesRemaining: clamp(shortLeavesLimit - shortLeavesUsed),
 
-        totalUsedThisYear: used.casual + used.sick + used.earned + used.maternity + used.paternity + used.unpaid,
+        // Half day leave stats (unit = number of half-day instances, not days)
+        halfDayTotal:     halfDayLimit,
+        halfDayUsed:      halfDayUsedInstances,
+        halfDayRemaining,
+        halfDayDaysUsed:  used.half,  // in days (0.5 per instance), useful for payroll display
+
+        totalUsedThisYear: used.casual + used.sick + used.earned + used.maternity + used.paternity + used.unpaid + used.half,
       });
     } catch (error) {
       console.error('getEmployeeBalances error:', error);
@@ -639,7 +704,11 @@ class LeaveController {
   updateEmployeeBalances = async (req, res) => {
     try {
       const { employeeId } = req.params;
-      const { casualTotal, sickTotal, earnedTotal, maternityTotal, paternityTotal, shortLeaveLimit, year } = req.body;
+      const {
+        casualTotal, sickTotal, earnedTotal,
+        maternityTotal, paternityTotal, shortLeaveLimit,
+        halfDayTotal, year
+      } = req.body;
 
       const targetYear = year || new Date().getFullYear();
       const balance    = await getOrCreateLeaveBalance(employeeId, targetYear);
@@ -649,7 +718,8 @@ class LeaveController {
       if (earnedTotal     !== undefined) balance.earnedTotal     = earnedTotal;
       if (maternityTotal  !== undefined) balance.maternityTotal  = maternityTotal;
       if (paternityTotal  !== undefined) balance.paternityTotal  = paternityTotal;
-      if (shortLeaveLimit !== undefined) balance.shortLeaveLimit = shortLeaveLimit;
+      if (shortLeaveLimit !== undefined) balance.shortLeaveTotal = shortLeaveLimit;
+      if (halfDayTotal    !== undefined) balance.halfDayTotal    = halfDayTotal;
       balance.updatedAt = new Date();
 
       await balance.save();
@@ -672,7 +742,7 @@ class LeaveController {
         'Department',
         'Designation',
         'Intern/Probation',           // Full | Prob | Intern
-        'Leave Type',                 // sick | casual | earned | maternity | paternity | unpaid | short | holidays
+        'Leave Type',                 // sick | casual | earned | maternity | paternity | unpaid | short | half | holidays
         'Leave Start Date',           // DD/MM/YYYY
         'Leave End Date',             // DD/MM/YYYY
         'Total Days',
@@ -733,9 +803,11 @@ class LeaveController {
       };
 
       const LEAVE_TYPE_MAP = {
-        sick: 'sick', casual: 'casual', short: 'short', earned: 'earned',
-        maternity: 'maternity', paternity: 'paternity', unpaid: 'unpaid',
-        holidays: 'holidays', 'initial allocation': 'Initial Allocation',
+        sick: 'sick', casual: 'casual', short: 'short', half: 'half',
+        'half day': 'half', halfday: 'half',
+        earned: 'earned', maternity: 'maternity', paternity: 'paternity',
+        unpaid: 'unpaid', holidays: 'holidays',
+        'initial allocation': 'Initial Allocation',
       };
       const STATUS_MAP   = { pending: 'pending', approved: 'approved', rejected: 'rejected', left: 'left' };
       const CATEGORY_MAP = { full: 'Full', prob: 'Prob', probation: 'Prob', intern: 'Intern' };
@@ -785,10 +857,15 @@ class LeaveController {
             continue;
           }
 
-          const endDate   = parseDate(row['Leave End Date']) || startDate;
-          const totalDays = parseInt(row['Total Days']) || Math.ceil((endDate - startDate) / 86400000) + 1;
+          const endDate  = parseDate(row['Leave End Date']) || startDate;
+          const leaveType = LEAVE_TYPE_MAP[String(row['Leave Type'] || 'casual').toLowerCase().trim()] || 'casual';
 
-          const leaveType   = LEAVE_TYPE_MAP[String(row['Leave Type']          || 'casual').toLowerCase().trim()] || 'casual';
+          // For half day: always 0.5 days regardless of what Excel says
+          const isHalf    = leaveType === 'half';
+          const totalDays = isHalf
+            ? 0.5
+            : parseInt(row['Total Days']) || Math.ceil((endDate - startDate) / 86400000) + 1;
+
           const status      = STATUS_MAP[String(row['Leave Status']             || 'pending').toLowerCase().trim()] || 'pending';
           const category    = CATEGORY_MAP[String(row['Intern/Probation']      || 'Full').toLowerCase().trim()] || 'Full';
           const remarks     = String(row['Remarks']                             || '').trim();
@@ -809,8 +886,8 @@ class LeaveController {
             reason:                   remarks,
             status,
             category,
-            department,               // ← stored on leave doc for display
-            designation,              // ← stored on leave doc for display
+            department,
+            designation,
             medicalDocumentSubmitted: medDoc,
             createdAt:                appliedOn,
             updatedAt:                new Date(),
@@ -880,7 +957,6 @@ class LeaveController {
         .lean();
 
       // ── Fetch department + designation directly from Employee table ─────────
-      // This is the authoritative source — plain-text fields, no encryption.
       const employeeIds  = [...new Set(leaves.map(l => l.employee?._id?.toString()).filter(Boolean))];
       const deptDesigMap = await fetchEmpDeptDesig(employeeIds);
 
@@ -894,8 +970,8 @@ class LeaveController {
           ...l,
           employee: {
             ...empDecrypted,
-            department:  deptDesig.department  || empDecrypted?.department  || '',  // ← from Employee table
-            designation: deptDesig.designation || empDecrypted?.designation || '',  // ← from Employee table
+            department:  deptDesig.department  || empDecrypted?.department  || '',
+            designation: deptDesig.designation || empDecrypted?.designation || '',
           },
         };
       });

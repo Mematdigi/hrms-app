@@ -555,7 +555,7 @@ const handleChange = async (e) => {
                 {(user?.role === 'admin' || user?.role === 'hr') && (
                     viewMode === 'grid' || viewMode === 'list' ? (
                         <div className="header-actions">
-                            {user?.role === 'admin' && (
+                            {user?.role === 'admin' || user?.role === 'hr' && (
                                 <>
                                     {selectionMode ? (
                                         <>
@@ -580,6 +580,9 @@ const handleChange = async (e) => {
                             </button>
                             <button className="btn-primary-add" onClick={() => { resetForm(); setViewMode('add'); }}>
                                 + Add Employee
+                            </button>
+                            <button className="btn-primary-add" onClick={() => { navigate('/OffBoarding'); }}>
+                                Manage Exit Details
                             </button>
                         </div>
                     ) : (

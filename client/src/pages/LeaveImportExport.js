@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { leaveAPI } from '../services/api'; // adjust import path as needed
 
 // ─── Utility helpers ──────────────────────────────────────────────────────────
@@ -15,7 +16,8 @@ const STATUS_COLORS = {
     rejected: { bg: '#FFF1F3', text: '#C01048', dot: '#F63D68' },
 };
 
-const LEAVE_TYPE_OPTIONS = ['', 'sick', 'casual', 'earned', 'maternity', 'paternity', 'unpaid', 'short', 'holidays'];
+// ── 'half' added to the leave type options ────────────────────────────────────
+const LEAVE_TYPE_OPTIONS = ['', 'sick', 'casual', 'earned', 'maternity', 'paternity', 'unpaid', 'short', 'half', 'holidays'];
 const STATUS_OPTIONS = ['', 'all', 'pending', 'approved', 'rejected'];
 const CATEGORY_OPTIONS = ['', 'Full', 'Prob', 'Intern'];
 
@@ -35,9 +37,11 @@ const StatusBadge = ({ status }) => {
 };
 
 // ─── Modal wrapper ────────────────────────────────────────────────────────────
+// Rendered via React Portal into document.body so that no ancestor's
+// transform/filter/animation can trap the modal inside a local stacking context.
 const Modal = ({ open, onClose, title, subtitle, children, maxWidth = 720 }) => {
     if (!open) return null;
-    return (
+    return createPortal(
         <div style={{
             position: 'fixed', inset: 0, zIndex: 9999,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -68,7 +72,8 @@ const Modal = ({ open, onClose, title, subtitle, children, maxWidth = 720 }) => 
                 {/* Body */}
                 <div style={{ overflowY: 'auto', flex: 1 }}>{children}</div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
@@ -202,7 +207,8 @@ const UploadModal = ({ open, onClose }) => {
                     <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 600, color: '#344054' }}>Required columns:</p>
                     <p style={{ margin: 0, fontSize: 11, color: '#667085', lineHeight: 1.8 }}>
                         <strong>Employee Phone</strong> (primary key) · Employee Name · Department · Designation ·
-                        Intern/Probation · Leave Type · Leave Start Date · Leave End Date · Total Days · Leave Status ·
+                        Intern/Probation · <strong>Leave Type</strong> (sick | casual | earned | maternity | paternity | unpaid | short | <strong>half</strong> | holidays) ·
+                        Leave Start Date · Leave End Date · Total Days · Leave Status ·
                         Medical Document Submitted · Applied On · Remarks
                     </p>
                 </div>
@@ -284,7 +290,6 @@ const ViewLeavesModal = ({ open, onClose }) => {
     const [error, setError] = useState('');
     const [total, setTotal] = useState(0);
     const [fetched, setFetched] = useState(false);
-
     const [filters, setFilters] = useState({
         leaveType: '', status: '', category: '',
         startDate: '', endDate: '',
@@ -336,6 +341,24 @@ const ViewLeavesModal = ({ open, onClose }) => {
         fontSize: 13, color: '#344054', background: '#fff', outline: 'none',
     };
 
+    // ── Helper: render leave type badge, appending half-day period if present ──
+    const renderLeaveTypeBadge = (leave) => {
+        const type = leave.leaveType || '';
+        const isHalf = type === 'half';
+        const periodLabel = isHalf && leave.halfDayPeriod
+            ? leave.halfDayPeriod === 'first' ? ' · Morning' : ' · Afternoon'
+            : '';
+        return (
+            <span style={{
+                padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                background: isHalf ? '#FDF4FF' : '#EFF8FF',
+                color: isHalf ? '#6941C6' : '#175CD3',
+            }}>
+                {type.charAt(0).toUpperCase() + type.slice(1)}{isHalf ? ' Day' : ''}{periodLabel}
+            </span>
+        );
+    };
+
     return (
         <Modal open={open} onClose={handleClose} title="Leave Data" subtitle={`${total} record${total !== 1 ? 's' : ''} found`} maxWidth={1100}>
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -351,7 +374,9 @@ const ViewLeavesModal = ({ open, onClose }) => {
                         <select value={filters.leaveType} onChange={(e) => handleFilterChange('leaveType', e.target.value)} style={inputStyle}>
                             <option value="">All Types</option>
                             {LEAVE_TYPE_OPTIONS.filter(Boolean).map(o => (
-                                <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>
+                                <option key={o} value={o}>
+                                    {o === 'half' ? 'Half Day' : o.charAt(0).toUpperCase() + o.slice(1)}
+                                </option>
                             ))}
                         </select>
                     </div>
@@ -425,7 +450,7 @@ const ViewLeavesModal = ({ open, onClose }) => {
                                     {[
                                         'Employee Name', 'Department', 'Designation', 'Intern/Probation',
                                         'Leave Type', 'Leave Start Date', 'Leave End Date', 'Total Days',
-                                        'Leave Status', 'Medical Document Submitted', 'Applied On', 'Remarks',  // ← added here
+                                        'Leave Status', 'Medical Document Submitted', 'Applied On', 'Remarks',
                                     ].map((h) => (
                                         <th key={h} style={{
                                             padding: '10px 14px', textAlign: 'left', fontWeight: 700,
@@ -449,7 +474,6 @@ const ViewLeavesModal = ({ open, onClose }) => {
                                                 {fullName}
                                                 {emp.employeeId && <span style={{ display: 'block', fontSize: 11, color: '#667085', fontWeight: 400 }}>{emp.employeeId}</span>}
                                             </td>
-                                            {/* <td style={{ padding: '10px 14px', color: '#344054', whiteSpace: 'nowrap', borderBottom: '1px solid #F2F4F7' }}>{leave.employeePhone}</td> */}
                                             <td style={{ padding: '10px 14px', color: '#344054', whiteSpace: 'nowrap', borderBottom: '1px solid #F2F4F7' }}>{emp.department || '—'}</td>
                                             <td style={{ padding: '10px 14px', color: '#344054', whiteSpace: 'nowrap', borderBottom: '1px solid #F2F4F7' }}>{emp.designation || '—'}</td>
                                             <td style={{ padding: '10px 14px', color: '#344054', borderBottom: '1px solid #F2F4F7' }}>
@@ -461,23 +485,19 @@ const ViewLeavesModal = ({ open, onClose }) => {
                                                     {category}
                                                 </span>
                                             </td>
+                                            {/* Leave Type — shows "Half Day · Morning/Afternoon" for half leaves */}
                                             <td style={{ padding: '10px 14px', borderBottom: '1px solid #F2F4F7' }}>
-                                                <span style={{
-                                                    padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                                                    background: '#EFF8FF', color: '#175CD3',
-                                                }}>
-                                                    {leave.leaveType ? leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1) : '—'}
-                                                </span>
+                                                {renderLeaveTypeBadge(leave)}
                                             </td>
                                             <td style={{ padding: '10px 14px', color: '#344054', whiteSpace: 'nowrap', borderBottom: '1px solid #F2F4F7' }}>{fmt(leave.startDate)}</td>
                                             <td style={{ padding: '10px 14px', color: '#344054', whiteSpace: 'nowrap', borderBottom: '1px solid #F2F4F7' }}>{fmt(leave.endDate)}</td>
                                             <td style={{ padding: '10px 14px', color: '#344054', textAlign: 'center', fontWeight: 600, borderBottom: '1px solid #F2F4F7' }}>
-                                                {leave.numberOfDays ?? '—'}
+                                                {/* Half day always shows 0.5 */}
+                                                {leave.leaveType === 'half' ? '0.5' : (leave.numberOfDays ?? '—')}
                                             </td>
                                             <td style={{ padding: '10px 14px', borderBottom: '1px solid #F2F4F7' }}>
                                                 <StatusBadge status={leave.status} />
                                             </td>
-                                            {/* After the Leave Status <td> */}
                                             <td style={{ padding: '10px 14px', borderBottom: '1px solid #F2F4F7', textAlign: 'center' }}>
                                                 {leave.medicalDocumentSubmitted
                                                     ? <span style={{ color: '#027A48', fontWeight: 700, fontSize: 13 }}>✓ Yes</span>
