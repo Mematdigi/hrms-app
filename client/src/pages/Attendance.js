@@ -9,6 +9,19 @@ function Attendance() {
   const { user } = useSelector((state) => state.auth);
   const isHR = user?.role === 'admin' || user?.role === 'hr' || user?.role === 'manager';
 
+  // --- Helper: format any date as "22 Apr 2026" ---
+  // Used everywhere on this page for a consistent date display.
+  const formatDate = (dateInput) => {
+    if (!dateInput) return '—';
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('en-GB', {
+      day:   '2-digit',
+      month: 'short',
+      year:  'numeric'
+    });
+  };
+
   // --- STATE ---
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -214,7 +227,7 @@ function Attendance() {
     const headers = ["Employee,Date,Punch In,Punch Out,Total Hours,Status\n"];
     const csvRows = allAttendance.map(row => {
       const employeeName = row.username || (row.employee ? `${row.employee.firstName} ${row.employee.lastName}` : 'Unknown');
-      return `${employeeName},${new Date(row.date).toLocaleDateString()},${row.checkInTime ? new Date(row.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'},${row.checkOutTime ? new Date(row.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'},${row.workingHours || '-'},${row.status}`;
+      return `${employeeName},${formatDate(row.date)},${row.checkInTime ? new Date(row.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'},${row.checkOutTime ? new Date(row.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'},${row.workingHours || '-'},${row.status}`;
     });
     const csvContent = "data:text/csv;charset=utf-8," + headers + csvRows.join("\n");
     const encodedUri = encodeURI(csvContent);
@@ -300,17 +313,6 @@ function Attendance() {
             </button>
           )}
 
-          {/* HR (non-admin): Punch button in header */}
-          {isHR && user?.role !== 'admin' && (
-            <button
-              className={`btn-action punch-btn ${checkedIn ? 'check-out' : 'check-in'}`}
-              onClick={handlePunch}
-              disabled={loading}
-            >
-              {loading ? '...' : (checkedIn ? 'Check Out' : 'Check In')}
-            </button>
-          )}
-
           {/* HR: Download Report */}
           {isHR && (
             <button className="btn-action download-btn" onClick={handleDownload}>
@@ -385,7 +387,7 @@ function Attendance() {
                   {Array.isArray(attendance) && attendance.length > 0 ? (
                     attendance.slice(0, 8).map(record => (
                       <tr key={record._id}>
-                        <td>{new Date(record.date).toLocaleDateString()}</td>
+                        <td>{formatDate(record.date)}</td>
                         <td>{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
                         <td>{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
                         <td>{record.workingHours ? `${record.workingHours} hrs` : '--'}</td>
@@ -479,7 +481,7 @@ function Attendance() {
                           <span>{record.username || (record.employee ? `${record.employee.firstName} ${record.employee.lastName}` : 'Unknown')}</span>
                         </div>
                       </td>
-                      <td>{new Date(record.date).toLocaleDateString()}</td>
+                      <td>{formatDate(record.date)}</td>
                       <td>{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}</td>
                       <td>{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}</td>
                       <td>{record.workingHours ? `${record.workingHours} hrs` : '--'}</td>

@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const API_BASE_URL = 'https://hrms-app-wtlz.onrender.com/v1';
+
 const api = axios.create({
   baseURL: API_BASE_URL,
 });

@@ -342,7 +342,7 @@ class EmployeeController {
         }
       }
 
-      // ── Create Leave Balance ──
+      /* DISABLED: ── Create Leave Balance ──
       const defaultLeave  = await Defaults.findOne({});
       const defaultCasual = defaultLeave ? defaultLeave.casualDefault : 12;
       const defaultSick   = defaultLeave ? defaultLeave.sickDefault   : 10;
@@ -366,9 +366,9 @@ class EmployeeController {
         sickLeave,
         earnedLeave:  0,
       });
-      await leave.save();
+      await leave.save(); */
 
-      // ── Create Payroll record ──
+      /* DISABLED: ── Create Payroll record ──
       const now = new Date();
       payroll = new Payroll({
         employee:    user._id,
@@ -381,7 +381,7 @@ class EmployeeController {
         netSalary:   b.baseSalary ? parseFloat(b.baseSalary) : 0,
         status:      'draft',
       });
-      await payroll.save();
+      await payroll.save(); */
 
       res.status(201).json({ message: 'Employee created successfully', data: employee });
 
@@ -844,33 +844,33 @@ const parseExcelDate = (value) => {
 
             await updateExitData(employee._id, fullName, fullNameLower);
 
-            // Leave Balance
             let casualLeave = defaultCasual;
             let sickLeave   = defaultSick;
             if (dateOfJoining) {
-                const remainingMonths = 12 - dateOfJoining.getMonth();
-                casualLeave = Math.max(0, Math.ceil(defaultCasual * remainingMonths / 12));
-                sickLeave   = Math.max(0, Math.ceil(defaultSick   * remainingMonths / 12));
+              const remainingMonths = 12 - dateOfJoining.getMonth();
+              casualLeave = Math.max(0, Math.ceil(defaultCasual * remainingMonths / 12));
+              sickLeave   = Math.max(0, Math.ceil(defaultSick   * remainingMonths / 12));
             }
 
+            /* DISABLED: ── Leave Balance & Payroll ──
             leave = new Leave({
-                employee:     user._id,
-                leaveType:    'Initial Allocation',
-                numberOfDays: 0,
-                status:       'approved',
-                casualLeave, sickLeave, earnedLeave: 0,
+              employee:     user._id,
+              leaveType:    'Initial Allocation',
+              numberOfDays: 0,
+              status:       'approved',
+              casualLeave, sickLeave, earnedLeave: 0,
             });
             await leave.save();
 
             const now = new Date();
             const payroll = new Payroll({
-                employee:    user._id,
-                month:       now.getMonth() + 1,
-                year:        now.getFullYear(),
-                baseSalary, workedDays: 0, deductions: 0,
-                workingDays: 24, netSalary: baseSalary, status: 'draft',
+              employee:    user._id,
+              month:       now.getMonth() + 1,
+              year:        now.getFullYear(),
+              baseSalary, workedDays: 0, deductions: 0,
+              workingDays: 24, netSalary: baseSalary, status: 'draft',
             });
-            await payroll.save();
+            await payroll.save(); */
 
             results.success.push({ row: rowNum, name: fullName, employeeId, email, action: 'created' });
 

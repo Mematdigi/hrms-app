@@ -30,13 +30,16 @@ const Dashboard = () => {
 
    // Leave Modal State
    const [showLeaveModal, setShowLeaveModal] = useState(false);
-   const [leaveType, setLeaveType] = useState("full"); // 'short' or 'full'
-   const [selectedLeaveCategory, setSelectedLeaveCategory] = useState("casual"); // 'casual' | 'sick' | 'unpaid'
+   const [leaveType, setLeaveType] = useState("full"); // 'short' | 'half' | 'full'
+   const [selectedLeaveCategory, setSelectedLeaveCategory] = useState("casual");
+   // categories: 'casual' | 'sick' | 'earned' | 'maternity' | 'paternity' | 'unpaid'
    const [leaveFormData, setLeaveFormData] = useState({
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split('T')[0],       // used as startDate
+      endDate: new Date().toISOString().split('T')[0],    // used for Full Day only
       fromTime: '',
       toTime: '',
-      reason: ''
+      reason: '',
+      halfDayPeriod: 'first' // 'first' = morning, 'second' = afternoon (Half Day only)
    });
 
    // ── DYNAMIC: Leave Balance State ──
@@ -364,6 +367,12 @@ const Dashboard = () => {
    const shortLeavesTaken = leaveBalances?.shortLeavesUsed ?? leaveBalances?.shortUsed ?? 0;
    const shortLeavesLimit = leaveBalances?.shortLeavesLimit ?? 3;
 
+   // Half day leaves (yearly pool)
+   const halfDayTaken          = leaveBalances?.halfDayUsed ?? 0;
+   const halfDayLimit          = leaveBalances?.halfDayTotal ?? 12;
+   const halfDayLeft           = leaveBalances?.halfDayRemaining ?? Math.max(halfDayLimit - halfDayTaken, 0);
+   const isHalfDayLimitReached = halfDayLeft === 0;
+
    // ── Monthly casual / sick limits (1 each per month) ──
    const CASUAL_MONTHLY_LIMIT = 1;
    const SICK_MONTHLY_LIMIT = 1;
@@ -384,6 +393,7 @@ const Dashboard = () => {
       if (isCasualLimitReached) msgs.push('Casual Leave');
       if (isSickLimitReached) msgs.push('Sick Leave');
       if (shortLeavesTaken >= shortLeavesLimit) msgs.push('Short Leave');
+      if (isHalfDayLimitReached) msgs.push('Half Day Leave');
       if (msgs.length === 0) return '';
       return `⚠️ Your limit for ${msgs.join(', ')} is full for this month.`;
    };
@@ -427,6 +437,11 @@ const Dashboard = () => {
 
    const handleSelectLeaveType = (type) => {
       if (type === 'short' && shortLeavesTaken >= shortLeavesLimit) return;
+      if (type === 'half'  && isHalfDayLimitReached)                return;
+      // When switching to Short or Half, force endDate = startDate (single-date leaves)
+      if (type === 'short' || type === 'half') {
+         setLeaveFormData(prev => ({ ...prev, endDate: prev.date }));
+      }
       setLeaveType(type);
    };
 
@@ -446,6 +461,10 @@ const Dashboard = () => {
             alert('⚠️ Your Short Leave limit is full for this month.');
             return;
          }
+         if (leaveType === 'half' && isHalfDayLimitReached) {
+            alert('⚠️ Your Half Day Leave limit is full for this year.');
+            return;
+         }
          if (leaveType === 'full' && selectedLeaveCategory === 'casual' && isCasualLimitReached) {
             alert('⚠️ Your Casual Leave limit is full for this month.');
             return;
@@ -455,17 +474,25 @@ const Dashboard = () => {
             return;
          }
 
-         // ✅ FIX: Use correct DB enum values — 'casual' not 'Casual Leave'
+         // Build payload that matches backend enum: sick | casual | short | half | earned | maternity | paternity | unpaid
          const payload = {
             employeeId: user?.id,
-            leaveType: leaveType === 'short' ? 'short' : selectedLeaveCategory,
-            category: leaveType === 'short' ? 'Full' : 'Full',
-            startDate: leaveFormData.date,
-            endDate: leaveFormData.date,
-            reason: leaveFormData.reason,
+            leaveType:  leaveType === 'short' ? 'short'
+                      : leaveType === 'half'  ? 'half'
+                      : selectedLeaveCategory,
+            category:   'Full',
+            startDate:  leaveFormData.date,
+            // Full Day supports a range; Short & Half Day are single-date (endDate = startDate)
+            endDate:    (leaveType === 'short' || leaveType === 'half')
+                           ? leaveFormData.date
+                           : (leaveFormData.endDate || leaveFormData.date),
+            reason:     leaveFormData.reason,
             ...(leaveType === 'short' && {
                fromTime: leaveFormData.fromTime,
-               toTime: leaveFormData.toTime,
+               toTime:   leaveFormData.toTime,
+            }),
+            ...(leaveType === 'half' && {
+               halfDayPeriod: leaveFormData.halfDayPeriod || 'first',
             }),
          };
 
@@ -473,10 +500,12 @@ const Dashboard = () => {
 
          setShowLeaveModal(false);
          setLeaveFormData({
-            date: new Date().toISOString().split('T')[0],
-            fromTime: '',
-            toTime: '',
-            reason: ''
+            date:          new Date().toISOString().split('T')[0],
+            endDate:       new Date().toISOString().split('T')[0],
+            fromTime:      '',
+            toTime:        '',
+            reason:        '',
+            halfDayPeriod: 'first'
          });
          setLeaveType('full');
 
@@ -1224,10 +1253,10 @@ const Dashboard = () => {
                   </div>
                )}
 
-               {/* Step 1: Selection */}
-               <div className="d-flex gap-3 mb-3">
+               {/* Step 1: Selection — 3 cards (Short / Half / Full) */}
+               <div className="d-flex gap-2 mb-3">
                   <div
-                     className={`leave-type-card ${leaveType === 'short' ? 'active' : ''} ${shortLeavesTaken >= shortLeavesLimit ? 'disabled' : ''}`}
+                     className={`leave-type-card flex-fill ${leaveType === 'short' ? 'active' : ''} ${shortLeavesTaken >= shortLeavesLimit ? 'disabled' : ''}`}
                      onClick={() => handleSelectLeaveType('short')}
                   >
                      <div className="icon"><i className="bi bi-clock"></i></div>
@@ -1236,7 +1265,16 @@ const Dashboard = () => {
                   </div>
 
                   <div
-                     className={`leave-type-card ${leaveType === 'full' ? 'active' : ''}`}
+                     className={`leave-type-card flex-fill ${leaveType === 'half' ? 'active' : ''} ${isHalfDayLimitReached ? 'disabled' : ''}`}
+                     onClick={() => handleSelectLeaveType('half')}
+                  >
+                     <div className="icon"><i className="bi bi-circle-half"></i></div>
+                     <div className="fw-bold">Half Day</div>
+                     <div className="small text-muted">0.5 day</div>
+                  </div>
+
+                  <div
+                     className={`leave-type-card flex-fill ${leaveType === 'full' ? 'active' : ''}`}
                      onClick={() => handleSelectLeaveType('full')}
                   >
                      <div className="icon"><i className="bi bi-calendar-event"></i></div>
@@ -1252,14 +1290,28 @@ const Dashboard = () => {
                      {shortLeavesLimit - shortLeavesTaken} short leaves remaining this month
                   </div>
                )}
-               {shortLeavesTaken >= shortLeavesLimit && (
+               {leaveType === 'short' && shortLeavesTaken >= shortLeavesLimit && (
                   <div className="alert alert-soft-red mb-3 py-2 small">
                      <i className="bi bi-exclamation-circle me-2"></i>
                      You have exceeded the Short Leave limit ({shortLeavesLimit}/month). Please apply for Full Day Leave.
                   </div>
                )}
 
-               {/* Leave Category Dropdown — Full Day only */}
+               {/* Half Day Info/Warning — DYNAMIC */}
+               {leaveType === 'half' && !isHalfDayLimitReached && (
+                  <div className="alert alert-soft-purple mb-3 py-2 small">
+                     <i className="bi bi-info-circle me-2"></i>
+                     {halfDayLeft} half day leave{halfDayLeft !== 1 ? 's' : ''} remaining this year
+                  </div>
+               )}
+               {leaveType === 'half' && isHalfDayLimitReached && (
+                  <div className="alert alert-soft-red mb-3 py-2 small">
+                     <i className="bi bi-exclamation-circle me-2"></i>
+                     Half Day Leave limit reached ({halfDayLimit}/year). Please apply for Full Day Leave.
+                  </div>
+               )}
+
+               {/* Leave Category Dropdown — Full Day only. ALL leave types included. */}
                {leaveType === 'full' && (
                   <Form.Group className="mb-3">
                      <Form.Label className="small fw-semibold">Leave Category</Form.Label>
@@ -1293,20 +1345,73 @@ const Dashboard = () => {
                {/* Step 2: Form */}
                <div className="leave-form">
                   <Form.Group className="mb-3">
-                     <Form.Label className="small fw-semibold">Date</Form.Label>
+                     <Form.Label className="small fw-semibold">
+                        Date{leaveType === 'full'
+                              ? ' (From)'
+                              : leaveType === 'half'
+                                ? ' (Half Day)'
+                                : ''}
+                     </Form.Label>
                      <Form.Control
                         type="date"
                         value={leaveFormData.date}
-                        onChange={(e) => setLeaveFormData({ ...leaveFormData, date: e.target.value })}
+                        onChange={(e) => setLeaveFormData({
+                           ...leaveFormData,
+                           date: e.target.value,
+                           // For Short / Half Day, endDate tracks startDate
+                           ...((leaveType === 'short' || leaveType === 'half') && { endDate: e.target.value })
+                        })}
                      />
                   </Form.Group>
 
+                  {/* Full Day: add "Date (To)" for range */}
+                  {leaveType === 'full' && (
+                     <Form.Group className="mb-3">
+                        <Form.Label className="small fw-semibold">Date (To)</Form.Label>
+                        <Form.Control
+                           type="date"
+                           min={leaveFormData.date}
+                           value={leaveFormData.endDate}
+                           onChange={(e) => setLeaveFormData({ ...leaveFormData, endDate: e.target.value })}
+                        />
+                     </Form.Group>
+                  )}
+
+                  {/* Half Day: First / Second half period selector */}
+                  {leaveType === 'half' && (
+                     <Form.Group className="mb-3">
+                        <Form.Label className="small fw-semibold">Which Half of the Day?</Form.Label>
+                        <div className="d-flex gap-2">
+                           <div
+                              className={`leave-type-card flex-fill ${leaveFormData.halfDayPeriod === 'first' ? 'active' : ''}`}
+                              onClick={() => setLeaveFormData({ ...leaveFormData, halfDayPeriod: 'first' })}
+                              style={{ padding: '10px 8px' }}
+                           >
+                              <div className="icon" style={{ fontSize: 18 }}><i className="bi bi-sunrise"></i></div>
+                              <div className="fw-bold small">First Half</div>
+                              <div className="small text-muted" style={{ fontSize: 11 }}>Morning</div>
+                           </div>
+                           <div
+                              className={`leave-type-card flex-fill ${leaveFormData.halfDayPeriod === 'second' ? 'active' : ''}`}
+                              onClick={() => setLeaveFormData({ ...leaveFormData, halfDayPeriod: 'second' })}
+                              style={{ padding: '10px 8px' }}
+                           >
+                              <div className="icon" style={{ fontSize: 18 }}><i className="bi bi-sunset"></i></div>
+                              <div className="fw-bold small">Second Half</div>
+                              <div className="small text-muted" style={{ fontSize: 11 }}>Afternoon</div>
+                           </div>
+                        </div>
+                     </Form.Group>
+                  )}
+
+                  {/* Short Leave: From/To time */}
                   {leaveType === 'short' && (
                      <div className="row g-2 mb-3">
                         <div className="col-6">
                            <Form.Label className="small fw-semibold">From Time</Form.Label>
                            <Form.Control
                               type="time"
+                              value={leaveFormData.fromTime}
                               onChange={(e) => setLeaveFormData({ ...leaveFormData, fromTime: e.target.value })}
                            />
                         </div>
@@ -1314,6 +1419,7 @@ const Dashboard = () => {
                            <Form.Label className="small fw-semibold">To Time</Form.Label>
                            <Form.Control
                               type="time"
+                              value={leaveFormData.toTime}
                               onChange={(e) => setLeaveFormData({ ...leaveFormData, toTime: e.target.value })}
                            />
                         </div>
@@ -1326,6 +1432,7 @@ const Dashboard = () => {
                         as="textarea"
                         rows={3}
                         placeholder="Please provide a reason for your leave..."
+                        value={leaveFormData.reason}
                         onChange={(e) => setLeaveFormData({ ...leaveFormData, reason: e.target.value })}
                      />
                   </Form.Group>
@@ -1338,8 +1445,9 @@ const Dashboard = () => {
                   onClick={handleSubmitLeave}
                   disabled={
                      (leaveType === 'short' && shortLeavesTaken >= shortLeavesLimit) ||
-                     (leaveType === 'full' && selectedLeaveCategory === 'casual' && isCasualLimitReached) ||
-                     (leaveType === 'full' && selectedLeaveCategory === 'sick' && isSickLimitReached)
+                     (leaveType === 'half'  && isHalfDayLimitReached) ||
+                     (leaveType === 'full'  && selectedLeaveCategory === 'casual' && isCasualLimitReached) ||
+                     (leaveType === 'full'  && selectedLeaveCategory === 'sick'   && isSickLimitReached)
                   }
                >
                   Submit Application
