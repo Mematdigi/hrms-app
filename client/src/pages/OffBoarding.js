@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { employeeAPI, offboardingAPI } from '../services/api';
+import BackButton from '../components/BackButton';
 // import './_OffBoarding.scss';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -396,7 +397,7 @@ function OffBoarding() {
         <>
           <div className="ob-page-header">
             <div>
-              <h1>
+              <h1><span className="mt-3"><BackButton/></span>
                 <i className="bi bi-door-open me-2" style={{ color: '#6f5edb' }}></i>
                 Off-Boarding
               </h1>

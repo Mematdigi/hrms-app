@@ -11,6 +11,7 @@ const leaveDefaultsSchema = new mongoose.Schema({
   maternityDefault: { type: Number, default: 90  },  // maternity leave days
   paternityDefault: { type: Number, default: 15  },  // paternity leave days
   shortLeaveDefault:  { type: Number, default: 3   },  // short leaves per month
+  halfDayDefault:   { type: Number, default: 12  },  // half-day leaves per year (each counts as 0.5 day)
 
   updatedAt: { type: Date, default: Date.now }
 });
