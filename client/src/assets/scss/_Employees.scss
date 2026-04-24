@@ -1060,3 +1060,45 @@
 
   &:hover { background: #059669; }
 }
+
+// ── Password Input with Toggle ───────────────────────────────────────
+.password-input-group {
+  .password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    input {
+      width: 100%;
+      padding-right: 44px; // Space for toggle button
+    }
+  }
+
+  .password-toggle-btn {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: #1e3a8a;
+    }
+
+    &:focus {
+      outline: none;
+      color: #2563eb;
+    }
+
+    i {
+      pointer-events: none;
+    }
+  }
+}

@@ -95,6 +95,7 @@ function Employees() {
     const [editingId, setEditingId] = useState(null);
     const [photoPreview, setPhotoPreview] = useState(null);
     const [existingDocs, setExistingDocs] = useState({});
+    const [showPassword, setShowPassword] = useState(false);
 
     const { user } = useSelector((state) => state.auth);
 
@@ -289,6 +290,7 @@ function Employees() {
         setPhotoPreview(null);
         setEditingId(null);
         setExistingDocs({});
+        setShowPassword(false);
         setFormTab('employee');
         setViewMode('grid');
         setSelectionMode(false);
@@ -940,7 +942,7 @@ function Employees() {
                                             </select>
                                         </div>
                                         <div className="input-group"><label>Base Salary</label><input type="number" name="baseSalary" value={formData.baseSalary} onChange={handleChange} /></div>
-                                        <div className="input-group"><label>Password {viewMode === 'add' && <span className="req">*</span>}</label><input type="password" name="password" value={formData.password} onChange={handleChange} required={viewMode === 'add'} placeholder={viewMode === 'edit' ? "Leave empty to keep current" : ""} /></div>
+                                        <div className="input-group password-input-group"><label>Password {viewMode === 'add' && <span className="req">*</span>}</label><div className="password-input-wrapper"><input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} required={viewMode === 'add'} placeholder={viewMode === 'edit' ? "Leave empty to keep current" : ""} /><button type="button" className="password-toggle-btn" onClick={() => setShowPassword(!showPassword)} title={showPassword ? "Hide password" : "Show password"}><i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i></button></div></div>
                                     </div>
                                 </div>
 

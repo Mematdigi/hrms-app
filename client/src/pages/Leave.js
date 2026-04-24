@@ -72,6 +72,16 @@ function Leave() {
   const [selectedEmployeeBalances, setSelectedEmployeeBalances] = useState(null);
   const [balancesLoading, setBalancesLoading] = useState(false);
 
+  // ── NEW: Reason Slidebar/Tooltip State ──
+  const [reasonSlidebar, setReasonSlidebar] = useState({
+    isOpen: false,
+    leaveId: null,
+    reason: '',
+    rejectionReason: '',
+    employeeName: '',
+    status: 'pending'
+  });
+
   const { user } = useSelector((state) => state.auth);
   const { showToast } = useNotifications();
 
@@ -724,105 +734,131 @@ function Leave() {
             </div>
           </div>
 
-          <div className="table-container">
+          <div className="table-wrapper">
             {loading ? (
               <div className="loading-state">Loading...</div>
             ) : filteredLeaves.length === 0 ? (
               <div className="empty-state">No leave requests found.</div>
             ) : (
-              <table>
-                <thead>
-                  <tr>
-                    {isHR && <th>Employee</th>}
-                    <th>Type</th>
-                    <th>Date / Duration</th>
-                    {isHR && <th>Applied On</th>}
-                    <th>Status</th>
-                    <th>Applied Reason</th>
-                    {isHR && <th>Action</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredLeaves.map(leave => (
-                    <tr
-                      key={leave._id}
-                      onClick={() => {
-                        setSelectedLeave(leave);
-                        setIsDetailModalOpen(true);
-                        // ── NEW: fetch this specific employee's balances when HR opens detail ──
-                        const empId = leave.employee?._id || leave.employee;
-                        if (empId) fetchSelectedEmployeeBalances(empId);
-                      }}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      {isHR && (
-                        <td className="col-employee">
-                          <div className="avatar">{leave.employee?.firstName?.charAt(0)}</div>
-                          <div>
-                            <div className="name">{leave.employee?.firstName} {leave.employee?.lastName}</div>
-                            <div className="dept">{leave.employee?.department || 'N/A'}</div>
-                          </div>
-                        </td>
-                      )}
-
-                      <td className="col-type">
-                        <span className={`type-tag ${leave.leaveType}`}>
-                          {leave.leaveType === 'half'
-                            ? 'Half Day'
-                            : leave.leaveType?.charAt(0).toUpperCase() + leave.leaveType?.slice(1)}
-                        </span>
-                        {leave.category === 'Short' && <span className="sub-text"> (Short)</span>}
-                        {leave.leaveType === 'half' && leave.halfDayPeriod && (
-                          <span className="sub-text"> ({leave.halfDayPeriod === 'first' ? 'Morning' : 'Afternoon'})</span>
-                        )}
-                      </td>
-
-                      <td>
-                        <div className="date-range">
-                          {formatDate(leave.startDate)}
-                          {leave.endDate && leave.endDate !== leave.startDate
-                            ? ` → ${formatDate(leave.endDate)}`
-                            : ''}
-                        </div>
-                        <div className="duration-text">
-                          {leave.leaveType === 'half'
-                            ? '0.5 Day'
-                            : `${leave.numberOfDays} Day${leave.numberOfDays !== 1 ? 's' : ''}`}
-                        </div>
-                      </td>
-
-                      {isHR && (
-                        <td><div className="applied-date">{formatDate(leave.createdAt)}</div></td>
-                      )}
-
-                      <td>
-                        <span className={`status-badge ${leave.status}`}>
-                          {leave.status === 'approved' && <><CheckCircle size={10} style={{ marginRight: 4 }} /> Approved</>}
-                          {leave.status === 'pending' && <><HourglassSplit size={10} style={{ marginRight: 4 }} /> Pending</>}
-                          {leave.status === 'rejected' && <><XCircle size={10} style={{ marginRight: 4 }} /> Rejected</>}
-                        </span>
-                      </td>
-
-                      <td className="col-reason">{leave.reason}</td>
-
-                      {isHR && (
-                        <td className="col-actions" onClick={(e) => e.stopPropagation()}>
-                          {leave.status === 'pending' && (
-                            <>
-                              <button className="btn-icon check" onClick={() => handleApprove(leave)} title="Approve">
-                                <CheckLg size={16} />
-                              </button>
-                              <button className="btn-icon cross" onClick={() => initiateReject(leave)} title="Reject">
-                                <XLg size={16} />
-                              </button>
-                            </>
+              <>
+                <div className="scroll-indicator">← Scroll for more</div>
+                
+                <div className="table-container" style={{maxWidth:'910px'}}>
+                  <table>
+                    <thead>
+                      <tr>
+                        {isHR && <th>Employee</th>}
+                        <th>Type</th>
+                        <th>Date / Duration</th>
+                        {isHR && <th>Applied On</th>}
+                        <th>Status</th>
+                        <th>Applied Reason</th>
+                        {isHR && <th>Action</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredLeaves.map(leave => (
+                        <tr
+                          key={leave._id}
+                          onClick={() => {
+                            setSelectedLeave(leave);
+                            setIsDetailModalOpen(true);
+                            // ── NEW: fetch this specific employee's balances when HR opens detail ──
+                            const empId = leave.employee?._id || leave.employee;
+                            if (empId) fetchSelectedEmployeeBalances(empId);
+                          }}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {isHR && (
+                            <td className="col-employee">
+                              <div className="avatar">{leave.employee?.firstName?.charAt(0)?.toUpperCase()}</div>
+                              <div>
+                                <div className="name">{leave.employee?.firstName} {leave.employee?.lastName}</div>
+                                <div className="dept">{leave.employee?.department || 'N/A'}</div>
+                              </div>
+                            </td>
                           )}
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+                          <td className="col-type">
+                            <span className={`type-tag ${leave.leaveType}`}>
+                              {leave.leaveType === 'half'
+                                ? 'Half Day'
+                                : leave.leaveType?.charAt(0).toUpperCase() + leave.leaveType?.slice(1)}
+                            </span>
+                            {leave.category === 'Short' && <span className="sub-text"> (Short)</span>}
+                            {leave.leaveType === 'half' && leave.halfDayPeriod && (
+                              <span className="sub-text"> ({leave.halfDayPeriod === 'first' ? 'Morning' : 'Afternoon'})</span>
+                            )}
+                          </td>
+
+                          <td>
+                            <div className="date-range">
+                              {formatDate(leave.startDate)}
+                              {leave.endDate && leave.endDate !== leave.startDate
+                                ? ` → ${formatDate(leave.endDate)}`
+                                : ''}
+                            </div>
+                            <div className="duration-text">
+                              {leave.leaveType === 'half'
+                                ? '0.5 Day'
+                                : `${leave.numberOfDays} Day${leave.numberOfDays !== 1 ? 's' : ''}`}
+                            </div>
+                          </td>
+
+                          {isHR && (
+                            <td><div className="applied-date">{formatDate(leave.createdAt)}</div></td>
+                          )}
+
+                          <td>
+                            <span className={`status-badge ${leave.status}`}>
+                              {leave.status === 'approved' && <><CheckCircle size={14} style={{ marginRight: 4 }} /> Approved</>}
+                              {leave.status === 'pending' && <><HourglassSplit size={14} style={{ marginRight: 4 }} /> Pending</>}
+                              {leave.status === 'rejected' && <><XCircle size={14} style={{ marginRight: 4 }} /> Rejected</>}
+                            </span>
+                          </td>
+
+                          <td className="col-reason" onClick={(e) => {
+                            e.stopPropagation();
+                            setReasonSlidebar({
+                              isOpen: true,
+                              leaveId: leave._id,
+                              reason: leave.reason,
+                              rejectionReason: leave.rejectionReason || '',
+                              employeeName: isHR ? `${leave.employee?.firstName} ${leave.employee?.lastName}` : 'You',
+                              status: leave.status
+                            });
+                          }}>
+                            <div className="reason-cell">
+                              <span className="reason-text">{leave.reason}</span>
+                            </div>
+                          </td>
+
+                          {isHR && (
+                            <td className="col-actions" onClick={(e) => e.stopPropagation()}>
+                              {leave.status === 'pending' && (
+                                <>
+                                  <button className="btn-icon check" onClick={() => handleApprove(leave)} title="Approve">
+                                    <CheckLg size={16} />
+                                  </button>
+                                  <button className="btn-icon cross" onClick={() => initiateReject(leave)} title="Reject">
+                                    <XLg size={16} />
+                                  </button>
+                                </>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="scroll-info">
+                  <span className="record-count">
+                    Showing {filteredLeaves.length} leave request{filteredLeaves.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -1530,6 +1566,59 @@ function Leave() {
                 <button type="submit" style={{ background: '#2e7d32', color: 'white', border: 'none', borderRadius: 7, padding: '9px 22px', fontWeight: 600, cursor: 'pointer' }}>Save Holiday</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* SLIDEBAR: VIEW FULL LEAVE REASON                               */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {reasonSlidebar.isOpen && (
+        <div className="reason-slidebar-overlay" onClick={() => setReasonSlidebar({ ...reasonSlidebar, isOpen: false })}>
+          <div className="reason-slidebar" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="slidebar-header">
+              <div className="header-content">
+                <h3>Leave Details</h3>
+                <p className="employee-name">From: {reasonSlidebar.employeeName}</p>
+              </div>
+              <button 
+                className="close-btn-slidebar"
+                onClick={() => setReasonSlidebar({ ...reasonSlidebar, isOpen: false })}
+                title="Close"
+              >✕</button>
+            </div>
+
+            {/* Content */}
+            <div className="slidebar-content">
+              {/* Applied Reason */}
+              <div className="reason-section">
+                <h4 className="reason-title">Applied Reason</h4>
+                <div className="reason-box">
+                  <p className="reason-full-text">{reasonSlidebar.reason}</p>
+                </div>
+              </div>
+
+              {/* Rejection Reason (if exists) */}
+              {reasonSlidebar.rejectionReason && reasonSlidebar.status === 'rejected' && (
+                <div className="reason-section rejection-section">
+                  <h4 className="reason-title rejection-title">Rejection Reason</h4>
+                  <div className="reason-box rejection-box">
+                    <p className="reason-full-text">{reasonSlidebar.rejectionReason}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="slidebar-footer">
+              <button 
+                className="btn-close-slidebar"
+                onClick={() => setReasonSlidebar({ ...reasonSlidebar, isOpen: false })}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
