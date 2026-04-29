@@ -589,8 +589,7 @@ const UserProfile = () => {
                     <div className="info-text">
                       <span className="info-label">Base Salary</span>
                       <span className="info-value">
-                          {displayData?.baseSalary ? `₹***${displayData.baseSalary.toLocaleString("en-IN").slice(3)}` : "N/A"}
-                        {/* {displayData?.baseSalary ? `₹${displayData.baseSalary.toLocaleString("en-IN")}` : "N/A"} */}
+                        {displayData?.baseSalary ? `₹${displayData.baseSalary.toLocaleString("en-IN")}` : "N/A"}
                       </span>
                     </div>
                   </div>
@@ -617,7 +616,7 @@ const UserProfile = () => {
                   </svg>
                   <h3>Bank Details</h3>
                   <div className="card-header-actions">
-                    <CardEditControls cardKey="bank" />
+                    {/* <CardEditControls cardKey="bank" /> */}
                   </div>
                 </div>
 
@@ -650,7 +649,7 @@ const UserProfile = () => {
                       <div className="info-text">
                         <span className="info-label">Account Number</span>
                         <span className="info-value">
-                          {displayData?.bankAccountNumber ? `****${displayData.bankAccountNumber.slice(-4)}` : "N/A"}
+                          {displayData?.bankAccountNumber ? `${displayData.bankAccountNumber}` : "N/A"}
                         </span>
                       </div>
                     </div>
@@ -771,8 +770,8 @@ const UserProfile = () => {
             </div>
 
 
-            <hr />
-            <h6 className="mb-3 text-muted fw-bold">Bank Details</h6>
+            {/* <hr /> */}
+            {/* <h6 className="mb-3 text-muted fw-bold">Bank Details</h6>
             <div className="row">
               <div className="col-md-4 mb-3">
                 <Form.Group>
@@ -792,7 +791,7 @@ const UserProfile = () => {
                   <Form.Control type="text" name="ifscCode" value={editFormData.ifscCode} onChange={handleEditChange} style={{ textTransform: 'uppercase' }} />
                 </Form.Group>
               </div>
-            </div>
+            </div> */}
 
             <hr />
             <h6 className="mb-3 text-muted fw-bold">Emergency Contact</h6>

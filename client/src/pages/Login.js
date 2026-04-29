@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
 // import '../styles/Auth.css';
 import { showError, showSuccess } from "../utils/toast"; // adjust path
+import mematLogo from '../assets/mmd-logo2.png';
 
 
 function Login() {
@@ -51,7 +52,7 @@ function Login() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1>HRMS Login</h1>
+        <h1><img src={mematLogo} className='w-50'/></h1>
 
         {error && <div className="error-message">{error}</div>}
 
