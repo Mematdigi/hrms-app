@@ -28,6 +28,10 @@ const Dashboard = () => {
    const [punchOutTime, setPunchOutTime] = useState(null);
    const [workingHours, setWorkingHours] = useState(0);
 
+   // Punch Out Confirmation Modal State
+   const [showPunchOutConfirm, setShowPunchOutConfirm] = useState(false);
+   const [punchOutLoading, setPunchOutLoading] = useState(false);
+
    // Leave Modal State
    const [showLeaveModal, setShowLeaveModal] = useState(false);
    const [leaveType, setLeaveType] = useState("full"); // 'short' | 'half' | 'full'
@@ -420,10 +424,22 @@ const Dashboard = () => {
 
    const handleCheckOut = async () => {
       try {
+         setPunchOutLoading(true);
          await attendanceAPI.checkOut({ employeeId: user?.id });
          setCheckedIn(false);
          setPunchOutTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-      } catch (error) { console.error(error); }
+         setShowPunchOutConfirm(false);
+      } catch (error) {
+         console.error(error);
+         alert('Failed to punch out. Please try again.');
+      } finally {
+         setPunchOutLoading(false);
+      }
+   };
+
+   const handlePunchOutClick = () => {
+      console.log("Punch out clicked - opening modal");
+      setShowPunchOutConfirm(true);
    };
 
    // --- Leave Modal Handlers ---
@@ -592,11 +608,6 @@ const Dashboard = () => {
    // ==============================
 
    // --- HEADER ACTION BUTTONS (Used in both dashboards) ---
-   // ==============================
-   // 6. Render Helpers (Components)
-   // ==============================
-
-   // --- HEADER ACTION BUTTONS (Used in both dashboards) ---
    const HeaderActionButtons = () => {
       // ✅ ADDED: If the user is an admin, do not show personal attendance/leave buttons
       if (user?.role === 'admin') {
@@ -607,7 +618,13 @@ const Dashboard = () => {
          <div className="d-flex gap-3">
             <button
                className={`btn-header-custom ${checkedIn ? 'btn-red' : 'btn-gradient-blue'}`}
-               onClick={checkedIn ? handleCheckOut : handleCheckIn}
+               onClick={() => {
+                  if (checkedIn) {
+                     handlePunchOutClick();
+                  } else {
+                     handleCheckIn();
+                  }
+               }}
             >
                {checkedIn ? <i className="bi bi-stop-circle me-2"></i> : <i className="bi bi-box-arrow-in-right me-2"></i>}
                {checkedIn ? 'Punch Out' : 'Punch In'}
@@ -1028,10 +1045,6 @@ const Dashboard = () => {
                         <span className="icon-wrapper dark"><i className="bi bi-file-earmark-text"></i></span>
                         <span className="fw-semibold">Generate Payslip</span>
                      </button>
-                     {/* <button className="btn-quick-action" onClick={() => setShowReviewModal(true)}>
-                        <span className="icon-wrapper" style={{ background: '#e8f5e9' }}><i className="bi bi-star" style={{ color: '#2e7d32' }}></i></span>
-                        <span className="fw-semibold">Add Review</span>
-                     </button> */}
                   </div>
                </div>
 
@@ -1236,6 +1249,48 @@ const Dashboard = () => {
             {isHR ? renderHRDashboard() : renderEmployeeDashboard()}
          </main>
 
+         {/* ======================== */}
+         {/* PUNCH OUT CONFIRMATION   */}
+         {/* ======================== */}
+         <Modal show={showPunchOutConfirm} onHide={() => setShowPunchOutConfirm(false)} centered className="leave-modal">
+            <Modal.Header closeButton className="border-0 pb-0">
+               <Modal.Title className="fw-bold fs-5">
+                  <i className="bi bi-exclamation-triangle me-2 text-warning"></i>Confirm Punch Out
+               </Modal.Title>
+            </Modal.Header>
+            <Modal.Body className="pt-3">
+               <div className="alert py-3 small mb-3" style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 8, lineHeight: 1.6 }}>
+                  <i className="bi bi-info-circle me-2 text-warning fw-semibold"></i>
+                  <span className="fw-semibold">⚠️ Important Notice:</span> Once you punch out, you cannot punch in again today. Please make sure your work is complete before proceeding.
+               </div>
+               <div className="text-center py-2">
+                  <div style={{ fontSize: '2.5rem' }}>🕐</div>
+                  <div className="fw-bold mt-2">Current Time: {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+               </div>
+            </Modal.Body>
+            <Modal.Footer className="border-0 pt-0 flex-column gap-2">
+               <Button
+                  variant="light"
+                  className="w-100 rounded-pill fw-semibold"
+                  onClick={() => setShowPunchOutConfirm(false)}
+                  disabled={punchOutLoading}
+               >
+                  <i className="bi bi-x-lg me-2"></i>Cancel
+               </Button>
+               <Button
+                  className="w-100 rounded-pill fw-semibold"
+                  style={{ background: 'linear-gradient(135deg, #dc3545, #c82333)', border: 'none', color: '#fff' }}
+                  disabled={punchOutLoading}
+                  onClick={handleCheckOut}
+               >
+                  {punchOutLoading
+                     ? <><span className="spinner-border spinner-border-sm me-2"></span>Processing...</>
+                     : <><i className="bi bi-check-lg me-2"></i>Confirm Punch Out</>}
+               </Button>
+            </Modal.Footer>
+         </Modal>
+
+         {/* Rest of modals (Leave, Review, Resign, Reject) remain the same... */}
          {/* ======================= */}
          {/* APPLY LEAVE MODAL       */}
          {/* ======================= */}

@@ -240,28 +240,22 @@ console.log('Location check result:', result);
         });
       }
 
-      // Verify if employee is within office premises
-      const locationCheck = this.isWithinOffice(latitude, longitude);
-      
-      if (!locationCheck.isWithin) {
-        return res.status(403).json({ 
-          success: false,
-          message: `You must be at the office premises to request early checkout`,
-          distance: locationCheck.distance,
-          distanceKm: (locationCheck.distance / 1000).toFixed(2),
-          requiredRadius: this.OFFICE_LOCATION.radiusInMeters
-        });
-      }
-
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const attendance = await Attendance.findOne({ employee: employeeId, date: today });
-      
-      if (!attendance || !attendance.checkInTime) {
-        return res.status(404).json({ 
+      let attendance = await Attendance.findOne({ employee: employeeId, date: today });
+
+      if (!attendance) {
+        return res.status(400).json({ 
           success: false,
-          message: 'No check-in found for today. Please check in first.' 
+          message: 'No attendance record found for today' 
+        });
+      }
+
+      if (!attendance.checkInTime) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'Please check in first before requesting early checkout' 
         });
       }
 
@@ -272,43 +266,52 @@ console.log('Location check result:', result);
         });
       }
 
-      if (attendance.earlyCheckoutRequest?.requested && 
-          attendance.earlyCheckoutRequest?.status === 'pending') {
+      // Verify location is within office
+      const locationCheck = this.isWithinOffice(latitude, longitude);
+      if (!locationCheck.isWithin) {
         return res.status(400).json({ 
           success: false,
-          message: 'Early checkout request already pending' 
+          message: `You are ${locationCheck.distance}m away from office. Must be within office premises to request early checkout.`,
+          distance: locationCheck.distance
         });
       }
 
       attendance.earlyCheckoutRequest = {
         requested: true,
-        reason: reason.trim(),
         requestedAt: new Date(),
-        status: 'pending'
+        reason: reason.trim(),
+        status: 'pending',
+        location: { latitude, longitude }
       };
-      attendance.status = 'pending-approval';
 
       await attendance.save();
 
-      res.json({
+      res.json({ 
         success: true,
-        message: 'Early checkout request submitted successfully',
-        attendance
+        message: 'Early checkout request submitted for HR approval',
+        attendance 
       });
     } catch (error) {
-      res.status(500).json({
+      res.status(500).json({ 
         success: false,
-        message: error.message
+        message: error.message 
       });
     }
   };
 
   approveEarlyCheckout = async (req, res) => {
     try {
-      const { attendanceId, hrId, approved, latitude, longitude } = req.body;
+      const { attendanceId, approved, hrId, latitude, longitude } = req.body;
 
-      const attendance = await Attendance.findById(attendanceId).populate('employee', 'firstName lastName employeeId');
-      
+      if (!attendanceId || !hrId || approved === undefined) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'attendanceId, hrId, and approved status are required' 
+        });
+      }
+
+      const attendance = await Attendance.findById(attendanceId);
+
       if (!attendance) {
         return res.status(404).json({ 
           success: false,
@@ -524,23 +527,40 @@ console.log('Location check result:', result);
 
       const filter = {};
 
+      // ── FIX: Properly handle date range with timezone-aware filtering ──
       if (from || to) {
         filter.date = {};
-        if (from) filter.date.$gte = new Date(from);
-        if (to) filter.date.$lte = new Date(to);
+        if (from) {
+          // Start of the day (inclusive)
+          const fromDate = new Date(from);
+          fromDate.setHours(0, 0, 0, 0);
+          filter.date.$gte = fromDate;
+        }
+        if (to) {
+          // End of the day (inclusive)
+          const toDate = new Date(to);
+          toDate.setHours(23, 59, 59, 999);
+          filter.date.$lte = toDate;
+        }
       }
 
+      // Apply status filter only if provided
       if (status) {
         filter.status = status;
       }
 
+      // Apply employeeId filter only if provided
       if (employeeId) {
         filter.employee = employeeId;
       }
 
+      console.log('Attendance filter query:', filter); // Debug log
+
       const records = await Attendance.find(filter)
         .populate('employee', 'employeeId firstName lastName email department designation role')
         .sort({ date: -1, createdAt: -1 });
+
+      console.log('Attendance records found:', records.length); // Debug log
 
       return res.status(200).json({
         success: true,
@@ -552,6 +572,7 @@ console.log('Location check result:', result);
       return res.status(500).json({
         success: false,
         message: 'Failed to fetch attendance list',
+        error: err.message
       });
     }
   };
