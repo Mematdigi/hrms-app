@@ -47,7 +47,6 @@ const parseExcelDate = (value) => {
 
     // ── Month name map (handles typos like "Janurary", "Febuary", etc.) ──
     const monthMap = {
-        // Full names + common typos
         'january': 0,  'janurary': 0, 'jan': 0,
         'february': 1, 'febuary': 1,  'feb': 1,
         'march': 2,    'mar': 2,
@@ -72,12 +71,10 @@ const parseExcelDate = (value) => {
     if (wordDateMatch) {
         let day, monthStr, year;
         if (wordDateMatch[1]) {
-            // "1 January 2026"
             day      = parseInt(wordDateMatch[1]);
             monthStr = wordDateMatch[2].toLowerCase();
             year     = parseInt(wordDateMatch[3]);
         } else {
-            // "January 1 2026"
             monthStr = wordDateMatch[4].toLowerCase();
             day      = parseInt(wordDateMatch[5]);
             year     = parseInt(wordDateMatch[6]);
@@ -238,7 +235,7 @@ class EmployeeController {
 
       const enc = encryptEmployee(rawPayload);
 
-      // ── User model: ONLY these 7 fields (as shown in DB screenshot) ──
+      // ── User model: ONLY these 7 fields ──
       user = new User({
         firstName:  b.firstName,
         lastName:   b.lastName,
@@ -399,7 +396,6 @@ class EmployeeController {
   });
 
   // ─── BULK IMPORT EMPLOYEES FROM EXCEL ─────────────────────────────────────
-  // User table stores ONLY: firstName, lastName, email, password, role, employeeId, isActive
   bulkImportEmployees = catchAsync(async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: 'No Excel file uploaded' });
@@ -413,7 +409,6 @@ class EmployeeController {
 
     const rawRows1 = xlsx.utils.sheet_to_json(sheet1, { defval: '', header: 1 });
 
-    // Find the row that contains actual headers
     let headerRowIndex1 = 0;
     for (let i = 0; i < rawRows1.length; i++) {
         const rowVals = rawRows1[i].map(v => String(v).trim());
@@ -488,107 +483,6 @@ class EmployeeController {
     const defaultLeave  = await Defaults.findOne({});
     const defaultCasual = defaultLeave ? defaultLeave.casualDefault : 12;
     const defaultSick   = defaultLeave ? defaultLeave.sickDefault   : 10;
-
-    // ── Enhanced parseExcelDate — handles all formats ──
-   // ── Enhanced parseExcelDate — handles all formats ──
-const parseExcelDate = (value) => {
-    if (!value && value !== 0) return null;
-
-    if (value instanceof Date) {
-        return isNaN(value.getTime()) ? null : value;
-    }
-
-    const str = String(value).trim();
-    if (!str || str === '' || str === 'undefined' || str === 'null') return null;
-
-    if (/^\d{4,5}$/.test(str)) {
-        const serial = parseInt(str);
-        const date = new Date((serial - 25569) * 86400 * 1000);
-        return isNaN(date.getTime()) ? null : date;
-    }
-
-    const monthMap = {
-        'january': 0,  'janurary': 0, 'jan': 0,
-        'february': 1, 'febuary': 1,  'feb': 1,
-        'march': 2,    'mar': 2,
-        'april': 3,    'apr': 3,
-        'may': 4,
-        'june': 5,     'jun': 5,
-        'july': 6,     'jul': 6,
-        'august': 7,   'aug': 7,
-        'september': 8,'sep': 8, 'sept': 8,
-        'october': 9,  'oct': 9,
-        'november': 10,'nov': 10,
-        'december': 11,'dec': 11,
-    };
-
-    // ── Strip ordinal suffixes FIRST:
-    //    "11th March 2025"  → "11 March 2025"
-    //    "22nd December 2025" → "22 December 2025"
-    //    "3rd April 2025"   → "3 April 2025"
-    //    "1st Jan 2025"     → "1 Jan 2025"
-    const cleanStr = str.replace(/(\d+)(st|nd|rd|th)/gi, '$1').trim();
-
-    // ── Word-date match covers:
-    //    "11 March 2025" / "March 11 2025"  (after ordinal strip above)
-    const wordDateMatch = cleanStr.match(
-        /^(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})$|^([a-zA-Z]+)\s+(\d{1,2})\s+(\d{4})$/
-    );
-    if (wordDateMatch) {
-        let day, monthStr, year;
-        if (wordDateMatch[1]) {
-            day      = parseInt(wordDateMatch[1]);
-            monthStr = wordDateMatch[2].toLowerCase();
-            year     = parseInt(wordDateMatch[3]);
-        } else {
-            monthStr = wordDateMatch[4].toLowerCase();
-            day      = parseInt(wordDateMatch[5]);
-            year     = parseInt(wordDateMatch[6]);
-        }
-        const month = monthMap[monthStr];
-        if (month !== undefined && day >= 1 && day <= 31 && year >= 1900) {
-            const date = new Date(year, month, day);
-            return isNaN(date.getTime()) ? null : date;
-        }
-    }
-
-    const monthYearMatch = cleanStr.match(/^([a-zA-Z]+)\s+(\d{4})$/);
-    if (monthYearMatch) {
-        const monthStr = monthYearMatch[1].toLowerCase();
-        const year     = parseInt(monthYearMatch[2]);
-        const month    = monthMap[monthStr];
-        if (month !== undefined && year >= 1900) {
-            return new Date(year, month, 1);
-        }
-    }
-
-    const dmySlash = cleanStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (dmySlash) {
-        const date = new Date(parseInt(dmySlash[3]), parseInt(dmySlash[2]) - 1, parseInt(dmySlash[1]));
-        return isNaN(date.getTime()) ? null : date;
-    }
-
-    const dmyDash = cleanStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-    if (dmyDash) {
-        const date = new Date(parseInt(dmyDash[3]), parseInt(dmyDash[2]) - 1, parseInt(dmyDash[1]));
-        return isNaN(date.getTime()) ? null : date;
-    }
-
-    const iso = cleanStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-    if (iso) {
-        const date = new Date(parseInt(iso[1]), parseInt(iso[2]) - 1, parseInt(iso[3]));
-        return isNaN(date.getTime()) ? null : date;
-    }
-
-    const dmyDot = cleanStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-    if (dmyDot) {
-        const date = new Date(parseInt(dmyDot[3]), parseInt(dmyDot[2]) - 1, parseInt(dmyDot[1]));
-        return isNaN(date.getTime()) ? null : date;
-    }
-
-    const fallback = new Date(cleanStr);
-    return isNaN(fallback.getTime()) ? null : fallback;
-};
 
     // ── Helper to build encrypted fields ──
     const buildEncFields = (f) => encryptEmployee({
@@ -853,23 +747,9 @@ const parseExcelDate = (value) => {
             }
 
             /* DISABLED: ── Leave Balance & Payroll ──
-            leave = new Leave({
-              employee:     user._id,
-              leaveType:    'Initial Allocation',
-              numberOfDays: 0,
-              status:       'approved',
-              casualLeave, sickLeave, earnedLeave: 0,
-            });
+            leave = new Leave({ ... });
             await leave.save();
-
-            const now = new Date();
-            const payroll = new Payroll({
-              employee:    user._id,
-              month:       now.getMonth() + 1,
-              year:        now.getFullYear(),
-              baseSalary, workedDays: 0, deductions: 0,
-              workingDays: 24, netSalary: baseSalary, status: 'draft',
-            });
+            const payroll = new Payroll({ ... });
             await payroll.save(); */
 
             results.success.push({ row: rowNum, name: fullName, employeeId, email, action: 'created' });
@@ -891,7 +771,7 @@ const parseExcelDate = (value) => {
         totalProcessed: results.success.length + results.failed.length,
         savedFile: savedFileName,
     });
-});
+  });
 
   // ─── DOWNLOAD UPLOADED BULK EXCEL ─────────────────────────────────────────
   downloadUploadedExcel = catchAsync(async (req, res) => {
@@ -910,13 +790,13 @@ const parseExcelDate = (value) => {
   });
 
   // ─── UPDATE EMPLOYEE ───────────────────────────────────────────────────────
-  // User table sync: ONLY firstName, lastName, email (+ password if changed)
+  // ✅ FIX: baseSalary is now included in encryptEmployee call so enc.baseSalary is always populated
   updateEmployee = async (req, res) => {
     try {
       let existingRecord = await Employee.findById(req.params.id);
       let isUserOnly = false;
       let fullUser = null;
-      
+
       if (!existingRecord) {
         fullUser = await User.findById(req.params.id);
         if (!fullUser) return res.status(404).json({ message: 'User/Employee not found' });
@@ -941,7 +821,7 @@ const parseExcelDate = (value) => {
           ? req.files[fieldName][0].path.replace('uploads\\', '').replace('uploads/', '')
           : null;
 
-      // ── Encrypt only newly provided sensitive fields ──
+      // ── ✅ FIX: baseSalary is now included in the encryptEmployee call ──
       const enc = encryptEmployee({
         contact:                  b.contact                  !== undefined ? b.contact                  : null,
         address:                  b.address                  !== undefined ? b.address                  : null,
@@ -958,6 +838,8 @@ const parseExcelDate = (value) => {
         emergencyContactName:     b.emergencyContactName     !== undefined ? b.emergencyContactName     : null,
         emergencyContactPhone:    b.emergencyContactPhone    !== undefined ? b.emergencyContactPhone    : null,
         emergencyContactRelation: b.emergencyContactRelation !== undefined ? b.emergencyContactRelation : null,
+        // ✅ FIX: baseSalary was missing from this call — enc.baseSalary was always undefined
+        baseSalary:               b.baseSalary               !== undefined ? parseFloat(b.baseSalary)   : null,
       });
 
       const updateData = {
@@ -970,6 +852,7 @@ const parseExcelDate = (value) => {
         dateOfJoining:  safeDate(b.dateOfJoining)  || e.dateOfJoining,
         dateOfBirth:    safeDate(b.dateOfBirth)     || e.dateOfBirth,
         lastWorkingDay: b.lastWorkingDay !== undefined ? safeDate(b.lastWorkingDay) : e.lastWorkingDay,
+        // ✅ FIX: enc.baseSalary is now correctly populated from the fixed encryptEmployee call above
         baseSalary:     b.baseSalary    !== undefined ? enc.baseSalary : e.baseSalary,
         status:         b.status        || e.status,
         periodType:     b.periodType    !== undefined ? b.periodType : e.periodType,
@@ -1021,17 +904,17 @@ const parseExcelDate = (value) => {
           status: 'Full Time',
           periodType: 'Permanent',
           workMode: updateData.workMode || 'Work From Office',
-          ...updateData // Spread all other fields
+          ...updateData,
         });
         employee = await employeeData.save();
-        
+
         // Sync User basic fields
         await User.findByIdAndUpdate(req.params.id, {
           firstName: updateData.firstName,
           lastName: updateData.lastName,
           email: updateData.email,
           department: updateData.department,
-          designation: updateData.designation
+          designation: updateData.designation,
         });
       } else {
         employee = await Employee.findByIdAndUpdate(req.params.id, updateData, { new: true });
@@ -1124,7 +1007,6 @@ const parseExcelDate = (value) => {
   };
 
   // ─── BULK DELETE EMPLOYEES (admin only) ───────────────────────────────────
-  // Expects: { ids: ['id1', 'id2', ...] } in request body
   bulkDeleteEmployees = async (req, res) => {
     try {
       const { ids } = req.body;
@@ -1133,7 +1015,6 @@ const parseExcelDate = (value) => {
         return res.status(400).json({ message: 'No employee IDs provided' });
       }
 
-      // Fetch employees to get their emails for User table cleanup
       const employees = await Employee.find({ _id: { $in: ids } }).select('email').lean();
 
       if (employees.length === 0) {
@@ -1142,7 +1023,6 @@ const parseExcelDate = (value) => {
 
       const emails = employees.map((e) => e.email);
 
-      // Delete from all related collections in parallel
       await Promise.all([
         Employee.deleteMany({ _id: { $in: ids } }),
         User.deleteMany({ email: { $in: emails } }),

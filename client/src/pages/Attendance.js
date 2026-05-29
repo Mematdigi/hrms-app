@@ -32,7 +32,7 @@ function Attendance() {
   const [punchOutLoading, setPunchOutLoading] = useState(false);
 
   // Employee Data
-  const [attendance, setAttendance] = useState([]);
+  const [attendance, setAttendance] = useState([]); // Full unfiltered data - NEVER modified by filters
   const [checkedIn, setCheckedIn] = useState(false);
   const [punchTime, setPunchTime] = useState(null);       // formatted string, e.g. "09:15 AM"
   const [punchOutTime, setPunchOutTime] = useState(null); // formatted string, e.g. "06:00 PM"
@@ -56,7 +56,7 @@ function Attendance() {
       fetchEmployeeData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHR, filters.name, filters.status, filters.dept]);
+  }, [isHR]);
 
   // Re-fetch when month changes
   useEffect(() => {
@@ -74,7 +74,7 @@ function Attendance() {
     try {
       const response = await attendanceAPI.getAttendance({ employeeId: user?.id });
       const logs = Array.isArray(response.data) ? response.data : (response.data?.data || []);
-      setAttendance(logs);
+      setAttendance(logs); // Store FULL unfiltered data
 
       // ── Today's Record ──
       const todayStr = new Date().toDateString();
@@ -352,46 +352,6 @@ function Attendance() {
   const handleDateClick = (year, month, day) => {
     const clickedDate = new Date(year, month, day);
     setSelectedDate(clickedDate);
-
-    if (isHR) {
-      // HR: Filter all employees' attendance for this date
-      const selectedDateStr = new Date(year, month, day).toDateString();
-      const filteredByDate = allAttendance.filter(record =>
-        new Date(record.date).toDateString() === selectedDateStr
-      );
-
-      // Apply additional filters (name, status, dept) on top of date filter
-      let finalFiltered = filteredByDate;
-      if (filters.name) {
-        finalFiltered = finalFiltered.filter(record =>
-          record.username?.toLowerCase().includes(filters.name.toLowerCase()) ||
-          record.employee?.firstName?.toLowerCase().includes(filters.name.toLowerCase()) ||
-          record.employee?.lastName?.toLowerCase().includes(filters.name.toLowerCase())
-        );
-      }
-      if (filters.status) {
-        finalFiltered = finalFiltered.filter(record =>
-          record.status?.toLowerCase() === filters.status.toLowerCase()
-        );
-      }
-      if (filters.dept) {
-        finalFiltered = finalFiltered.filter(record =>
-          record.employee?.department?.toLowerCase() === filters.dept.toLowerCase()
-        );
-      }
-
-      setAllAttendance(prevData => {
-        // Keep the full data but we'll filter in the render
-        return prevData;
-      });
-    } else {
-      // Employee: Filter their own attendance for this date
-      const selectedDateStr = new Date(year, month, day).toDateString();
-      const filteredByDate = attendance.filter(record =>
-        new Date(record.date).toDateString() === selectedDateStr
-      );
-      setAttendance(filteredByDate.length > 0 ? filteredByDate : attendance);
-    }
   };
 
   if (loading) return <div className="p-5 text-center">Loading Attendance...</div>;
@@ -494,7 +454,7 @@ function Attendance() {
                 <tbody>
                   {Array.isArray(attendance) && attendance.length > 0 ? (
                     (() => {
-                      // Filter by selected date if one is picked
+                      // Filter by selected date if one is picked — from FULL unfiltered attendance data
                       let tablData = attendance;
                       if (selectedDate) {
                         const selectedDateStr = selectedDate.toDateString();
@@ -536,7 +496,7 @@ function Attendance() {
                       cursor: 'pointer'
                     }}
                   >
-                    Clear
+                    Clear Date Filter
                   </button>
                 )}
               </div>
@@ -691,7 +651,7 @@ function Attendance() {
             <div className='col-md-4'>          {/* Calendar Section - At Top */}
               <div className="calendar-section">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h5>📅 Click Date to Filter</h5>
+                  <h5>📅Click Date to Filter</h5>
                   {selectedDate && (
                     <button
                       onClick={() => setSelectedDate(null)}
