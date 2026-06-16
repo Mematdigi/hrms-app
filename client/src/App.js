@@ -20,9 +20,19 @@ import UserProfile from './pages/UserProfile';
 import { NotificationProvider } from './context/NotificationContext';
 import UploadOfficeDocument from './pages/UploadOfficeDocument';
 import OffBoarding from './pages/OffBoarding';
+import MobileBlock from './pages/MobileBlock';
+
+const isMobileDevice = () => {
+  return /android|iphone|ipad|ipod|blackberry|windows phone|mobile/i.test(
+    navigator.userAgent
+  );
+};
 
 function App() {
   const { token } = useSelector((state) => state.auth);
+    if (isMobileDevice()) {
+    return <MobileBlock />;
+  }
 
   return (
     <NotificationProvider>
