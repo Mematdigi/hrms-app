@@ -22,6 +22,10 @@ const EMPTY_PREV_EMP = {
     remarks: ''
 };
 
+// ── Standard options for Category & Religion (used to detect "Other") ──
+const STANDARD_CATEGORIES = ['general', 'obc', 'sc', 'st'];
+const STANDARD_RELIGIONS = ['hindu', 'muslim', 'sikh', 'christian'];
+
 function Employees() {
     const navigate = useNavigate();
 
@@ -72,6 +76,14 @@ function Employees() {
         gender: '',
         maritalStatus: '',
         nationality: '',
+        category: '',
+        categoryOther: '',
+        religion: '',
+        religionOther: '',
+        fatherName: '',
+        fatherNumber: '',
+        motherName: '',
+        motherNumber: '',
         panNumber: '',
         aadharNumber: '',
         bankName: '',
@@ -142,6 +154,14 @@ function Employees() {
             gender: employee.gender || '',
             maritalStatus: employee.maritalStatus || '',
             nationality: employee.nationality || '',
+            category: '',
+            categoryOther: '',
+            religion: '',
+            religionOther: '',
+            fatherName: employee.fatherName || '',
+            fatherNumber: employee.fatherNumber || '',
+            motherName: employee.motherName || '',
+            motherNumber: employee.motherNumber || '',
             panNumber: employee.panNumber || '',
             aadharNumber: employee.aadharNumber || '',
             bankName: employee.bankName || '',
@@ -153,6 +173,21 @@ function Employees() {
             adharCard: null, panCard: null, salarySlip: null,
             relievingLetter: null, experienceLetter: null, offerLetter: null, profilePhoto: null
         });
+
+        // ── Resolve Category (standard vs custom "Other") ──
+        const empCategory = (employee.category || '').trim();
+        const isStandardCategory = STANDARD_CATEGORIES.includes(empCategory.toLowerCase());
+        // ── Resolve Religion (standard vs custom "Other") ──
+        const empReligion = (employee.religion || '').trim();
+        const isStandardReligion = STANDARD_RELIGIONS.includes(empReligion.toLowerCase());
+
+        setFormData((prev) => ({
+            ...prev,
+            category: isStandardCategory ? empCategory.toLowerCase() : (empCategory ? 'other' : ''),
+            categoryOther: isStandardCategory ? '' : empCategory,
+            religion: isStandardReligion ? empReligion.toLowerCase() : (empReligion ? 'other' : ''),
+            religionOther: isStandardReligion ? '' : empReligion
+        }));
 
         if (employee.previousEmployment) {
             const pe = employee.previousEmployment;
@@ -236,11 +271,20 @@ function Employees() {
         setErrorMessage('');
         setSuccessMessage('');
 
+        // ── Validate required Family Information field ──
+        if (!formData.fatherNumber || !formData.fatherNumber.trim()) {
+            setErrorMessage("Father's Contact Number is required.");
+            setFormTab('employee');
+            return;
+        }
+
         try {
             const data = new FormData();
             const fileFields = ['adharCard', 'panCard', 'salarySlip', 'relievingLetter', 'experienceLetter', 'offerLetter', 'profilePhoto'];
+            const skipFields = ['categoryOther', 'religionOther']; // helper-only, resolved separately below
 
             Object.keys(formData).forEach((key) => {
+                if (skipFields.includes(key)) return;
                 if (fileFields.includes(key)) {
                     if (formData[key]) data.append(key, formData[key]);
                 } else {
@@ -250,6 +294,12 @@ function Employees() {
                     }
                 }
             });
+
+            // ── Resolve final Category / Religion (use custom text if "other" selected) ──
+            const finalCategory = formData.category === 'other' ? formData.categoryOther : formData.category;
+            const finalReligion = formData.religion === 'other' ? formData.religionOther : formData.religion;
+            data.set('category', finalCategory || '');
+            data.set('religion', finalReligion || '');
 
             // data.append('isActive', formData.isActive.toString());
 
@@ -280,7 +330,10 @@ function Employees() {
             address: '', currentAddress: '', password: '', department: '', designation: '',
             dateOfJoining: '', dateOfBirth: '', lastWorkingDay: '', baseSalary: '',
             status: 'Full Time', periodType: 'Permanent', isActive: true, workMode: 'Work From Office',
-            gender: '', maritalStatus: '', nationality: '', panNumber: '', aadharNumber: '',
+            gender: '', maritalStatus: '', nationality: '',
+            category: '', categoryOther: '', religion: '', religionOther: '',
+            fatherName: '', fatherNumber: '', motherName: '', motherNumber: '',
+            panNumber: '', aadharNumber: '',
             bankName: '', bankAccountNumber: '', ifscCode: '',
             emergencyContactName: '', emergencyContactPhone: '', emergencyContactRelation: '',
             adharCard: null, panCard: null, salarySlip: null,
@@ -398,17 +451,19 @@ function Employees() {
         const sheet1Headers = [
             'Employee ID', 'DATE OF JOINING', 'Name', 'Department', 'Designation',
             'Employee Type', 'Contact Number', 'Email', 'Date of Birth',
-            'Employee period type', 'Gender', 'PAN Number', 'Aadhar Number',
+            'Employee period type', 'Gender', 'Category', 'Religion', 'PAN Number', 'Aadhar Number',
             'Bank Account No', 'IFSC Code', 'Salary', 'Office mail id ',
             'Bank Name', 'Last Working Day', 'Permanent Address', 'Current Address',
-            'Marital Status', 'Emergency contact Name ', 'Emeregncy Contact Number ', 'Nationality'
+            'Marital Status', 'Emergency contact Name ', 'Emeregncy Contact Number ', 'Nationality',
+            "Father's Name", "Father's Contact Number", "Mother's Name", "Mother's Contact Number"
         ];
         const sheet1Sample = [
             'MMD-001', '01/01/2024', 'John Doe', 'Development Team', 'Software Engineer',
             'Full Time', '9876543210', 'john.doe@company.com', '01/01/1995',
-            'Permanent', 'Male', 'ABCDE1234F', '123456789012', '1234567890',
+            'Permanent', 'Male', 'General', 'Hindu', 'ABCDE1234F', '123456789012', '1234567890',
             'SBIN0001234', '50000', 'john.doe@company.com', 'State Bank of India', '',
-            '123 Main St, City', '456 Other St, City', 'Single', 'Jane Doe', '9876543211', 'Indian'
+            '123 Main St, City', '456 Other St, City', 'Single', 'Jane Doe', '9876543211', 'Indian',
+            'Robert Doe', '9876500000', 'Mary Doe', '9876500001'
         ];
 
         const sheet2Headers = [
@@ -632,10 +687,11 @@ function Employees() {
                                     {[
                                         'Employee ID*', 'DATE OF JOINING', 'Name*', 'Department', 'Designation',
                                         'Employee Type', 'Contact Number', 'Email*', 'Date of Birth',
-                                        'Employee period type', 'Gender', 'PAN Number', 'Aadhar Number',
+                                        'Employee period type', 'Gender', 'Category', 'Religion', 'PAN Number', 'Aadhar Number',
                                         'Bank Account No', 'IFSC Code', 'Salary', 'Office mail id ',
                                         'Bank Name', 'Last Working Day', 'Permanent Address', 'Current Address',
-                                        'Marital Status', 'Emergency contact Name ', 'Emeregncy Contact Number ', 'Nationality'
+                                        'Marital Status', 'Emergency contact Name ', 'Emeregncy Contact Number ', 'Nationality',
+                                        "Father's Name", "Father's Contact Number*", "Mother's Name", "Mother's Contact Number"
                                     ].map((col) => (
                                         <span key={col} className={`col-tag ${col.includes('*') ? 'required' : ''}`}>
                                             {col}
@@ -872,6 +928,43 @@ function Employees() {
                                         </div>
                                         <div className="input-group"><label>Date of Birth</label><input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} /></div>
                                         <div className="input-group"><label>Nationality</label><input type="text" name="nationality" value={formData.nationality} onChange={handleChange} placeholder="e.g. Indian" /></div>
+
+                                        <div className="input-group">
+                                            <label>Category</label>
+                                            <select name="category" value={formData.category} onChange={handleChange}>
+                                                <option value="">Select Category</option>
+                                                <option value="general">General</option>
+                                                <option value="obc">OBC</option>
+                                                <option value="sc">SC</option>
+                                                <option value="st">ST</option>
+                                                <option value="other">Other</option>
+                                            </select>
+                                        </div>
+                                        {formData.category === 'other' && (
+                                            <div className="input-group">
+                                                <label>Specify Category</label>
+                                                <input type="text" name="categoryOther" value={formData.categoryOther} onChange={handleChange} placeholder="Enter category" />
+                                            </div>
+                                        )}
+
+                                        <div className="input-group">
+                                            <label>Religion</label>
+                                            <select name="religion" value={formData.religion} onChange={handleChange}>
+                                                <option value="">Select Religion</option>
+                                                <option value="hindu">Hindu</option>
+                                                <option value="muslim">Muslim</option>
+                                                <option value="sikh">Sikh</option>
+                                                <option value="christian">Christian</option>
+                                                <option value="other">Other</option>
+                                            </select>
+                                        </div>
+                                        {formData.religion === 'other' && (
+                                            <div className="input-group">
+                                                <label>Specify Religion</label>
+                                                <input type="text" name="religionOther" value={formData.religionOther} onChange={handleChange} placeholder="Enter religion" />
+                                            </div>
+                                        )}
+
                                         <div className="input-group full-width"><label>Permanent Address</label><input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="Permanent address" /></div>
                                         <div className="input-group full-width"><label>Current Address</label><input type="text" name="currentAddress" value={formData.currentAddress} onChange={handleChange} placeholder="Current address (if different)" /></div>
                                     </div>
@@ -973,6 +1066,29 @@ function Employees() {
                                                 <option value="Friend">Friend</option>
                                                 <option value="Other">Other</option>
                                             </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Family Information */}
+                                <div className="form-section-card">
+                                    <h4><i className="bi bi-people-fill me-2"></i>Family Information</h4>
+                                    <div className="form-row-grid">
+                                        <div className="input-group">
+                                            <label>Father's Name</label>
+                                            <input type="text" name="fatherName" value={formData.fatherName} onChange={handleChange} placeholder="Father's full name" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Father's Contact Number <span className="req">*</span></label>
+                                            <input type="tel" name="fatherNumber" value={formData.fatherNumber} onChange={handleChange} placeholder="Father's phone number" required />
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Mother's Name</label>
+                                            <input type="text" name="motherName" value={formData.motherName} onChange={handleChange} placeholder="Mother's full name" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label>Mother's Contact Number</label>
+                                            <input type="tel" name="motherNumber" value={formData.motherNumber} onChange={handleChange} placeholder="Mother's phone number" />
                                         </div>
                                     </div>
                                 </div>

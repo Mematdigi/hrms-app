@@ -96,6 +96,34 @@ const employeeSchema = new mongoose.Schema({
     default: ''
   },
 
+  // ── Category & Religion (supports custom "Other" values, so no enum) ──
+  category: {
+    type: String,
+    default: ''
+  },
+  religion: {
+    type: String,
+    default: ''
+  },
+
+  // ── Family Information ──
+  fatherName: {
+    type: String,
+    default: ''
+  },
+  fatherNumber: {
+    type: String,
+    default: ''
+  },
+  motherName: {
+    type: String,
+    default: ''
+  },
+  motherNumber: {
+    type: String,
+    default: ''
+  },
+
   // Identity
   panNumber: {
     type: String,

@@ -136,9 +136,8 @@ class PayrollController {
       throw new Error(`Base salary not configured for ${userDoc.firstName} ${userDoc.lastName}`);
     }
 
-    const workingDays = 30;
-    const startDate   = new Date(year, month - 1, 1);
-    const endDate     = new Date(year, month, 0, 23, 59, 59);
+    const startDate = new Date(year, month - 1, 1);
+    const endDate   = new Date(year, month, 0, 23, 59, 59);
 
     // 2. Public holidays for this month
     const holidayDocs = await Holiday.find({ year, month, isActive: true }).select('date');
@@ -227,6 +226,7 @@ class PayrollController {
       const attStatus = attendanceMap.get(dateKey);
       const leaveType = leaveDateMap.get(dateKey);
 
+      // ── No attendance record for this working day ──
       if (!attStatus) {
         if (leaveType) {
           if (leaveType === 'unpaid') {
@@ -235,57 +235,69 @@ class PayrollController {
             shortLeaveDays++;
             presentDays++;
           } else {
+            // casual / sick / earned → paid leave, no salary deduction
             paidLeaveDays++;
             if (leaveType === 'casual')      casualLeavesTaken++;
             else if (leaveType === 'sick')   sickLeavesTaken++;
             else if (leaveType === 'earned') earnedLeavesTaken++;
           }
         } else {
+          // No attendance + no approved leave → absent
           absentDays++;
         }
         continue;
       }
 
+      // ── Attendance record exists ──
       switch (attStatus) {
+
         case 'present':
         case 'working':
+          // Full present day — no deduction
           presentDays++;
           break;
 
         case 'late':
+          // Came late — 25% penalty
           presentDays++;
           lateDays++;
           break;
 
         case 'short-leave':
+          // Left for a short period — 25% penalty always
           presentDays++;
-          if (leaveType === 'short') shortLeaveDays++;
-          else lateDays++;
+          shortLeaveDays++;
           break;
 
         case 'early-go':
+          // Left early — 25% penalty
           presentDays++;
           earlyGoDays++;
           break;
 
         case 'half-day':
+          // Half day worked — 50% deduction
           halfDays++;
           break;
 
         case 'leave':
           if (leaveType) {
             if (leaveType === 'unpaid') {
+              // Marked leave + unpaid → full day deduction
               unpaidLeaveDays++;
             } else if (leaveType === 'short') {
+              // Short leave approved → 25% deduction
               shortLeaveDays++;
               presentDays++;
             } else {
+              // Paid leave (casual/sick/earned) → no deduction
               paidLeaveDays++;
               if (leaveType === 'casual')      casualLeavesTaken++;
               else if (leaveType === 'sick')   sickLeavesTaken++;
               else if (leaveType === 'earned') earnedLeavesTaken++;
             }
           } else {
+            // Leave status but no approved leave record → treat as unpaid
             unpaidLeaveDays++;
           }
           break;
@@ -298,12 +310,14 @@ class PayrollController {
               shortLeaveDays++;
               presentDays++;
             } else {
+              // Has approved paid leave → no deduction
               paidLeaveDays++;
               if (leaveType === 'casual')      casualLeavesTaken++;
               else if (leaveType === 'sick')   sickLeavesTaken++;
               else if (leaveType === 'earned') earnedLeavesTaken++;
             }
           } else {
+            // Absent with no leave record → full day deduction
             absentDays++;
           }
           break;
@@ -313,16 +327,41 @@ class PayrollController {
       }
     }
 
-    // 8. Worked days & per-day rate
-    const workedDays   = presentDays + paidLeaveDays + (halfDays * 0.5);
-    const perDaySalary = baseSalary / workingDays;
+    // ─────────────────────────────────────────────────────────────────────────
+    // 8. Per-day salary — always divided by 30 (standard month, not calendar days)
+    //    actualWorkingDays tracked for display only (payslip "Total Working Days")
+    // ─────────────────────────────────────────────────────────────────────────
+    const STANDARD_MONTH_DAYS = 30;
+    const actualWorkingDays   = totalDaysInMonth - weekOffDays - holidayDays;
+    const perDaySalary        = baseSalary / STANDARD_MONTH_DAYS;  // always ÷ 30
 
+    // Effective paid days (for display/record only — not used in deduction formula)
+    const workedDays = presentDays + paidLeaveDays + (halfDays * 0.5);
+
+    // ─────────────────────────────────────────────────────────────────────────
     // 9. Deductions
+    //    All calculated using perDaySalary = baseSalary / 30
+    //
+    //    Full day  (1.00x) : absent, unpaid leave
+    //    Half day  (0.50x) : half-day attendance
+    //    Quarter   (0.25x) : late, short-leave, early-go
+    //    Excess leave      : casual/sick taken beyond balance → full day each
+    // ─────────────────────────────────────────────────────────────────────────
     let deductions = 0;
-    deductions += (workingDays - workedDays - weekOffDays - holidayDays) * perDaySalary;
-    deductions += shortLeaveDays * (perDaySalary * 0.25);
-    deductions += earlyGoDays    * (perDaySalary * 0.25);
 
+    // Full-day deductions
+    deductions += absentDays      * perDaySalary;          // full day cut
+    deductions += unpaidLeaveDays * perDaySalary;          // full day cut
+
+    // Half-day deduction
+    deductions += halfDays        * (perDaySalary * 0.5);  // 50% cut per half-day
+
+    // Quarter-day deductions
+    deductions += lateDays        * (perDaySalary * 0.25); // 25% cut per late day
+    deductions += shortLeaveDays  * (perDaySalary * 0.25); // 25% cut per short-leave
+    deductions += earlyGoDays     * (perDaySalary * 0.25); // 25% cut per early-go
+
+    // Excess leave deductions (taken beyond allocated balance → full day cut each)
     const leaveBalance = await Leave.findOne({ employee: employeeId, leaveType: 'Initial Allocation' });
     let excessCasualDeduction = 0;
     let excessSickDeduction   = 0;
@@ -348,8 +387,8 @@ class PayrollController {
       {
         $set: {
           baseSalary,
-          workingDays,
-          workedDays:  Math.round(workedDays * 100) / 100,
+          workingDays:  actualWorkingDays,
+          workedDays:   Math.round(workedDays * 100) / 100,
           deductions,
           netSalary,
           status:    'draft',
@@ -361,9 +400,9 @@ class PayrollController {
 
     const breakdown = {
       baseSalary,
-      workingDays,
+      workingDays:  actualWorkingDays,
       workedDays:   Math.round(workedDays * 100) / 100,
-      perDaySalary: Math.round(perDaySalary * 100) / 100,
+      perDaySalary: Math.round(perDaySalary * 100) / 100,  // baseSalary / 30
       attendance: {
         presentDays,
         halfDays,
@@ -383,7 +422,7 @@ class PayrollController {
         totalApprovedLeaves: paidLeaveDays
       },
       deductions: {
-        absentDeduction:       Math.round((workingDays - workedDays) * perDaySalary),
+        absentDeduction:       Math.round(absentDays * perDaySalary),
         unpaidLeaveDeduction:  Math.round(unpaidLeaveDays * perDaySalary),
         halfDayDeduction:      Math.round(halfDays * perDaySalary * 0.5),
         lateDeduction:         Math.round(lateDays * perDaySalary * 0.25),

@@ -7,7 +7,7 @@ const { sendBirthdayNotification } = require('../controllers/Notificationcontrol
 const startBirthdayCron = () => {
 
   // ── Runs every day at 10:00 AM IST ────────────────────────────────────────
-  cron.schedule('10 10 * * *', async () => {
+  cron.schedule('8 8 * * *', async () => {
     try {
       const today    = new Date();
       const tomorrow = new Date(today);

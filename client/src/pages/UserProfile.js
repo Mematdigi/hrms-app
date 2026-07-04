@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import api, { employeeAPI } from "../services/api";
 import { Modal, Button, Form } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
+const profileImg = "../profile-img.webp";
 
 const UserProfile = () => {
   const { user } = useSelector((state) => state.auth);
@@ -13,7 +14,7 @@ const UserProfile = () => {
   const [error, setError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState("");
 
-  const [profileImage, setProfileImage] = useState("https://via.placeholder.com/120");
+  const [profileImage, setProfileImage] = useState(profileImg);
   const [isUploading, setIsUploading] = useState(false);
 
   // Modal States
@@ -53,11 +54,21 @@ const UserProfile = () => {
     preview: null
   });
 
+  // Password Change State (used inside Edit Profile modal — optional, only sent if filled)
+  const [passwordData, setPasswordData] = useState({
+    newPassword: "",
+    confirmPassword: ""
+  });
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+
   const getProfileImageUrl = (imagePath) => {
     if (!imagePath) return "https://via.placeholder.com/120";
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) return imagePath;
     if (imagePath.startsWith('data:')) return imagePath;
-    return `http://localhost:5000/uploads/${imagePath}`;
+    return `https://hrms.mematdigi.com/uploads/${imagePath}`;
+    console.log("Profile Image URL:", imagePath);
   };
 
   useEffect(() => {
@@ -188,12 +199,44 @@ const UserProfile = () => {
   // Handle Edit Form Submit (modal - full edit)
   const handleEditSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate password fields ONLY if user filled either of them
+    setPasswordError("");
+    const wantsPasswordChange = !!(passwordData.newPassword || passwordData.confirmPassword);
+    if (wantsPasswordChange) {
+      if (passwordData.newPassword.length < 6) {
+        setPasswordError("Password must be at least 6 characters long");
+        return;
+      }
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        setPasswordError("Passwords do not match");
+        return;
+      }
+    }
+
     try {
-      await employeeAPI.update(user.id, editFormData);
+      // Build payload — include password ONLY if user wants to change it
+      const payload = { ...editFormData };
+      if (wantsPasswordChange) {
+        payload.password = passwordData.newPassword;
+      }
+
+      await employeeAPI.update(user.id, payload);
       const response = await employeeAPI.getById(user.id);
       setProfileData(response.data);
       setShowEditModal(false);
-      showToast("✅ Profile updated successfully!");
+
+      // Reset password fields after successful save
+      setPasswordData({ newPassword: "", confirmPassword: "" });
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
+      setPasswordError("");
+
+      showToast(
+        wantsPasswordChange
+          ? "✅ Profile and password updated successfully!"
+          : "✅ Profile updated successfully!"
+      );
     } catch (err) {
       console.error("Error updating profile:", err);
       alert("Failed to update profile");
@@ -589,8 +632,7 @@ const UserProfile = () => {
                     <div className="info-text">
                       <span className="info-label">Base Salary</span>
                       <span className="info-value">
-                          {displayData?.baseSalary ? `₹***${displayData.baseSalary.toLocaleString("en-IN").slice(3)}` : "N/A"}
-                        {/* {displayData?.baseSalary ? `₹${displayData.baseSalary.toLocaleString("en-IN")}` : "N/A"} */}
+                        {displayData?.baseSalary ? `₹${displayData.baseSalary.toLocaleString("en-IN")}` : "N/A"}
                       </span>
                     </div>
                   </div>
@@ -617,7 +659,7 @@ const UserProfile = () => {
                   </svg>
                   <h3>Bank Details</h3>
                   <div className="card-header-actions">
-                    <CardEditControls cardKey="bank" />
+                    {/* <CardEditControls cardKey="bank" /> */}
                   </div>
                 </div>
 
@@ -650,7 +692,7 @@ const UserProfile = () => {
                       <div className="info-text">
                         <span className="info-label">Account Number</span>
                         <span className="info-value">
-                          {displayData?.bankAccountNumber ? `****${displayData.bankAccountNumber.slice(-4)}` : "N/A"}
+                          {displayData?.bankAccountNumber ? `${displayData.bankAccountNumber}` : "N/A"}
                         </span>
                       </div>
                     </div>
@@ -728,7 +770,13 @@ const UserProfile = () => {
       </div>
 
       {/* Edit Profile Modal (Full) */}
-      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg">
+      <Modal show={showEditModal} onHide={() => {
+        setShowEditModal(false);
+        setPasswordData({ newPassword: "", confirmPassword: "" });
+        setShowNewPassword(false);
+        setShowConfirmPassword(false);
+        setPasswordError("");
+      }} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Edit Profile</Modal.Title>
         </Modal.Header>
@@ -771,8 +819,8 @@ const UserProfile = () => {
             </div>
 
 
-            <hr />
-            <h6 className="mb-3 text-muted fw-bold">Bank Details</h6>
+            {/* <hr /> */}
+            {/* <h6 className="mb-3 text-muted fw-bold">Bank Details</h6>
             <div className="row">
               <div className="col-md-4 mb-3">
                 <Form.Group>
@@ -792,7 +840,7 @@ const UserProfile = () => {
                   <Form.Control type="text" name="ifscCode" value={editFormData.ifscCode} onChange={handleEditChange} style={{ textTransform: 'uppercase' }} />
                 </Form.Group>
               </div>
-            </div>
+            </div> */}
 
             <hr />
             <h6 className="mb-3 text-muted fw-bold">Emergency Contact</h6>
@@ -825,8 +873,104 @@ const UserProfile = () => {
               </div>
             </div>
 
+            <hr />
+            <h6 className="mb-1 text-muted fw-bold">Change Password</h6>
+            <p className="text-muted small mb-3">
+              Leave both fields empty if you don't want to change your password.
+            </p>
+            {passwordError && (
+              <div className="alert alert-danger py-2 px-3 mb-3" style={{ fontSize: "0.9rem" }}>
+                {passwordError}
+              </div>
+            )}
+            <div className="row">
+              <div className="col-md-6 mb-3">
+                <Form.Group>
+                  <Form.Label>New Password</Form.Label>
+                  <div style={{ position: "relative" }}>
+                    <Form.Control
+                      type={showNewPassword ? "text" : "password"}
+                      name="newPassword"
+                      value={passwordData.newPassword}
+                      onChange={(e) =>
+                        setPasswordData((prev) => ({ ...prev, newPassword: e.target.value }))
+                      }
+                      placeholder="Enter new password"
+                      autoComplete="new-password"
+                      style={{ paddingRight: "40px" }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword((v) => !v)}
+                      tabIndex={-1}
+                      style={{
+                        position: "absolute",
+                        right: "8px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "transparent",
+                        border: "none",
+                        padding: "4px 8px",
+                        cursor: "pointer",
+                        color: "#6c757d",
+                        display: "flex",
+                        alignItems: "center"
+                      }}
+                    >
+                      <i className={`bi ${showNewPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
+                    </button>
+                  </div>
+                  <Form.Text className="text-muted">Minimum 6 characters.</Form.Text>
+                </Form.Group>
+              </div>
+              <div className="col-md-6 mb-3">
+                <Form.Group>
+                  <Form.Label>Confirm New Password</Form.Label>
+                  <div style={{ position: "relative" }}>
+                    <Form.Control
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      value={passwordData.confirmPassword}
+                      onChange={(e) =>
+                        setPasswordData((prev) => ({ ...prev, confirmPassword: e.target.value }))
+                      }
+                      placeholder="Re-enter new password"
+                      autoComplete="new-password"
+                      style={{ paddingRight: "40px" }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((v) => !v)}
+                      tabIndex={-1}
+                      style={{
+                        position: "absolute",
+                        right: "8px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "transparent",
+                        border: "none",
+                        padding: "4px 8px",
+                        cursor: "pointer",
+                        color: "#6c757d",
+                        display: "flex",
+                        alignItems: "center"
+                      }}
+                    >
+                      <i className={`bi ${showConfirmPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
+                    </button>
+                  </div>
+                </Form.Group>
+              </div>
+            </div>
+
             <div className="d-flex justify-content-end gap-2 mt-4">
-              <Button variant="secondary" onClick={() => setShowEditModal(false)}>Cancel</Button>
+              <Button variant="secondary" onClick={() => {
+                setShowEditModal(false);
+                setPasswordData({ newPassword: "", confirmPassword: "" });
+                setShowNewPassword(false);
+                setShowConfirmPassword(false);
+                setPasswordError("");
+              }}>Cancel</Button>
               <Button variant="primary" type="submit">Save Changes</Button>
             </div>
           </Form>

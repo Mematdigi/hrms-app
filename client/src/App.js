@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -20,9 +20,27 @@ import UserProfile from './pages/UserProfile';
 import { NotificationProvider } from './context/NotificationContext';
 import UploadOfficeDocument from './pages/UploadOfficeDocument';
 import OffBoarding from './pages/OffBoarding';
+import MobileBlock from './pages/MobileBlock';
+
+const isMobileDevice = () => {
+  const ua = navigator.userAgent;
+
+  const mobileUA = /android|iphone|ipad|ipod|blackberry|windows phone|mobile/i.test(ua);
+
+  const smallScreen = window.screen.width <= 768;
+
+  return mobileUA || smallScreen;
+};
+
 
 function App() {
-  const { token } = useSelector((state) => state.auth);
+  const { token, user } = useSelector((state) => state.auth);
+
+  const currentEmployeeId = Number(user?.employeeId || user?.id);
+
+  if (isMobileDevice() && currentEmployeeId !== 16 && currentEmployeeId !== 32 && currentEmployeeId !== 22) {
+    return <MobileBlock />;
+  }
 
   return (
     <NotificationProvider>
@@ -44,7 +62,7 @@ function App() {
           <Route path="/all_employee_attendance" element={token ? <AllEmployeesAttendance /> : <Navigate to="/login" />} />
           <Route path="/" element={<Navigate to={"/login"} />} />
           <Route path="/EmployeeDetails/:id" element={<EmployeeDetails />} />
-          <Route path="*" element={<Notfound/>}/>
+          <Route path="*" element={<Notfound />} />
         </Routes>
       </Router>
     </NotificationProvider>

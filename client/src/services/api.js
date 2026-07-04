@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://hrms-app-wtlz.onrender.com/v1';
+const API_BASE_URL = 'https://hrms.mematdigi.com/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -13,6 +13,26 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// If token expires/invalid => force logout + redirect to login
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      // Clear client auth state
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+
+      // Hard redirect to login so Router guard picks it up immediately
+      window.location.href = '/login';
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 
 export const authAPI = {
   register:   (data) => api.post('/auth/register', data),
