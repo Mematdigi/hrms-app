@@ -21,6 +21,15 @@ const attendanceSchema = new mongoose.Schema({
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     approvedAt: { type: Date }
   },
+
+  // ── Regularization tracking (added) ──────────────────────────────
+  // True when this record's times were set via an approved regularization
+  // request rather than an actual punch-in/punch-out.
+  isRegularized: { type: Boolean, default: false },
+  // Reference back to the Regularization document that produced this record.
+  regularizedFrom: { type: mongoose.Schema.Types.ObjectId, ref: 'Regularization' },
+  // ──────────────────────────────────────────────────────────────────
+
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

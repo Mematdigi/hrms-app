@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { attendanceAPI } from '../services/api';
+import { attendanceAPI, regularizationAPI } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import BackButton from '../components/BackButton';
-import { Modal, Button } from 'react-bootstrap';
+import { Modal, Button, Form } from 'react-bootstrap';
 
 function Attendance() {
   const navigate = useNavigate();
@@ -21,6 +21,27 @@ function Attendance() {
       month: 'short',
       year: 'numeric'
     });
+  };
+
+  // --- Helper: today's date as YYYY-MM-DD for <input type="date" max="..."> ---
+  const todayInputValue = () => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  // --- Helper: color styling for regularization status pills ---
+  const getRegStatusStyle = (status) => {
+    switch (status) {
+      case 'approved':
+        return { background: '#d4edda', color: '#155724' };
+      case 'rejected':
+        return { background: '#f8d7da', color: '#721c24' };
+      default:
+        return { background: '#fff3cd', color: '#856404' }; // pending
+    }
   };
 
   // --- STATE ---
@@ -48,12 +69,29 @@ function Attendance() {
   const [hrSummary, setHrSummary] = useState({ total: 0, present: 0, absent: 0, late: 0, short: 0, half: 0 });
   const [filters, setFilters] = useState({ name: '', status: '', dept: '' });
 
+  // Regularization — Employee side
+  const [showRegularizeModal, setShowRegularizeModal] = useState(false);
+  const [regularizeDate, setRegularizeDate] = useState('');
+  const [regularizeReason, setRegularizeReason] = useState('');
+  const [regularizeSubmitting, setRegularizeSubmitting] = useState(false);
+  const [myRegularizations, setMyRegularizations] = useState([]);
+
+  // Regularization — HR side
+  const [hrRegularizations, setHrRegularizations] = useState([]);
+  const [regFilter, setRegFilter] = useState('pending'); // '', 'pending', 'approved', 'rejected'
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectingId, setRejectingId] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [regActionLoading, setRegActionLoading] = useState(false);
+
   // --- EFFECTS ---
   useEffect(() => {
     if (isHR) {
       fetchHRData();
+      fetchHrRegularizations();
     } else {
       fetchEmployeeData();
+      fetchMyRegularizations();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHR]);
@@ -67,6 +105,14 @@ function Attendance() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDate.getMonth(), currentDate.getFullYear()]);
+
+  // Re-fetch HR regularization list whenever the status filter changes
+  useEffect(() => {
+    if (isHR) {
+      fetchHrRegularizations(regFilter);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regFilter]);
 
   // --- API CALLS ---
   const fetchEmployeeData = async () => {
@@ -225,6 +271,30 @@ function Attendance() {
     }
   };
 
+  // ── Regularization: fetch my own requests (employee) ──
+  const fetchMyRegularizations = async () => {
+    try {
+      const response = await regularizationAPI.getMine(user?.id);
+      const list = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+      setMyRegularizations(list);
+    } catch (error) {
+      console.error('Failed to fetch regularization requests:', error);
+      setMyRegularizations([]);
+    }
+  };
+
+  // ── Regularization: fetch all requests (HR) ──
+  const fetchHrRegularizations = async (statusFilter = regFilter) => {
+    try {
+      const response = await regularizationAPI.getAll(statusFilter ? { status: statusFilter } : {});
+      const list = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+      setHrRegularizations(list);
+    } catch (error) {
+      console.error('Failed to fetch HR regularization requests:', error);
+      setHrRegularizations([]);
+    }
+  };
+
   // --- HANDLERS ---
   const handlePunchClick = () => {
     if (checkedIn) {
@@ -288,6 +358,89 @@ function Attendance() {
       d.setMonth(d.getMonth() + 1);
       return d;
     });
+  };
+
+  // ── Regularization Handlers: Employee ──
+  const openRegularizeModal = () => {
+    setRegularizeDate('');
+    setRegularizeReason('');
+    setShowRegularizeModal(true);
+  };
+
+  const handleSubmitRegularize = async () => {
+    if (!regularizeDate) {
+      alert('Please select the date you want to regularize.');
+      return;
+    }
+    if (!regularizeReason.trim()) {
+      alert('Please provide a reason for the regularization request.');
+      return;
+    }
+    setRegularizeSubmitting(true);
+    try {
+      await regularizationAPI.submit({
+        employeeId: user?.id,
+        date: regularizeDate,
+        reason: regularizeReason.trim()
+      });
+      alert('✅ Regularization request submitted. Awaiting HR approval.');
+      setShowRegularizeModal(false);
+      setRegularizeDate('');
+      setRegularizeReason('');
+      await fetchMyRegularizations();
+    } catch (error) {
+      console.error('Regularization submit failed:', error);
+      alert(`❌ ${error?.response?.data?.message || 'Failed to submit request. Please try again.'}`);
+    } finally {
+      setRegularizeSubmitting(false);
+    }
+  };
+
+  // ── Regularization Handlers: HR ──
+  const handleApproveRegularization = async (id) => {
+    if (!window.confirm('Approve this regularization request? The attendance for that date will be set to Present (9:30 AM – 6:30 PM, 9 hrs).')) {
+      return;
+    }
+    setRegActionLoading(true);
+    try {
+      await regularizationAPI.approve(id, { hrId: user?.id });
+      await fetchHrRegularizations();
+      await fetchHRData(); // refresh attendance table/stats since a record just changed
+    } catch (error) {
+      console.error('Approve failed:', error);
+      alert(`❌ ${error?.response?.data?.message || 'Failed to approve request.'}`);
+    } finally {
+      setRegActionLoading(false);
+    }
+  };
+
+  const openRejectModal = (id) => {
+    setRejectingId(id);
+    setRejectReason('');
+    setShowRejectModal(true);
+  };
+
+  const handleRejectRegularization = async () => {
+    if (!rejectReason.trim()) {
+      alert('Please provide a reason for rejection.');
+      return;
+    }
+    setRegActionLoading(true);
+    try {
+      await regularizationAPI.reject(rejectingId, {
+        hrId: user?.id,
+        rejectionReason: rejectReason.trim()
+      });
+      setShowRejectModal(false);
+      setRejectingId(null);
+      setRejectReason('');
+      await fetchHrRegularizations();
+    } catch (error) {
+      console.error('Reject failed:', error);
+      alert(`❌ ${error?.response?.data?.message || 'Failed to reject request.'}`);
+    } finally {
+      setRegActionLoading(false);
+    }
   };
 
   // --- RENDER HELPERS ---
@@ -378,6 +531,17 @@ function Attendance() {
             </button>
           )}
 
+          {/* Employee: Regularize Attendance (hidden for admin, same as punch button) */}
+          {!isHR && user?.role !== 'admin' && (
+            <button
+              className="btn-action"
+              style={{ background: 'linear-gradient(135deg, #ff9800, #f57c00)', color: '#fff', border: 'none' }}
+              onClick={openRegularizeModal}
+            >
+              <i className="bi bi-pencil-square me-2"></i> Regularize Attendance
+            </button>
+          )}
+
           {/* HR: Download Report */}
           {isHR && (
             <button className="btn-action download-btn" onClick={handleDownload}>
@@ -465,7 +629,17 @@ function Attendance() {
 
                       return tablData.slice(0, 8).map(record => (
                         <tr key={record._id}>
-                          <td>{formatDate(record.date)}</td>
+                          <td>
+                            {formatDate(record.date)}
+                            {record.isRegularized && (
+                              <span
+                                title="This day's attendance was regularized"
+                                style={{ marginLeft: 6, fontSize: 11, color: '#f57c00' }}
+                              >
+                                <i className="bi bi-pencil-square"></i>
+                              </span>
+                            )}
+                          </td>
                           <td>{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
                           <td>{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
                           <td>{record.workingHours ? `${record.workingHours} hrs` : '--'}</td>
@@ -521,6 +695,46 @@ function Attendance() {
               </div>
             </div>
           </div>
+
+          {/* Regularization History — Employee */}
+          {myRegularizations.length > 0 && (
+            <div className="table-section" style={{ marginTop: '20px' }}>
+              <h5 style={{ marginBottom: '12px' }}>
+                <i className="bi bi-pencil-square me-2"></i>My Regularization Requests
+              </h5>
+              <table className="modern-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>HR Remarks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {myRegularizations.map(req => (
+                    <tr key={req._id}>
+                      <td>{formatDate(req.date)}</td>
+                      <td>{req.reason}</td>
+                      <td>
+                        <span
+                          className="status-pill"
+                          style={{ ...getRegStatusStyle(req.status), textTransform: 'capitalize' }}
+                        >
+                          {req.status}
+                        </span>
+                      </td>
+                      <td>
+                        {req.status === 'rejected'
+                          ? <span style={{ color: '#c82333' }}>{req.rejectionReason}</span>
+                          : (req.status === 'approved' ? 'Attendance updated to Present' : '—')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       ) : (
         // --- HR VIEW ---
@@ -534,6 +748,96 @@ function Attendance() {
             <div className="stat-box"><small>Late This Month</small><h3>{hrSummary.late}</h3><i className="bi bi-clock-history text-warning"></i></div>
             <div className="stat-box"><small>Short Leave This Month</small><h3>{hrSummary.short}</h3><i className="bi bi-box-arrow-right text-info"></i></div>
             <div className="stat-box"><small>Half Day This Month</small><h3>{hrSummary.half}</h3><i className="bi bi-pie-chart text-purple"></i></div>
+          </div>
+
+          {/* Regularization Requests — HR */}
+          <div className="filter-card-clean" style={{ marginBottom: '16px' }}>
+            <div className="filter-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span><i className="bi bi-pencil-square"></i> Regularization Requests</span>
+              <select
+                className="filter-select"
+                value={regFilter}
+                onChange={(e) => setRegFilter(e.target.value)}
+                style={{ maxWidth: 160 }}
+              >
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="">All</option>
+              </select>
+            </div>
+
+            <div className="table-section full-width" style={{ marginTop: '10px' }}>
+              <table className="modern-table">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Date</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>Remarks</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {hrRegularizations.length > 0 ? (
+                    hrRegularizations.map(req => (
+                      <tr key={req._id}>
+                        <td>
+                          <div className="emp-cell">
+                            <div className="avatar">{req.username ? req.username[0].toUpperCase() : 'U'}</div>
+                            <span>{req.username || (req.employee ? `${req.employee.firstName} ${req.employee.lastName}` : 'Unknown')}</span>
+                          </div>
+                        </td>
+                        <td>{formatDate(req.date)}</td>
+                        <td>{req.reason}</td>
+                        <td>
+                          <span
+                            className="status-pill"
+                            style={{ ...getRegStatusStyle(req.status), textTransform: 'capitalize' }}
+                          >
+                            {req.status}
+                          </span>
+                        </td>
+                        <td>
+                          {req.status === 'rejected'
+                            ? <span style={{ color: '#c82333' }}>{req.rejectionReason}</span>
+                            : '—'}
+                        </td>
+                        <td>
+                          {req.status === 'pending' ? (
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button
+                                className="btn-action"
+                                style={{ background: '#28a745', color: '#fff', border: 'none', padding: '4px 10px', fontSize: 12 }}
+                                disabled={regActionLoading}
+                                onClick={() => handleApproveRegularization(req._id)}
+                              >
+                                <i className="bi bi-check-lg"></i> Accept
+                              </button>
+                              <button
+                                className="btn-action"
+                                style={{ background: '#dc3545', color: '#fff', border: 'none', padding: '4px 10px', fontSize: 12 }}
+                                disabled={regActionLoading}
+                                onClick={() => openRejectModal(req._id)}
+                              >
+                                <i className="bi bi-x-lg"></i> Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: 12, color: '#888' }}>
+                              {req.reviewedAt ? formatDate(req.reviewedAt) : '—'}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan="6" className="text-center p-4">No regularization requests found.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Filters */}
@@ -556,16 +860,16 @@ function Attendance() {
                 <option value="">All Status</option>
                 <option value="present">Present</option>
                 <option value="absent">Absent</option>
-                <option value="late">Late</option>
+                <option value="Overtime">OverTime</option>
                 <option value="half-day">Half Day</option>
               </select>
 
-              <select className="filter-select" value={filters.dept} onChange={(e) => setFilters({ ...filters, dept: e.target.value })}>
+              {/* <select className="filter-select" value={filters.dept} onChange={(e) => setFilters({ ...filters, dept: e.target.value })}>
                 <option value="">All Departments</option>
                 <option value="IT">IT</option>
                 <option value="HR">HR</option>
                 <option value="Sales">Sales</option>
-              </select>
+              </select> */}
 
               {/* Date Navigator */}
           <div className="date-nav">
@@ -633,7 +937,17 @@ function Attendance() {
                                 <span>{record.username || (record.employee ? `${record.employee.firstName} ${record.employee.lastName}` : 'Unknown')}</span>
                               </div>
                             </td>
-                            <td>{formatDate(record.date)}</td>
+                            <td>
+                              {formatDate(record.date)}
+                              {record.isRegularized && (
+                                <span
+                                  title="This day's attendance was regularized"
+                                  style={{ marginLeft: 6, fontSize: 11, color: '#f57c00' }}
+                                >
+                                  <i className="bi bi-pencil-square"></i>
+                                </span>
+                              )}
+                            </td>
                             <td>{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}</td>
                             <td>{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}</td>
                             <td>{record.workingHours ? `${record.workingHours} hrs` : '--'}</td>
@@ -737,6 +1051,110 @@ function Attendance() {
             {punchOutLoading
               ? <><span className="spinner-border spinner-border-sm me-2"></span>Processing...</>
               : <><i className="bi bi-check-lg me-2"></i>Confirm Punch Out</>}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* ======================== */}
+      {/* REGULARIZE ATTENDANCE — Employee */}
+      {/* ======================== */}
+      <Modal show={showRegularizeModal} onHide={() => !regularizeSubmitting && setShowRegularizeModal(false)} centered>
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="fw-bold fs-5">
+            <i className="bi bi-pencil-square me-2 text-warning"></i>Regularize Attendance
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="pt-3">
+          <p className="small text-muted mb-3">
+            Use this if you forgot to punch in/out or came in late on a past date. Once approved by HR,
+            that day will be marked <strong>Present</strong> (9:30 AM – 6:30 PM, 9 hrs).
+          </p>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label className="fw-semibold small">Date to Regularize</Form.Label>
+              <Form.Control
+                type="date"
+                max={todayInputValue()}
+                value={regularizeDate}
+                onChange={(e) => setRegularizeDate(e.target.value)}
+                disabled={regularizeSubmitting}
+              />
+            </Form.Group>
+            <Form.Group className="mb-2">
+              <Form.Label className="fw-semibold small">Reason</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                placeholder="e.g. Forgot to punch out after finishing work late"
+                value={regularizeReason}
+                onChange={(e) => setRegularizeReason(e.target.value)}
+                disabled={regularizeSubmitting}
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0 flex-column gap-2">
+          <Button
+            className="w-100 rounded-pill fw-semibold"
+            style={{ background: 'linear-gradient(135deg, #ff9800, #f57c00)', border: 'none', color: '#fff' }}
+            disabled={regularizeSubmitting}
+            onClick={handleSubmitRegularize}
+          >
+            {regularizeSubmitting
+              ? <><span className="spinner-border spinner-border-sm me-2"></span>Submitting...</>
+              : <><i className="bi bi-send me-2"></i>Submit Request</>}
+          </Button>
+          <Button
+            variant="light"
+            className="w-100 rounded-pill fw-semibold"
+            onClick={() => setShowRegularizeModal(false)}
+            disabled={regularizeSubmitting}
+          >
+            Cancel
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* ======================== */}
+      {/* REJECT REGULARIZATION — HR */}
+      {/* ======================== */}
+      <Modal show={showRejectModal} onHide={() => !regActionLoading && setShowRejectModal(false)} centered>
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="fw-bold fs-5">
+            <i className="bi bi-x-circle me-2 text-danger"></i>Reject Request
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="pt-3">
+          <p className="small text-muted mb-2">
+            Let the employee know why this regularization request is being rejected.
+          </p>
+          <Form.Control
+            as="textarea"
+            rows={3}
+            placeholder="e.g. No supporting reason provided / date already marked present"
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            disabled={regActionLoading}
+          />
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0 flex-column gap-2">
+          <Button
+            className="w-100 rounded-pill fw-semibold"
+            style={{ background: 'linear-gradient(135deg, #dc3545, #c82333)', border: 'none', color: '#fff' }}
+            disabled={regActionLoading}
+            onClick={handleRejectRegularization}
+          >
+            {regActionLoading
+              ? <><span className="spinner-border spinner-border-sm me-2"></span>Rejecting...</>
+              : <><i className="bi bi-x-lg me-2"></i>Confirm Rejection</>}
+          </Button>
+          <Button
+            variant="light"
+            className="w-100 rounded-pill fw-semibold"
+            onClick={() => setShowRejectModal(false)}
+            disabled={regActionLoading}
+          >
+            Cancel
           </Button>
         </Modal.Footer>
       </Modal>

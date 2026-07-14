@@ -188,27 +188,53 @@ class AttendanceController {
       // Condition 3: CheckOut between 17:00 - 18:30 → SHORT LEAVE
       const isShortLeaveByCheckOut = checkOutTotalMinutes >= SHORT_LEAVE_CHECKOUT_START && checkOutTotalMinutes <= SHORT_LEAVE_CHECKOUT_END;
 
+      // // ─── Status determination (priority order) ───────────────────────────────
+      // if (isShortLeaveByCheckIn || isShortLeaveByCheckOut) {
+      //   // Short leave takes priority: late check-in (9:50-11:00) or early checkout (17:00-18:30)
+      //   attendance.status = 'short-leave';
+      // } else if (isLateCheckIn) {
+      //   // Late check-in: arrived between 9:40 and 9:50
+      //   attendance.status = 'late';
+      // }
+      // else if (attendance.workingHours >= 8.5 && attendance.workingHours < 15.5) {
+      //   attendance.status = 'present';
+      // }
+      // else if (checkInTotalMinutes <= latestCheckIn && checkOutTotalMinutes >= earliestCheckOut) {
+      //   // On time check-in + proper checkout → Present
+      //   attendance.status = 'present';
+      // } else if (attendance.workingHours >= 7 && attendance.workingHours < 8.5) {
+      //   attendance.status = 'short-leave';
+      // } else if (attendance.workingHours >= 4.5) {
+      //   attendance.status = 'half-day';
+      // } else {
+      //   attendance.status = 'absent';
+      // }
+      // ─────────────────────────────────────────────────────────────────────────
+
       // ─── Status determination (priority order) ───────────────────────────────
-      if (isShortLeaveByCheckIn || isShortLeaveByCheckOut) {
-        // Short leave takes priority: late check-in (9:50-11:00) or early checkout (17:00-18:30)
-        attendance.status = 'short-leave';
-      } else if (isLateCheckIn) {
-        // Late check-in: arrived between 9:40 and 9:50
-        attendance.status = 'late';
-      } else if (attendance.workingHours >= 7 && attendance.workingHours < 8.5) {
-        attendance.status = 'short-leave';
-      }
-      else if (attendance.workingHours >= 8.5) {
+      if (attendance.workingHours >= 8.5 && attendance.workingHours < 15.5) {
+        // Full working hours met → Present (takes highest priority)
         attendance.status = 'present';
-      }
+      } 
       else if (checkInTotalMinutes <= latestCheckIn && checkOutTotalMinutes >= earliestCheckOut) {
         // On time check-in + proper checkout → Present
         attendance.status = 'present';
-      } else if (attendance.workingHours >= 7 && attendance.workingHours < 8.5) {
+      } 
+      else if (isShortLeaveByCheckIn || isShortLeaveByCheckOut) {
+        // Short leave for partial-day check-in/checkout windows
         attendance.status = 'short-leave';
-      } else if (attendance.workingHours >= 4.5) {
+      } 
+      else if (isLateCheckIn) {
+        // Late check-in: arrived between 9:40 and 9:50
+        attendance.status = 'late';
+      } 
+      else if (attendance.workingHours >= 7 && attendance.workingHours < 8.5) {
+        attendance.status = 'short-leave';
+      } 
+      else if (attendance.workingHours >= 4.5) {
         attendance.status = 'half-day';
-      } else {
+      } 
+      else {
         attendance.status = 'absent';
       }
       // ─────────────────────────────────────────────────────────────────────────

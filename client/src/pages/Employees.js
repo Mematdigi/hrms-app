@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { employeeAPI, offboardingAPI } from '../services/api';
 import BackButton from '../components/BackButton';
+import { Modal, Button } from 'react-bootstrap';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const EMPTY_PREV_EMP = {
     employeeName: '',
@@ -108,6 +110,8 @@ function Employees() {
     const [photoPreview, setPhotoPreview] = useState(null);
     const [existingDocs, setExistingDocs] = useState({});
     const [showPassword, setShowPassword] = useState(false);
+    const [showDocPreview, setShowDocPreview] = useState(false);
+    const [previewDoc, setPreviewDoc] = useState({ url: '', label: '' });
 
     const { user } = useSelector((state) => state.auth);
 
@@ -127,6 +131,22 @@ function Employees() {
         } finally { setLoading(false); }
     };
 
+     const getDocumentUrl = (docPath) => {
+        if (!docPath) return '';
+        if (docPath.startsWith('http://') || docPath.startsWith('https://')) return docPath;
+        return `https://hrms.mematdigi.com/uploads/${docPath}`;
+    };
+
+    const handlePreviewDocument = (label, docPath) => {
+        setPreviewDoc({ url: getDocumentUrl(docPath), label });
+        setShowDocPreview(true);
+    };
+
+    const handlePreviewNewFile = (label, file) => {
+        const url = URL.createObjectURL(file);
+        setPreviewDoc({ url, label });
+        setShowDocPreview(true);
+    };
     const handleEditClick = async (emp) => {
         const res = await employeeAPI.getById(emp._id);
         const employee = { ...res.data };
@@ -213,7 +233,7 @@ function Employees() {
         }
 
         if (employee.profilePhoto) {
-            setPhotoPreview(`http://localhost:5000/uploads/${employee.profilePhoto}`);
+            setPhotoPreview(`${employee.profilePhoto}`);
         } else {
             setPhotoPreview(null);
         }
@@ -270,13 +290,6 @@ function Employees() {
         e.preventDefault();
         setErrorMessage('');
         setSuccessMessage('');
-
-        // ── Validate required Family Information field ──
-        if (!formData.fatherNumber || !formData.fatherNumber.trim()) {
-            setErrorMessage("Father's Contact Number is required.");
-            setFormTab('employee');
-            return;
-        }
 
         try {
             const data = new FormData();
@@ -848,7 +861,7 @@ function Employees() {
                     <div className="left-sidebar">
                         <div className="profile-upload-card">
                             <div className="avatar-preview">
-                                {photoPreview ? <img src={photoPreview} alt="Preview" /> : <div className="placeholder">{formData.firstName ? formData.firstName[0] : 'U'}</div>}
+                                {photoPreview ? <img src={`https://hrms.mematdigi.com/uploads/${photoPreview}`} alt="Preview" /> : <div className="placeholder">{formData.firstName ? formData.firstName[0] : 'U'}</div>}
                                 <label htmlFor="profilePhotoInput" className="camera-icon"><i className="bi bi-camera"></i></label>
                                 <input type="file" id="profilePhotoInput" name="profilePhoto" onChange={handleFileChange} accept="image/*" hidden />
                             </div>
@@ -1079,7 +1092,7 @@ function Employees() {
                                             <input type="text" name="fatherName" value={formData.fatherName} onChange={handleChange} placeholder="Father's full name" />
                                         </div>
                                         <div className="input-group">
-                                            <label>Father's Contact Number <span className="req">*</span></label>
+                                            <label>Father's Contact Number</label>
                                             <input type="tel" name="fatherNumber" value={formData.fatherNumber} onChange={handleChange} placeholder="Father's phone number" required />
                                         </div>
                                         <div className="input-group">
@@ -1117,6 +1130,23 @@ function Employees() {
                                                         {formData[doc.name] ? formData[doc.name].name : (viewMode === 'edit' && existingDocs[doc.name] ? "Current File Uploaded" : "No file chosen")}
                                                     </span>
                                                 </div>
+                                                {(formData[doc.name] || (viewMode === 'edit' && existingDocs[doc.name])) && (
+                                                    <button
+                                                        type="button"
+                                                        className="btn-doc-preview"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (formData[doc.name]) {
+                                                                handlePreviewNewFile(doc.label, formData[doc.name]);
+                                                            } else {
+                                                                handlePreviewDocument(doc.label, existingDocs[doc.name]);
+                                                            }
+                                                        }}
+                                                        style={{ marginTop: '6px', background: 'transparent', border: '1px solid #d1d5db', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', color: '#2563eb', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                                    >
+                                                        <i className="bi bi-eye"></i> Preview
+                                                    </button>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
@@ -1130,6 +1160,7 @@ function Employees() {
                                 </div>
                             </>
                         )}
+                        
 
                         {/* ═══ TAB 2: Exit Details ═══ */}
                         {formTab === 'exit' && (
@@ -1340,7 +1371,18 @@ function Employees() {
                                     )}
                                     <div className="card-header-part">
                                         <div className="d-flex align-items-center gap-3">
-                                            <div className="avatar" style={{ backgroundColor: emp.isActive ? getAvatarColor(emp.firstName) : '#9ca3af' }}>{emp.firstName[0]}</div>
+                                            <div className="avatar" style={{ backgroundColor: emp.isActive ? getAvatarColor(emp.firstName) : '#9ca3af', overflow: 'hidden', padding: 0 }}>
+                                                {emp.profilePhoto ? (
+                                                    <img
+                                                        src={`https://hrms.mematdigi.com/uploads/${emp.profilePhoto}`}
+                                                        alt={`${emp.firstName} ${emp.lastName}`}
+                                                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
+                                                        onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.textContent = emp.firstName[0]; }}
+                                                    />
+                                                ) : (
+                                                    emp.firstName[0]
+                                                )}
+                                            </div>
                                             <div className="text-info"><h3>{emp.firstName} {emp.lastName}</h3><p className="role">{emp.designation || 'Employee'}</p></div>
                                         </div>
                                         {(user?.role === 'admin' || user?.role === 'hr') && (
@@ -1431,6 +1473,27 @@ function Employees() {
                     ) : null}
                 </>
             ) : null}
+                   {/* Document Preview Modal */}
+            <Modal show={showDocPreview} onHide={() => setShowDocPreview(false)} size="lg" centered>
+                <Modal.Header closeButton>
+                    <Modal.Title>Preview - {previewDoc.label}</Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="text-center">
+                    {previewDoc.url && (
+                        previewDoc.url.toLowerCase().includes('.pdf') ? (
+                            <iframe src={previewDoc.url} title="Document Preview" style={{ width: '100%', height: '600px', border: 'none' }} />
+                        ) : (
+                            <img src={previewDoc.url} alt={previewDoc.label} style={{ maxWidth: '100%', maxHeight: '600px' }} />
+                        )
+                    )}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowDocPreview(false)}>Close</Button>
+                    <Button variant="primary" onClick={() => window.open(previewDoc.url, '_blank')}>
+                        Open in New Tab
+                    </Button>
+                </Modal.Footer>
+            </Modal>
         </div>
     );
 }

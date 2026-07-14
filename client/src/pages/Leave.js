@@ -743,7 +743,7 @@ function Leave() {
               <>
                 <div className="scroll-indicator">← Scroll for more</div>
                 
-                <div className="table-container" style={{maxWidth:'910px'}}>
+                <div className="table-container">
                   <table>
                     <thead>
                       <tr>
@@ -1094,7 +1094,7 @@ function Leave() {
               <input
                 type="date"
                 value={formData.startDate}
-                min={new Date().toISOString().split('T')[0]}
+                // min={new Date().toISOString().split('T')[0]}
                 onChange={(e) => setFormData({
                   ...formData,
                   startDate: e.target.value,

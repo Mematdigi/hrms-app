@@ -5,6 +5,10 @@ import { Modal, Button, Form } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 const profileImg = "../profile-img.webp";
 
+// ── Standard options for Category & Religion (used to detect "Other") ──
+const STANDARD_CATEGORIES = ['general', 'obc', 'sc', 'st'];
+const STANDARD_RELIGIONS = ['hindu', 'muslim', 'sikh', 'christian'];
+
 const UserProfile = () => {
   const { user } = useSelector((state) => state.auth);
   const [activeTab, setActiveTab] = useState("personal");
@@ -25,7 +29,7 @@ const UserProfile = () => {
   const [currentDocumentType, setCurrentDocumentType] = useState("");
 
   // Inline edit states for each card
-  const [editingCard, setEditingCard] = useState(null); // 'contact' | 'emergency' | 'bank' | 'work'
+  const [editingCard, setEditingCard] = useState(null); // 'contact' | 'emergency' | 'bank' | 'work' | 'additional' | 'family'
 
   // Edit Form State
   const [editFormData, setEditFormData] = useState({
@@ -44,7 +48,15 @@ const UserProfile = () => {
     emergencyContactRelation: "",
     bankName: "",
     bankAccountNumber: "",
-    ifscCode: ""
+    ifscCode: "",
+    category: "",
+    categoryOther: "",
+    religion: "",
+    religionOther: "",
+    fatherName: "",
+    fatherNumber: "",
+    motherName: "",
+    motherNumber: ""
   });
 
   // Document Upload State
@@ -63,12 +75,25 @@ const UserProfile = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
 
+  // Inline card error (used for Family Information required-field validation)
+  const [cardError, setCardError] = useState("");
+
   const getProfileImageUrl = (imagePath) => {
     if (!imagePath) return "https://via.placeholder.com/120";
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) return imagePath;
     if (imagePath.startsWith('data:')) return imagePath;
     return `https://hrms.mematdigi.com/uploads/${imagePath}`;
     console.log("Profile Image URL:", imagePath);
+  };
+
+  // ── Resolve a stored Category/Religion value into {select, other} for the form ──
+  const resolveOtherField = (value, standardList) => {
+    const v = (value || "").trim();
+    const isStandard = standardList.includes(v.toLowerCase());
+    return {
+      select: isStandard ? v.toLowerCase() : (v ? 'other' : ''),
+      other: isStandard ? '' : v
+    };
   };
 
   useEffect(() => {
@@ -78,6 +103,9 @@ const UserProfile = () => {
         setLoading(true);
         const response = await employeeAPI.getById(user.id);
         setProfileData(response.data);
+
+        const categoryResolved = resolveOtherField(response.data.category, STANDARD_CATEGORIES);
+        const religionResolved = resolveOtherField(response.data.religion, STANDARD_RELIGIONS);
 
         setEditFormData({
           firstName: response.data.firstName || "",
@@ -95,7 +123,15 @@ const UserProfile = () => {
           emergencyContactRelation: response.data.emergencyContactRelation || "",
           bankName: response.data.bankName || "",
           bankAccountNumber: response.data.bankAccountNumber || "",
-          ifscCode: response.data.ifscCode || ""
+          ifscCode: response.data.ifscCode || "",
+          category: categoryResolved.select,
+          categoryOther: categoryResolved.other,
+          religion: religionResolved.select,
+          religionOther: religionResolved.other,
+          fatherName: response.data.fatherName || "",
+          fatherNumber: response.data.fatherNumber || "",
+          motherName: response.data.motherName || "",
+          motherNumber: response.data.motherNumber || ""
         });
 
         if (response.data.profilePhoto) {
@@ -156,6 +192,7 @@ const UserProfile = () => {
 
   // Save a specific card's data inline
   const handleCardSave = async (cardKey) => {
+    setCardError("");
     try {
       let payload = {};
       if (cardKey === 'contact') {
@@ -183,16 +220,72 @@ const UserProfile = () => {
           department: editFormData.department,
           designation: editFormData.designation
         };
+      } else if (cardKey === 'additional') {
+        const finalCategory = editFormData.category === 'other' ? editFormData.categoryOther : editFormData.category;
+        const finalReligion = editFormData.religion === 'other' ? editFormData.religionOther : editFormData.religion;
+        payload = {
+          category: finalCategory || '',
+          religion: finalReligion || ''
+        };
+      } else if (cardKey === 'family') {
+
+        payload = {
+          fatherName: editFormData.fatherName,
+          fatherNumber: editFormData.fatherNumber,
+          motherName: editFormData.motherName,
+          motherNumber: editFormData.motherNumber
+        };
       }
 
       await employeeAPI.update(user.id, payload);
       const response = await employeeAPI.getById(user.id);
       setProfileData(response.data);
+
+      // Re-resolve category/religion "Other" state after save
+      const categoryResolved = resolveOtherField(response.data.category, STANDARD_CATEGORIES);
+      const religionResolved = resolveOtherField(response.data.religion, STANDARD_RELIGIONS);
+      setEditFormData(prev => ({
+        ...prev,
+        category: categoryResolved.select,
+        categoryOther: categoryResolved.other,
+        religion: religionResolved.select,
+        religionOther: religionResolved.other
+      }));
+
       setEditingCard(null);
       showToast("✅ Updated successfully!");
     } catch (err) {
       console.error("Error updating:", err);
       alert("Failed to save changes");
+    }
+  };
+
+  // Clear (delete) a specific card's data
+  const handleCardClear = async (cardKey) => {
+    if (!window.confirm("Are you sure you want to clear this information?")) return;
+    setCardError("");
+    try {
+      let payload = {};
+      let clearedFormFields = {};
+
+      if (cardKey === 'additional') {
+        payload = { category: '', religion: '' };
+        clearedFormFields = { category: '', categoryOther: '', religion: '', religionOther: '' };
+      } else if (cardKey === 'family') {
+        payload = { fatherName: '', fatherNumber: '', motherName: '', motherNumber: '' };
+        clearedFormFields = { fatherName: '', fatherNumber: '', motherName: '', motherNumber: '' };
+      }
+
+
+      await employeeAPI.update(user.id, payload);
+      const response = await employeeAPI.getById(user.id);
+      setProfileData(response.data);
+      setEditFormData(prev => ({ ...prev, ...clearedFormFields }));
+      setEditingCard(null);
+      showToast("✅ Cleared successfully!");
+    } catch (err) {
+      console.error("Error clearing:", err);
+      alert("Failed to clear data");
     }
   };
 
@@ -216,7 +309,17 @@ const UserProfile = () => {
 
     try {
       // Build payload — include password ONLY if user wants to change it
-      const payload = { ...editFormData };
+      const finalCategory = editFormData.category === 'other' ? editFormData.categoryOther : editFormData.category;
+      const finalReligion = editFormData.religion === 'other' ? editFormData.religionOther : editFormData.religion;
+
+      const payload = {
+        ...editFormData,
+        category: finalCategory || '',
+        religion: finalReligion || ''
+      };
+      delete payload.categoryOther;
+      delete payload.religionOther;
+
       if (wantsPasswordChange) {
         payload.password = passwordData.newPassword;
       }
@@ -224,6 +327,17 @@ const UserProfile = () => {
       await employeeAPI.update(user.id, payload);
       const response = await employeeAPI.getById(user.id);
       setProfileData(response.data);
+
+      const categoryResolved = resolveOtherField(response.data.category, STANDARD_CATEGORIES);
+      const religionResolved = resolveOtherField(response.data.religion, STANDARD_RELIGIONS);
+      setEditFormData(prev => ({
+        ...prev,
+        category: categoryResolved.select,
+        categoryOther: categoryResolved.other,
+        religion: religionResolved.select,
+        religionOther: religionResolved.other
+      }));
+
       setShowEditModal(false);
 
       // Reset password fields after successful save
@@ -316,19 +430,24 @@ const UserProfile = () => {
 
   const displayData = profileData || user;
 
-  // Helper: Edit/Save/Cancel buttons for inline card editing
-  const CardEditControls = ({ cardKey }) => (
+  // Helper: Edit/Save/Cancel buttons for inline card editing (optionally with a Clear/Delete action)
+  const CardEditControls = ({ cardKey, onClear }) => (
     editingCard === cardKey ? (
       <div className="card-edit-actions">
         <button className="btn-card-save" onClick={() => handleCardSave(cardKey)}>
           <i className="bi bi-check-lg"></i> Save
         </button>
-        <button className="btn-card-cancel" onClick={() => setEditingCard(null)}>
+        {onClear && (
+          <button className="btn-card-clear" onClick={() => onClear(cardKey)} title="Clear this information" style={{ background: "transparent", border: "none", color: "#dc3545", padding: "4px 8px" }}>
+            <i className="bi bi-trash3"></i>
+          </button>
+        )}
+        <button className="btn-card-cancel" onClick={() => { setEditingCard(null); setCardError(""); }}>
           <i className="bi bi-x-lg"></i>
         </button>
       </div>
     ) : (
-      <button className="btn-card-edit" onClick={() => setEditingCard(cardKey)} title="Edit">
+      <button className="btn-card-edit" onClick={() => { setEditingCard(cardKey); setCardError(""); }} title="Edit">
         <i className="bi bi-pencil"></i>
       </button>
     )
@@ -533,6 +652,145 @@ const UserProfile = () => {
                       <div className="info-text">
                         <span className="info-label">Relationship</span>
                         <span className="info-value">{displayData?.emergencyContactRelation || "N/A"}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Additional Information Card (Category & Religion) - INLINE EDITABLE */}
+              <div className="info-card">
+                <div className="card-header">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 18.3333C14.6024 18.3333 18.3334 14.6024 18.3334 10C18.3334 5.39763 14.6024 1.66667 10 1.66667C5.39765 1.66667 1.66669 5.39763 1.66669 10C1.66669 14.6024 5.39765 18.3333 10 18.3333Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M10 13.3333V10M10 6.66667H10.0083" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <h3>Additional Information</h3>
+                  <div className="card-header-actions">
+                    <CardEditControls cardKey="additional" onClear={handleCardClear} />
+                  </div>
+                </div>
+
+                {editingCard === 'additional' ? (
+                  <div className="card-inline-form">
+                    {cardError && <div className="alert alert-danger py-2 px-3 mb-2" style={{ fontSize: "0.85rem" }}>{cardError}</div>}
+                    <div className="inline-form-row">
+                      <div className="inline-form-group">
+                        <label>Category</label>
+                        <select name="category" value={editFormData.category} onChange={handleEditChange}>
+                          <option value="">Select Category</option>
+                          <option value="general">General</option>
+                          <option value="obc">OBC</option>
+                          <option value="sc">SC</option>
+                          <option value="st">ST</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      {editFormData.category === 'other' && (
+                        <div className="inline-form-group">
+                          <label>Specify Category</label>
+                          <input type="text" name="categoryOther" value={editFormData.categoryOther} onChange={handleEditChange} placeholder="Enter category" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="inline-form-row">
+                      <div className="inline-form-group">
+                        <label>Religion</label>
+                        <select name="religion" value={editFormData.religion} onChange={handleEditChange}>
+                          <option value="">Select Religion</option>
+                          <option value="hindu">Hindu</option>
+                          <option value="muslim">Muslim</option>
+                          <option value="sikh">Sikh</option>
+                          <option value="christian">Christian</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      {editFormData.religion === 'other' && (
+                        <div className="inline-form-group">
+                          <label>Specify Religion</label>
+                          <input type="text" name="religionOther" value={editFormData.religionOther} onChange={handleEditChange} placeholder="Enter religion" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="card-content">
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">Category</span>
+                        <span className="info-value">{displayData?.category || "N/A"}</span>
+                      </div>
+                    </div>
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">Religion</span>
+                        <span className="info-value">{displayData?.religion || "N/A"}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Family Information Card - INLINE EDITABLE */}
+              <div className="info-card">
+                <div className="card-header">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13.3333 17.5V15.8333C13.3333 14.9493 12.9821 14.1014 12.357 13.4763C11.7319 12.8512 10.884 12.5 9.99996 12.5H4.16663C3.28257 12.5 2.43473 12.8512 1.80961 13.4763C1.18449 14.1014 0.833292 14.9493 0.833292 15.8333V17.5M17.5 17.5V15.8333C17.4994 15.0948 17.2546 14.3773 16.8038 13.7936C16.353 13.2099 15.7219 12.7928 15.0083 12.6083M12.5 2.60833C13.2153 2.79118 13.8484 3.20845 14.3005 3.79358C14.7526 4.37871 14.9979 5.09836 14.9979 5.83917C14.9979 6.57997 14.7526 7.29962 14.3005 7.88475C13.8484 8.46988 13.2153 8.88715 12.5 9.07M9.99996 5.83333C9.99996 7.67428 8.50759 9.16667 6.66663 9.16667C4.82568 9.16667 3.33329 7.67428 3.33329 5.83333C3.33329 3.99238 4.82568 2.5 6.66663 2.5C8.50759 2.5 9.99996 3.99238 9.99996 5.83333Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <h3>Family Information</h3>
+                  <div className="card-header-actions">
+                    <CardEditControls cardKey="family" onClear={handleCardClear} />
+                  </div>
+                </div>
+
+                {editingCard === 'family' ? (
+                  <div className="card-inline-form">
+                    {cardError && <div className="alert alert-danger py-2 px-3 mb-2" style={{ fontSize: "0.85rem" }}>{cardError}</div>}
+                    <div className="inline-form-row">
+                      <div className="inline-form-group">
+                        <label>Father's Name</label>
+                        <input type="text" name="fatherName" value={editFormData.fatherName} onChange={handleEditChange} placeholder="Father's full name" />
+                      </div>
+                      <div className="inline-form-group">
+                        <label>Father's Contact Number</label>
+                        <input type="tel" name="fatherNumber" value={editFormData.fatherNumber} onChange={handleEditChange} placeholder="Father's phone number" required />
+                      </div>
+                    </div>
+                    <div className="inline-form-row">
+                      <div className="inline-form-group">
+                        <label>Mother's Name</label>
+                        <input type="text" name="motherName" value={editFormData.motherName} onChange={handleEditChange} placeholder="Mother's full name" />
+                      </div>
+                      <div className="inline-form-group">
+                        <label>Mother's Contact Number</label>
+                        <input type="tel" name="motherNumber" value={editFormData.motherNumber} onChange={handleEditChange} placeholder="Mother's phone number" />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="card-content">
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">Father's Name</span>
+                        <span className="info-value">{displayData?.fatherName || "N/A"}</span>
+                      </div>
+                    </div>
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">Father's Contact Number</span>
+                        <span className="info-value">{displayData?.fatherNumber || "N/A"}</span>
+                      </div>
+                    </div>
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">Mother's Name</span>
+                        <span className="info-value">{displayData?.motherName || "N/A"}</span>
+                      </div>
+                    </div>
+                    <div className="info-row">
+                      <div className="info-text">
+                        <span className="info-label">Mother's Contact Number</span>
+                        <span className="info-value">{displayData?.motherNumber || "N/A"}</span>
                       </div>
                     </div>
                   </div>
@@ -841,6 +1099,82 @@ const UserProfile = () => {
                 </Form.Group>
               </div>
             </div> */}
+
+            <hr />
+            <h6 className="mb-3 text-muted fw-bold">Additional Information</h6>
+            <div className="row">
+              <div className="col-md-6 mb-3">
+                <Form.Group>
+                  <Form.Label>Category</Form.Label>
+                  <Form.Select name="category" value={editFormData.category} onChange={handleEditChange}>
+                    <option value="">Select Category</option>
+                    <option value="general">General</option>
+                    <option value="obc">OBC</option>
+                    <option value="sc">SC</option>
+                    <option value="st">ST</option>
+                    <option value="other">Other</option>
+                  </Form.Select>
+                </Form.Group>
+              </div>
+              {editFormData.category === 'other' && (
+                <div className="col-md-6 mb-3">
+                  <Form.Group>
+                    <Form.Label>Specify Category</Form.Label>
+                    <Form.Control type="text" name="categoryOther" value={editFormData.categoryOther} onChange={handleEditChange} placeholder="Enter category" />
+                  </Form.Group>
+                </div>
+              )}
+              <div className="col-md-6 mb-3">
+                <Form.Group>
+                  <Form.Label>Religion</Form.Label>
+                  <Form.Select name="religion" value={editFormData.religion} onChange={handleEditChange}>
+                    <option value="">Select Religion</option>
+                    <option value="hindu">Hindu</option>
+                    <option value="muslim">Muslim</option>
+                    <option value="sikh">Sikh</option>
+                    <option value="christian">Christian</option>
+                    <option value="other">Other</option>
+                  </Form.Select>
+                </Form.Group>
+              </div>
+              {editFormData.religion === 'other' && (
+                <div className="col-md-6 mb-3">
+                  <Form.Group>
+                    <Form.Label>Specify Religion</Form.Label>
+                    <Form.Control type="text" name="religionOther" value={editFormData.religionOther} onChange={handleEditChange} placeholder="Enter religion" />
+                  </Form.Group>
+                </div>
+              )}
+            </div>
+
+            <hr />
+            <h6 className="mb-3 text-muted fw-bold">Family Information</h6>
+            <div className="row">
+              <div className="col-md-6 mb-3">
+                <Form.Group>
+                  <Form.Label>Father's Name</Form.Label>
+                  <Form.Control type="text" name="fatherName" value={editFormData.fatherName} onChange={handleEditChange} placeholder="Father's full name" />
+                </Form.Group>
+              </div>
+              <div className="col-md-6 mb-3">
+                <Form.Group>
+                  <Form.Label>Father's Contact Number <span style={{ color: "#dc3545" }}>*</span></Form.Label>
+                  <Form.Control type="tel" name="fatherNumber" value={editFormData.fatherNumber} onChange={handleEditChange} placeholder="Father's phone number" required />
+                </Form.Group>
+              </div>
+              <div className="col-md-6 mb-3">
+                <Form.Group>
+                  <Form.Label>Mother's Name</Form.Label>
+                  <Form.Control type="text" name="motherName" value={editFormData.motherName} onChange={handleEditChange} placeholder="Mother's full name" />
+                </Form.Group>
+              </div>
+              <div className="col-md-6 mb-3">
+                <Form.Group>
+                  <Form.Label>Mother's Contact Number</Form.Label>
+                  <Form.Control type="tel" name="motherNumber" value={editFormData.motherNumber} onChange={handleEditChange} placeholder="Mother's phone number" />
+                </Form.Group>
+              </div>
+            </div>
 
             <hr />
             <h6 className="mb-3 text-muted fw-bold">Emergency Contact</h6>

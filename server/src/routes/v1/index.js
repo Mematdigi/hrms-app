@@ -20,6 +20,7 @@ const officeDocument      = require('./officeDocumentRoutes');
 const personalDocument    = require('./personalDocumentRoutes');
 const resignationRoutes   = require('./resignationRoutes'); 
 const offboardingRoutes = require('./offboardingRoutes');
+const regularizationRoutes = require('./regularizationRoutes');
 
 // Mount all v1 routes here
 const defaultRoutes = [
@@ -36,6 +37,7 @@ const defaultRoutes = [
   { path: '/personal-documents', route: personalDocument },
   { path: '/resignations',       route: resignationRoutes }, 
   { path: '/offboarding', route: offboardingRoutes },
+  { path: '/regularization',     route: regularizationRoutes },
 ];
 
 defaultRoutes.forEach(({ path, route }) => router.use(path, route));

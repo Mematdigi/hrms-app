@@ -142,9 +142,11 @@ const Navbar = () => {
   useEffect(() => {
     if (!user) return;
     fetchNotifications();
-    pollRef.current = setInterval(silentPoll, 15000);
+    pollRef.current = setInterval(silentPoll, 300000);
     return () => clearInterval(pollRef.current);
-  }, [user, fetchNotifications, silentPoll]);
+  }, [user, fetchNotifications]);
+
+  
 
   // ── Close on outside click ─────────────────────────────────────────────────
   useEffect(() => {

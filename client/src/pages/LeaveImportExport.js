@@ -360,7 +360,7 @@ const ViewLeavesModal = ({ open, onClose }) => {
     };
 
     return (
-        <Modal open={open} onClose={handleClose} title="Leave Data" subtitle={`${total} record${total !== 1 ? 's' : ''} found`} maxWidth={1100}>
+        <Modal open={open} onClose={handleClose} title="Leave Data" subtitle={`${total} record${total !== 1 ? 's' : ''} found`}>
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
                 {/* ── Filters Bar ── */}

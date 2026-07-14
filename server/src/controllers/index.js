@@ -1,8 +1,3 @@
-/*
- * Copper Digital Inc
- * Copyright (c) 2023-Present Copper Digital
- * Contact at copperdigital.com
- */
 
 module.exports.attendanceController  = require('./attendanceController');
 module.exports.authController        = require('./authController');
@@ -17,3 +12,4 @@ module.exports.officeDocumentController = require('./officeDocumentController');
 module.exports.personalDocumentController = require('./PersonalDocumentController');
 module.exports.resignationController = require('./resignationController'); 
 module.exports.offboardingController = require('./offboardingController');
+module.exports.regularizationController = require('./regularizationController');

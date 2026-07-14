@@ -72,6 +72,20 @@ export const attendanceAPI = {
   approveEarlyCheckout:  (data)   => api.post('/attendance/approve-early-checkout', data),
 };
 
+// ── Attendance Regularization ────────────────────────────────────────────────
+export const regularizationAPI = {
+  /** Employee: submit a new regularization request — { employeeId, date, reason } */
+  submit: (data) => api.post('/regularization', data),
+  /** Employee: view own requests */
+  getMine: (employeeId) => api.get('/regularization/my', { params: { employeeId } }),
+  /** HR/Admin: view all requests, optional { status: 'pending' | 'approved' | 'rejected' } */
+  getAll: (params) => api.get('/regularization', { params }),
+  /** HR/Admin: approve — { hrId } */
+  approve: (id, data) => api.put(`/regularization/${id}/approve`, data),
+  /** HR/Admin: reject — { hrId, rejectionReason } */
+  reject: (id, data) => api.put(`/regularization/${id}/reject`, data),
+};
+
 export const leaveAPI = {
   apply:          (data)       => api.post('/leave/apply', data),
   getRequests:    (params)     => api.get('/leave/requests', { params }),

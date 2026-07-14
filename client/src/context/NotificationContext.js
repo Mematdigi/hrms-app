@@ -210,33 +210,57 @@ export const NotificationProvider = ({ children }) => {
   // ── Poll for new unread notifications (show toast for new ones) ───────────
   const lastSeenIdRef = useRef(null);
   const pollRef       = useRef(null);
+  const shownIdsRef = useRef(new Set());
 
-  const pollNewNotifications = useCallback(async () => {
-    if (!user) return;
-    try {
-      const res  = await notificationAPI.getAll({ limit: 5, unread: 'true' });
-      const list = res.data?.notifications || [];
-      if (!list.length) return;
+const pollNewNotifications = useCallback(async () => {
+  if (!user) return;
 
-      const newest = list[0];
-      if (!newest) return;
+  try {
+    const res = await notificationAPI.getAll({
+      limit: 5,
+      unread: 'true',
+    });
 
-      // First load: just set the reference, don't toast
-      if (lastSeenIdRef.current === null) {
-        lastSeenIdRef.current = newest._id;
-        return;
-      }
+    const list = res.data?.notifications || [];
 
-      // Toast any notifications newer than last seen
-      const newOnes = list.filter(n => n._id !== lastSeenIdRef.current && !n.isRead);
-      if (newOnes.length > 0) {
-        lastSeenIdRef.current = list[0]._id;
-        // Show toast for the most recent one (avoid flooding)
-        const n = newOnes[0];
-        showToast({ type: n.type, title: n.title, message: n.message });
-      }
-    } catch { /* silent */ }
-  }, [user, showToast]);
+    if (!list.length) return;
+
+    const newest = list[0];
+
+    // First load: don't show old unread notifications
+    if (lastSeenIdRef.current === null) {
+      lastSeenIdRef.current = newest._id;
+
+      // Remember existing unread notifications
+      list.forEach(n => shownIdsRef.current.add(n._id));
+
+      return;
+    }
+
+    // Find notifications that haven't been shown yet
+    const newOnes = list.filter(
+      n => !shownIdsRef.current.has(n._id)
+    );
+
+    if (newOnes.length > 0) {
+      // Remember these notifications
+      newOnes.forEach(n => shownIdsRef.current.add(n._id));
+
+      lastSeenIdRef.current = newest._id;
+
+      // Show only the newest notification
+      const notification = newOnes[0];
+
+      showToast({
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+      });
+    }
+  } catch (err) {
+    console.error('Notification polling failed:', err);
+  }
+}, [user, showToast]);
 
   useEffect(() => {
     if (!user) return;
