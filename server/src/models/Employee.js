@@ -37,6 +37,14 @@ const employeeSchema = new mongoose.Schema({
   password: {
     type: String
   },
+  // ── Reversible (plaintext) copy of the login password, kept in sync with User.password
+  //    so admins/HR can view & edit it in the UI. select:false → NEVER returned by list
+  //    endpoints; only surfaced by getEmployeeById which explicitly selects it. ──
+  currentPassword: {
+    type: String,
+    default: '',
+    select: false
+  },
   department: {
     type: String,
     default: ''
@@ -181,7 +189,8 @@ const employeeSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Note: Password handled by User model only
-// Employee password optional/not used for auth
+// Note: Password handled by User model only (bcrypt-hashed there).
+// Employee.password / Employee.currentPassword are plaintext copies used for
+// display/edit convenience only — not used for authentication.
 
 module.exports = mongoose.model('Employee', employeeSchema);

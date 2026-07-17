@@ -860,7 +860,7 @@ function Attendance() {
                 <option value="">All Status</option>
                 <option value="present">Present</option>
                 <option value="absent">Absent</option>
-                <option value="Overtime">OverTime</option>
+                <option value="overtime">OverTime</option>
                 <option value="half-day">Half Day</option>
               </select>
 

@@ -160,7 +160,7 @@ function Employees() {
             contact: employee.contact || '',
             address: employee.address || '',
             currentAddress: employee.currentAddress || '',
-            password: '',
+            password: employee.currentPassword || '',
             department: employee.department || '',
             designation: employee.designation || '',
             dateOfJoining: employee.dateOfJoining ? new Date(employee.dateOfJoining).toISOString().split('T')[0] : '',
@@ -1048,7 +1048,28 @@ function Employees() {
                                             </select>
                                         </div>
                                         <div className="input-group"><label>Base Salary</label><input type="number" name="baseSalary" value={formData.baseSalary} onChange={handleChange} /></div>
-                                        <div className="input-group password-input-group"><label>Password {viewMode === 'add' && <span className="req">*</span>}</label><div className="password-input-wrapper"><input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} required={viewMode === 'add'} placeholder={viewMode === 'edit' ? "Leave empty to keep current" : ""} /><button type="button" className="password-toggle-btn" onClick={() => setShowPassword(!showPassword)} title={showPassword ? "Hide password" : "Show password"}><i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i></button></div></div>
+                                        <div className="input-group password-input-group">
+                                            <label>
+                                                Password {viewMode === 'add' && <span className="req">*</span>}
+                                            </label>
+                                            <div className="password-input-wrapper">
+                                                <input
+                                                    type={showPassword ? "text" : "password"}
+                                                    name="password"
+                                                    value={formData.password}
+                                                    onChange={handleChange}
+                                                    required={viewMode === 'add'}
+                                                    placeholder={viewMode === 'edit' ? "Current password — edit to change" : "Enter password"}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="password-toggle-btn"
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                >
+                                                    <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 

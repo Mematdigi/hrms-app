@@ -162,6 +162,7 @@ class EmployeeController {
   // ─── GET ALL EMPLOYEES ─────────────────────────────────────────────────────
   getAllEmployees = async (req, res) => {
     try {
+      // NOTE: currentPassword is select:false → intentionally NOT returned here.
       const employees = await Employee.find().select('-password').lean();
       const decrypted = employees.map(decryptEmployee);
       res.json(decrypted);
@@ -173,17 +174,28 @@ class EmployeeController {
   // ─── GET EMPLOYEE BY ID ────────────────────────────────────────────────────
   getEmployeeById = catchAsync(async (req, res) => {
     try {
-      let employee = await Employee.findById(req.params.id).select('-password').lean();
+      // ── +currentPassword: explicitly pull the reversible password copy (select:false in schema) ──
+      let employee = await Employee.findById(req.params.id).select('+currentPassword').lean();
+
       if (!employee) {
         const userDoc = await User.findById(req.params.id).select('-password').lean();
         if (!userDoc) return res.status(404).json({ message: 'Employee not found' });
         employee = userDoc;
       }
 
+      // ── Resolve a viewable password: prefer currentPassword, fall back to legacy plaintext `password` ──
+      const rawPassword = employee.currentPassword || employee.password || '';
+      delete employee.password;        // never expose the raw/legacy field directly
+      delete employee.currentPassword; // re-attached explicitly below (after decrypt)
+
       const decrypted = decryptEmployee(employee);
       const previousEmployment = await PreviousEmployment.findOne({ employee: req.params.id }).lean();
 
-      res.json({ ...decrypted, previousEmployment: previousEmployment || null });
+      res.json({
+        ...decrypted,
+        currentPassword: rawPassword,
+        previousEmployment: previousEmployment || null,
+      });
     } catch (error) {
       throw new ApiError(500, error.message);
     }
@@ -261,6 +273,7 @@ class EmployeeController {
         lastName:     b.lastName,
         email:        b.email,
         password:     b.password,
+        currentPassword: b.password, // ── viewable copy for the edit form ──
         department:   safe(b.department),
         designation:  safe(b.designation),
         dateOfJoining:  safeDate(b.dateOfJoining),
@@ -750,6 +763,7 @@ class EmployeeController {
                 _id: user._id,
                 employeeId, firstName, lastName, email,
                 password:   defaultPassword,
+                currentPassword: defaultPassword, // ── viewable copy for the edit form ──
                 department, designation,
                 dateOfJoining, dateOfBirth, lastWorkingDay,
                 baseSalary:   enc.baseSalary,
@@ -945,6 +959,9 @@ class EmployeeController {
         },
       };
 
+      // ── Keep the viewable password copy in sync whenever a new password is provided ──
+      if (b.password) updateData.currentPassword = b.password;
+
       let employee;
       if (isUserOnly) {
         // For User-only (admin/HR): Create Employee record + update User
@@ -1032,7 +1049,7 @@ class EmployeeController {
       };
       await User.findByIdAndUpdate(req.params.id, userUpdate);
 
-      // ── Update password separately (triggers pre-save hash) ──
+      // ── Update password separately (triggers pre-save hash on User) ──
       if (b.password) {
         const userDoc = await User.findById(req.params.id);
         if (userDoc) { userDoc.password = b.password; await userDoc.save(); }
