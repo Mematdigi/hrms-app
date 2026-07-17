@@ -1,0 +1,99 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
+import Employees from './pages/Employees';
+import Attendance from './pages/Attendance';
+import Leave from './pages/Leave';
+import Payroll from './pages/Payroll';
+import Performance from './pages/Performance';
+import RoleManagement from './pages/RoleManagement';
+import Navbar from './components/Navbar';
+import AllEmployeesAttendance from './pages/AllEmployeeAttendance';
+import './assets/scss/main.scss'
+import Notfound from './pages/Notfound';
+import EmployeeDetails from './pages/EmployeeDetails';
+import 'bootstrap-icons/font/bootstrap-icons.css';
+import UserProfile from './pages/UserProfile';
+import { NotificationProvider } from './context/NotificationContext';
+import UploadOfficeDocument from './pages/UploadOfficeDocument';
+import OffBoarding from './pages/OffBoarding';
+import MobileBlock from './pages/MobileBlock';
+
+// New: hierarchy, TL-owned task reports, TL weekly reports, scoring/analytics
+import Hierarchy from './pages/Hierarchy';
+import TaskReport from './pages/TaskReport';
+import WeeklyReport from './pages/WeeklyReport';
+import Analytics from './pages/Analytics';
+import TLDashboard from './pages/TLDashboard';
+import ScoringSettings from './pages/ScoringSettings';
+
+const isMobileDevice = () => {
+  const ua = navigator.userAgent;
+
+  const mobileUA = /android|iphone|ipad|ipod|blackberry|windows phone|mobile/i.test(ua);
+
+  const smallScreen = window.screen.width <= 768;
+
+  return mobileUA || smallScreen;
+};
+
+
+function App() {
+  const { token, user } = useSelector((state) => state.auth);
+
+  const currentEmployeeId = Number(user?.employeeId || user?.id);
+
+  if (isMobileDevice() && currentEmployeeId !== 16 && currentEmployeeId !== 32 && currentEmployeeId !== 22) {
+    return <MobileBlock />;
+  }
+
+  return (
+    <NotificationProvider>
+      <Router>
+        {token && <Navbar />}
+        <Routes>
+          <Route path="/login" element={!token ? <Login /> : <Navigate to="/dashboard" />} />
+          <Route path="/register" element={!token ? <Register /> : <Navigate to="/dashboard" />} />
+          <Route path="/dashboard" element={token ? <Dashboard /> : <Navigate to="/login" />} />
+          <Route path="/employees" element={token ? <Employees /> : <Navigate to="/login" />} />
+          <Route path="/attendance" element={token ? <Attendance /> : <Navigate to="/login" />} />
+          <Route path="/leave" element={token ? <Leave /> : <Navigate to="/login" />} />
+          <Route path="/payroll" element={token ? <Payroll /> : <Navigate to="/login" />} />
+          <Route path="/performance" element={token ? <Performance /> : <Navigate to="/login" />} />
+          <Route path="/roles" element={token ? <RoleManagement /> : <Navigate to="/login" />} />
+          <Route path="/offboarding" element={token ? <OffBoarding /> : <Navigate to="/login" />} />
+          <Route path="/office-document-upload" element={token ? <UploadOfficeDocument /> : <Navigate to="/login" />} />
+          <Route path="/profile-settings" element={token ? <UserProfile /> : <Navigate to="/login" />} />
+          <Route path="/all_employee_attendance" element={token ? <AllEmployeesAttendance /> : <Navigate to="/login" />} />
+
+          {/* ── Company hierarchy — all roles can view; admin/hr/manager can edit ── */}
+          <Route path="/hierarchy" element={token ? <Hierarchy /> : <Navigate to="/login" />} />
+
+          {/* ── Task Report — TL creates/edits, employee READ-ONLY ── */}
+          <Route path="/task-report" element={token ? <TaskReport /> : <Navigate to="/login" />} />
+
+          {/* ── TL Weekly Report — TL submits, HR/manager audit ── */}
+          <Route path="/weekly-report" element={token ? <WeeklyReport /> : <Navigate to="/login" />} />
+
+          {/* ── Scoring analytics — role-scoped server-side ── */}
+          <Route path="/analytics" element={token ? <Analytics /> : <Navigate to="/login" />} />
+
+          {/* ── Team Lead landing page ── */}
+          <Route path="/tl-dashboard" element={token ? <TLDashboard /> : <Navigate to="/login" />} />
+
+          {/* ── Admin-editable scoring rules engine ── */}
+          <Route path="/scoring-settings" element={token ? <ScoringSettings /> : <Navigate to="/login" />} />
+
+          <Route path="/" element={<Navigate to={"/login"} />} />
+          <Route path="/EmployeeDetails/:id" element={<EmployeeDetails />} />
+          <Route path="*" element={<Notfound />} />
+        </Routes>
+      </Router>
+    </NotificationProvider>
+  );
+}
+
+export default App;

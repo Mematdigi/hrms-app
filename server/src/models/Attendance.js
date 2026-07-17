@@ -1,0 +1,54 @@
+const mongoose = require('mongoose');
+
+const attendanceSchema = new mongoose.Schema({
+  employee: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  username: { type: String },
+  date: { type: Date, required: true },
+  checkInTime: { type: Date },
+  checkOutTime: { type: Date },
+  status: { 
+    type: String, 
+    enum: ['present', 'absent', 'half-day','late','short-leave', 'leave', 'working', 'pending-approval'], 
+    default: 'absent' 
+  },
+  workingHours: { type: Number },
+  notes: { type: String },
+  earlyCheckoutRequest: {
+    requested: { type: Boolean, default: false },
+    reason: { type: String },
+    requestedAt: { type: Date },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    approvedAt: { type: Date }
+  },
+
+  // ── Regularization tracking (added) ──────────────────────────────
+  // True when this record's times were set via an approved regularization
+  // request rather than an actual punch-in/punch-out.
+  isRegularized: { type: Boolean, default: false },
+  // Reference back to the Regularization document that produced this record.
+  regularizedFrom: { type: mongoose.Schema.Types.ObjectId, ref: 'Regularization' },
+  // ──────────────────────────────────────────────────────────────────
+
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+attendanceSchema.index({ employee: 1, date: 1 }, { unique: true });
+
+attendanceSchema.pre('save', async function(next) {
+  if (!this.username && this.employee) {
+    try {
+      const User = mongoose.model('User');
+      const user = await User.findById(this.employee);
+      if (user) {
+        this.username = `${user.firstName} ${user.lastName}`;
+      }
+    } catch (error) {
+      console.error('Error setting username in attendance:', error);
+    }
+  }
+  next();
+});
+
+module.exports = mongoose.model('Attendance', attendanceSchema);

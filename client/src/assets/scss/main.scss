@@ -1,0 +1,32 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// main.scss — central SCSS entry point
+//
+// ⚠️ _variables and _base MUST stay first: every partial below depends on the
+//    shared design tokens ($color-*, mixins, heading scale) they define.
+// ═══════════════════════════════════════════════════════════════════════════
+@import "_variables";
+@import "_base";
+
+// ── Existing pages ─────────────────────────────────────────────────────────
+@import "_App";
+@import "_Attendance";
+@import "_Auth";
+@import "_Dashboard";
+@import "_Employees";
+@import "_Leave";
+@import "_Navbar";
+@import "_Payroll";
+@import "_Performance";
+@import "_Rolemanagement";
+@import "_AllEmployeeAttendance";
+@import "EmployeeDetails";
+@import "_UserProfile";
+@import "_uploadOfficeDocument";
+@import "_OffBoarding";
+
+// ── New pages ──────────────────────────────────────────────────────────────
+@import "_Hierarchy";
+@import "_TaskReport";
+@import "_WeeklyReport";
+@import "_Analytics";
+@import "_TLDashboard";

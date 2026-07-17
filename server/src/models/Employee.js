@@ -1,0 +1,187 @@
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const employeeSchema = new mongoose.Schema({
+  employeeId: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  firstName: {
+    type: String,
+    required: true
+  },
+  lastName: {
+    type: String,
+    required: true
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true
+  },
+  personalEmail: { type: String, default: '' },
+  contact: {
+    type: String,
+    required: true
+  },
+  address: {
+    type: String,
+    default: ''
+  },
+  currentAddress: {
+    type: String,
+    default: ''
+  },
+  password: {
+    type: String
+  },
+  department: {
+    type: String,
+    default: ''
+  },
+  designation: {
+    type: String,
+    default: ''
+  },
+  dateOfJoining: {
+    type: Date,
+    default: null
+  },
+  dateOfBirth: {
+    type: Date,
+    default: null
+  },
+  lastWorkingDay: {
+    type: Date,
+    default: null
+  },
+  // Mixed type so it can store either a plain Number (old records)
+  // or an AES-encrypted string (new records)
+  baseSalary: {
+    type: mongoose.Schema.Types.Mixed,
+    default: 0
+  },
+  status: {
+    type: String,
+    enum: ['Full Time', 'Internship','Inter-wfh','Target Based'],
+    default: 'Full Time'
+  },
+  periodType: {
+    type: String,
+    enum: ['Probation', 'Permanent', 'Contractual', 'Target Based','Intern'],
+    default: 'Permanent'
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  role: {
+    type: String,
+    default: 'employee'
+  },
+
+  // Gender — NO enum so empty string / any value is accepted
+  gender: {
+    type: String,
+    default: ''
+  },
+  maritalStatus: {
+    type: String,
+    default: ''
+  },
+  nationality: {
+    type: String,
+    default: ''
+  },
+
+  // ── Category & Religion (supports custom "Other" values, so no enum) ──
+  category: {
+    type: String,
+    default: ''
+  },
+  religion: {
+    type: String,
+    default: ''
+  },
+
+  // ── Family Information ──
+  fatherName: {
+    type: String,
+    default: ''
+  },
+  fatherNumber: {
+    type: String,
+    default: ''
+  },
+  motherName: {
+    type: String,
+    default: ''
+  },
+  motherNumber: {
+    type: String,
+    default: ''
+  },
+
+  // Identity
+  panNumber: {
+    type: String,
+    default: ''
+  },
+  aadharNumber: {
+    type: String,
+    default: ''
+  },
+
+  // Work Mode
+  workMode: {
+    type: String,
+    enum: ['Work From Office', 'Work From Home', 'Hybrid'],
+    default: 'Work From Office'
+  },
+
+  // Bank Details
+  bankName: {
+    type: String,
+    default: ''
+  },
+  bankAccountNumber: {
+    type: String,
+    default: ''
+  },
+  ifscCode: {
+    type: String,
+    default: ''
+  },
+
+  // Emergency Contact
+  emergencyContactName: {
+    type: String,
+    default: ''
+  },
+  emergencyContactPhone: {
+    type: String,
+    default: ''
+  },
+  emergencyContactRelation: {
+    type: String,
+    default: ''
+  },
+
+  // Document Paths
+  profilePhoto: { type: String, default: null },
+  documents: {
+    adharCard:        { type: String, default: null },
+    panCard:          { type: String, default: null },
+    salarySlip:       { type: String, default: null },
+    relievingLetter:  { type: String, default: null },
+    experienceLetter: { type: String, default: null },
+    offerLetter:      { type: String, default: null }
+  }
+}, { timestamps: true });
+
+// Note: Password handled by User model only
+// Employee password optional/not used for auth
+
+module.exports = mongoose.model('Employee', employeeSchema);

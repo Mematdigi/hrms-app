@@ -1,0 +1,271 @@
+// ── Employee Analytics / Scoring ──────────────────────────────────────────
+.analytics-page {
+  .an-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+
+    @media (max-width: 992px) { grid-template-columns: 1fr; }
+  }
+
+  .an-card {
+    @include card;
+    h3 { margin: 0 0 3px; }
+    .an-card-sub { font-size: 12px; color: $color-text-muted; margin-bottom: 16px; }
+    .an-chart-box { position: relative; height: 280px; }
+  }
+
+  // Big score dial
+  .score-hero {
+    @include card;
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+
+    .score-ring {
+      position: relative;
+      width: 128px; height: 128px;
+      flex-shrink: 0;
+
+      .score-ring-value {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+
+        .srv-num { font-size: 30px; font-weight: 700; color: $color-text-primary; line-height: 1; }
+        .srv-max { font-size: 12px; color: $color-text-muted; margin-top: 2px; }
+      }
+    }
+
+    .score-hero-body { flex: 1; min-width: 240px; }
+    .score-band { margin-top: 8px; }
+
+    .score-buckets {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+
+      .sb-item {
+        background: $color-surface-alt;
+        border: 1px solid $color-border;
+        border-radius: $radius-md;
+        padding: 10px 12px;
+
+        .sb-label { font-size: 11px; color: $color-text-muted; text-transform: uppercase; letter-spacing: 0.04em; }
+        .sb-value { font-size: 17px; font-weight: 700; margin-top: 3px; }
+        .sb-bar {
+          height: 5px;
+          background: $color-border;
+          border-radius: 999px;
+          margin-top: 7px;
+          overflow: hidden;
+
+          i {
+            display: block;
+            height: 100%;
+            border-radius: 999px;
+            background: $color-secondary;
+          }
+        }
+        &.weakest {
+          border-color: rgba($color-accent, 0.5);
+          background: rgba($color-accent, 0.05);
+          .sb-bar i { background: $color-accent; }
+        }
+      }
+    }
+  }
+
+  // Nakshatra progress
+  .nakshatra-card {
+    @include card;
+    background: linear-gradient(135deg, rgba($color-secondary, 0.04), rgba($color-accent, 0.05));
+    border-color: rgba($color-accent, 0.3);
+
+    .nk-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .nk-total {
+      font-size: 27px;
+      font-weight: 700;
+      color: $color-text-primary;
+      span { font-size: 15px; color: $color-text-muted; font-weight: 500; }
+    }
+    .nk-track {
+      height: 13px;
+      background: rgba($color-text-muted, 0.14);
+      border-radius: 999px;
+      overflow: hidden;
+
+      .nk-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, $color-secondary, $color-accent);
+        transition: width 0.6s ease;
+      }
+    }
+    .nk-legend {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 9px;
+      font-size: 12px;
+      color: $color-text-muted;
+    }
+    .nk-bonus {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 12px;
+      background: rgba($color-accent, 0.13);
+      color: darken($color-accent, 14%);
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+  }
+
+  // "Area of Improvement" — data driven, never hardcoded copy
+  .improvement-card {
+    @include card;
+    border-left: 4px solid $color-accent;
+
+    .imp-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px dashed $color-border;
+      &:last-child { border-bottom: none; }
+
+      .imp-icon {
+        width: 32px; height: 32px;
+        border-radius: $radius-sm;
+        background: rgba($color-accent, 0.13);
+        color: $color-accent;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+      }
+      .imp-text { font-size: 13px; line-height: 1.55; color: $color-text-primary; }
+      .imp-gain {
+        font-size: 12px;
+        font-weight: 700;
+        color: $color-success;
+        margin-top: 3px;
+      }
+    }
+    .imp-empty { color: $color-success; font-weight: 600; font-size: 13px; }
+  }
+
+  // Simulator
+  .simulator-card {
+    @include card;
+
+    .sim-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 11px 0;
+      border-bottom: 1px dashed $color-border;
+      &:last-of-type { border-bottom: none; }
+    }
+    .sim-result {
+      margin-top: 16px;
+      background: rgba($color-success, 0.08);
+      border: 1px solid rgba($color-success, 0.3);
+      border-radius: $radius-md;
+      padding: 14px;
+      text-align: center;
+
+      .sim-score { font-size: 26px; font-weight: 700; color: $color-success; }
+      .sim-delta { font-size: 12px; color: $color-text-muted; margin-top: 3px; }
+    }
+    input[type='range'] { width: 100%; accent-color: $color-accent; }
+  }
+
+  // Leaderboard
+  .leaderboard-card {
+    @include card;
+    padding: 0;
+    overflow: hidden;
+
+    .lb-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px;
+      border-bottom: 1px solid $color-border;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .lb-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .lb-rank {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+      font-size: 12px;
+      background: $color-surface-alt;
+      color: $color-text-muted;
+
+      &.top-1 { background: rgba($color-accent, 0.16); color: darken($color-accent, 12%); }
+      &.top-2 { background: rgba($color-secondary, 0.13); color: $color-secondary; }
+      &.top-3 { background: rgba($color-accent-light, 0.2); color: darken($color-accent-light, 22%); }
+    }
+    .lb-me { background: rgba($color-accent, 0.05) !important; }
+  }
+
+  .score-pill {
+    display: inline-block;
+    min-width: 52px;
+    text-align: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 13px;
+
+    &.excellent { background: rgba($color-score-excellent, 0.12); color: $color-score-excellent; }
+    &.good      { background: rgba($color-score-good, 0.12);      color: $color-score-good; }
+    &.average   { background: rgba($color-score-average, 0.2);    color: darken($color-score-average, 20%); }
+    &.poor      { background: rgba($color-score-poor, 0.11);      color: $color-score-poor; }
+  }
+}
+
+// ── Scoring Settings (admin rules editor) ─────────────────────────────────
+.scoring-settings-page {
+  .ss-section {
+    @include card;
+    margin-bottom: 18px;
+
+    h3 { margin: 0 0 3px; }
+    .ss-sub { font-size: 12px; color: $color-text-muted; margin-bottom: 16px; }
+
+    .ss-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px;
+    }
+  }
+  .ss-note {
+    background: rgba($color-accent, 0.07);
+    border-left: 3px solid $color-accent;
+    border-radius: $radius-sm;
+    padding: 11px 14px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    margin-bottom: 18px;
+  }
+}

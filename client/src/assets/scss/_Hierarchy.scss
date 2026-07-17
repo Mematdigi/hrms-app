@@ -1,0 +1,197 @@
+// ── Hierarchy Page Styles (Compact & Responsive) ─────────────────────────
+.hierarchy-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 80px); // Keeps everything on a single screen
+  overflow: hidden;
+
+  .page-header {
+    flex-shrink: 0;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .page-title h1 { font-size: 20px; margin: 0; }
+    .page-subtitle { font-size: 13px; color: #64748B; margin: 4px 0 0; }
+  }
+
+  // ── 1. Org Tree (Compact & Fit to Screen) ──
+  .org-tree-container {
+    flex: 1;
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    width: 100%;
+    overflow: auto; // Only scrolls inside this box if screen is extremely small
+    padding: 24px 16px;
+
+    &::-webkit-scrollbar { width: 6px; height: 6px; }
+    &::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+  }
+
+  .org-tree { display: inline-block; min-width: 100%; }
+  .org-node-row { display: flex; justify-content: center; }
+  
+  .org-node {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 10px;
+  }
+
+  // Compact Node Cards (Fits screen cleanly)
+  .org-card {
+    background: #ffffff;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 10px;
+    padding: 10px 12px;
+    width: 210px; // Compact width prevents horizontal scrollbars
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    position: relative;
+    z-index: 2;
+    transition: transform 0.15s ease;
+
+    &:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.06); }
+
+    .card-top { display: flex; align-items: flex-start; gap: 10px; text-align: left; }
+    .user-avatar {
+      width: 34px; height: 34px; border-radius: 6px;
+      background: #F1F5F9; color: #475569;
+      font-weight: 700; font-size: 13px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .user-info {
+      flex: 1; overflow: hidden;
+      .org-name { font-weight: 700; font-size: 13px; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .me-badge { font-size: 10px; color: #3B82F6; font-weight: 700; margin-left: 4px; }
+      .org-meta { font-size: 11px; color: #64748B; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    }
+
+    .edit-btn {
+      background: transparent; border: none; color: #94A3B8; cursor: pointer; padding: 2px;
+      &:hover { color: #1E293B; }
+    }
+
+    .card-bottom {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 10px; padding-top: 8px; border-top: 1px dashed #E2E8F0;
+    }
+
+    .dep-tag { font-size: 10px; font-weight: 600; color: #64748B; background: #F8FAFC; padding: 2px 6px; border-radius: 4px; }
+
+    .toggle-team-btn {
+      display: flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600;
+      border: none; border-radius: 12px; padding: 3px 8px; cursor: pointer;
+      &.expanded { background: #3B82F6; color: #ffffff; }
+      &.collapsed { background: #FEF3C7; color: #D97706; }
+      .count-badge { font-size: 9px; font-weight: 700; border-radius: 50%; width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.3); }
+    }
+
+    // Level Borders
+    &.level-1 { border-color: #818CF8; .user-avatar { background: #EEF2FF; color: #4F46E5; } }
+    &.level-2 { border-color: #34D399; .user-avatar { background: #ECFDF5; color: #059669; } }
+    &.level-3 { border-color: #60A5FA; .user-avatar { background: #EFF6FF; color: #2563EB; } }
+    &.level-4 { border-color: #F472B6; .user-avatar { background: #FDF2F8; color: #DB2777; } }
+    &.level-5 { border-color: #FBBF24; .user-avatar { background: #FFFBEB; color: #D97706; } }
+
+    &.is-me { border-color: #3B82F6; background: #EFF6FF; }
+  }
+
+  // Connecting Lines
+  .org-children {
+    display: flex; justify-content: center; padding-top: 18px; position: relative;
+    &::before { content: ''; position: absolute; top: 0; left: 50%; width: 2px; height: 18px; background: #CBD5E1; }
+  }
+  .org-child {
+    position: relative; padding-top: 18px;
+    &::before { content: ''; position: absolute; top: 0; left: 50%; width: 2px; height: 18px; background: #CBD5E1; }
+    &::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #CBD5E1; }
+    &:first-child::after { left: 50%; }
+    &:last-child::after  { right: 50%; }
+    &:only-child::after  { display: none; }
+  }
+
+  // ── 2. Redesigned "My Reporting Line" Stepper ──
+  .branch-container {
+    flex: 1;
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #E2E8F0;
+    padding: 24px;
+    overflow-y: auto;
+
+    .branch-header {
+      margin-bottom: 24px;
+      h3 { margin: 0; font-size: 16px; color: #1E293B; }
+      p { margin: 4px 0 0; font-size: 13px; color: #64748B; }
+    }
+
+    .branch-stepper {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap; // Wraps cleanly on smaller screens
+      gap: 12px;
+    }
+
+    .branch-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      padding: 12px 16px;
+      min-width: 220px;
+      position: relative;
+      
+      .branch-level-badge {
+        position: absolute; top: -8px; right: 12px;
+        font-size: 10px; font-weight: 700; background: #E2E8F0; color: #475569;
+        padding: 2px 6px; border-radius: 10px; text-transform: uppercase;
+      }
+
+      .branch-avatar {
+        width: 40px; height: 40px; border-radius: 8px; background: #E2E8F0;
+        color: #1E293B; font-weight: 700; font-size: 14px;
+        display: flex; align-items: center; justify-content: center;
+      }
+
+      .branch-details {
+        .name { font-weight: 700; font-size: 14px; color: #1E293B; }
+        .role { font-size: 12px; font-weight: 600; color: #3B82F6; text-transform: uppercase; margin-top: 1px; }
+        .dep { font-size: 11px; color: #64748B; margin-top: 2px; }
+        .me-badge { background: #3B82F6; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: 6px; }
+      }
+
+      &.level-1 { border-left: 4px solid #818CF8; }
+      &.level-2 { border-left: 4px solid #34D399; }
+      &.level-3 { border-left: 4px solid #60A5FA; }
+      &.level-4 { border-left: 4px solid #F472B6; }
+      &.level-5 { border-left: 4px solid #FBBF24; }
+
+      &.is-me { background: #EFF6FF; border-color: #3B82F6; }
+    }
+
+    .branch-arrow { color: #94A3B8; display: flex; align-items: center; justify-content: center; }
+  }
+
+  // ── 3. Modals & Responsiveness ──
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(2px);
+    display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 16px;
+  }
+  .modal-card { width: 100%; max-width: 420px; background: #fff; border-radius: 10px; padding: 20px; }
+  
+  @media (max-width: 768px) {
+    height: auto;
+    overflow: visible;
+    .page-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .branch-stepper { flex-direction: column; align-items: stretch; }
+    .branch-arrow { transform: rotate(90deg); margin: 4px 0; }
+  }
+}

@@ -1,0 +1,407 @@
+// Reskinned to the shared design system — colors now come from _variables.scss
+// (palette change = one-file edit). See main.scss import order.
+/* Variables */
+$primary-blue: $color-secondary-alt;
+$primary-blue-light: #254baf;
+$success: $color-success;
+$danger: $color-danger;
+$warning: $color-accent-light;
+$info: $color-secondary;
+$gray-100: $color-surface-alt;
+$gray-200: $color-border;
+$gray-300: $color-border-dark;
+$gray-600: $color-text-muted;
+$gray-800: $color-text-primary;
+$bg-color: $color-surface-alt;
+$white: $color-bg-primary;
+
+.payslip-container {
+  padding: 24px;
+  background-color: $bg-color;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+  color: $gray-800;
+
+  h2 {
+    margin-bottom: 24px;
+    font-size: 24px;
+    font-weight: 700;
+    color: $primary-blue;
+  }
+
+  /* Global UI Elements */
+  .badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+
+    &-success { background-color: rgba($success, 0.1); color: darken($success, 10%); }
+    &-danger { background-color: rgba($danger, 0.1); color: darken($danger, 10%); }
+    &-warning { background-color: rgba($warning, 0.2); color: darken($warning, 15%); }
+    &-info { background-color: rgba($info, 0.1); color: darken($info, 10%); }
+    &-light { background-color: $gray-100; color: $gray-600; }
+    &-secondary { background-color: transparent; border: 1px solid $gray-300; color: $gray-600;}
+  }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+    
+    &-primary { background-color: $primary-blue; color: $white; &:hover { background-color: $primary-blue-light; } }
+    &-success { background-color: $success; color: $white; }
+    &-danger { background-color: $danger; color: $white; }
+    &-outline { background-color: $gray-100; color: $gray-800; border: 1px solid $gray-300; &:hover { background-color: $gray-200; } }
+    &-ghost { background-color: transparent; color: $gray-600; &:hover { background-color: $gray-100; } }
+  }
+
+  /* ================= HR VIEW ================= */
+  .hr-payslip-view {
+    
+    .filter-bar {
+      background-color: $primary-blue;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+      
+      .filter-header {
+        color: $white;
+        font-weight: 600;
+        margin-bottom: 16px;
+        font-size: 14px;
+      }
+
+      .filter-inputs {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+
+        input, select {
+          flex: 1;
+          min-width: 150px;
+          padding: 10px 12px;
+          border-radius: 4px;
+          border: none;
+          outline: none;
+          font-size: 14px;
+        }
+
+        .btn-outline {
+          background-color: $white;
+          border: none;
+        }
+      }
+    }
+
+    .pending-requests-card {
+      background: $white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      margin-bottom: 24px;
+      border-left: 4px solid $warning;
+
+      h4 { margin: 0 0 16px 0; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+
+      .request-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: $gray-100;
+        padding: 16px;
+        border-radius: 6px;
+
+        .req-info {
+          h5 { margin: 0 0 4px 0; color: $gray-800; }
+          p { margin: 0 0 4px 0; font-size: 13px; color: $gray-600; }
+          small { color: $gray-600; font-size: 12px; }
+        }
+        .req-actions { display: flex; gap: 10px; }
+      }
+    }
+
+    .table-card {
+      background: $white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      overflow: hidden;
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        
+        th, td {
+          padding: 16px;
+          text-align: left;
+          font-size: 14px;
+          border-bottom: 1px solid $gray-200;
+        }
+
+        th {
+          background-color: $color-bg-primary;
+          color: $gray-600;
+          font-weight: 500;
+        }
+
+        .actions-cell {
+          display: flex;
+          gap: 12px;
+
+          .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: $gray-600;
+            &:hover { color: $primary-blue; }
+            &:disabled { opacity: 0.3; cursor: not-allowed; }
+          }
+        }
+      }
+
+      .pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px;
+        color: $gray-600;
+        font-size: 14px;
+
+        .page-controls {
+          display: flex;
+          gap: 8px;
+
+          button {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            border: 1px solid $gray-300;
+            background: $white;
+            cursor: pointer;
+
+            &.active {
+              background: $primary-blue;
+              color: $white;
+              border-color: $primary-blue;
+            }
+            &:disabled { opacity: 0.5; }
+          }
+        }
+      }
+    }
+  }
+
+  /* ================= EMPLOYEE VIEW ================= */
+  .employee-payslip-view {
+    
+    .view-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      h2 { margin: 0; }
+      .badges { display: flex; gap: 12px; }
+    }
+
+    .filter-card {
+      background: $white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        label { color: $gray-600; font-size: 14px; }
+        select {
+          padding: 8px 12px;
+          border: 1px solid $gray-300;
+          border-radius: 4px;
+          outline: none;
+        }
+        .year { font-weight: 600; color: $gray-800; }
+      }
+    }
+
+    .payslip-card {
+      background: $white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      overflow: hidden;
+      
+      .slip-header {
+        background-color: $primary-blue;
+        color: $white;
+        text-align: center;
+        padding: 24px;
+
+        h3 { margin: 0 0 8px 0; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+        p { margin: 0; font-size: 14px; opacity: 0.9; }
+      }
+
+      .slip-body {
+        padding: 32px;
+
+        .section-title {
+          color: $primary-blue;
+          font-size: 14px;
+          font-weight: 700;
+          margin: 0 0 16px 0;
+          text-transform: uppercase;
+        }
+
+        .details-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          row-gap: 16px;
+          column-gap: 48px;
+          margin-bottom: 40px;
+
+          div {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid $gray-100;
+            padding-bottom: 8px;
+
+            span { color: $gray-600; font-size: 13px; }
+            strong { color: $gray-800; font-size: 13px; text-align: right;}
+          }
+        }
+
+        .salary-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 40px;
+          margin-bottom: 32px;
+
+          .column {
+            .col-title { margin: 0 0 16px 0; font-size: 13px; font-weight: 700; }
+            .text-blue { color: $info; }
+            .text-red { color: $danger; }
+
+            .row {
+              display: flex;
+              justify-content: space-between;
+              padding: 10px 0;
+              font-size: 14px;
+              color: $gray-800;
+              border-bottom: 1px solid $gray-100;
+
+              &.total {
+                font-weight: 700;
+                border-top: 2px solid $gray-200;
+                border-bottom: none;
+                margin-top: 8px;
+              }
+            }
+          }
+        }
+
+        .net-salary-bar {
+          background-color: $primary-blue;
+          color: $white;
+          padding: 16px 24px;
+          border-radius: 6px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 18px;
+          font-weight: 600;
+          
+          .amount { font-size: 24px; font-weight: 700; }
+        }
+      }
+
+      .slip-footer {
+        text-align: center;
+        padding: 24px;
+        font-size: 12px;
+        font-style: italic;
+        color: $gray-600;
+        border-top: 1px solid $gray-200;
+      }
+    }
+
+    .restricted-access, .no-data {
+      text-align: center;
+      padding: 60px 20px;
+      background: $white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      color: $gray-600;
+    }
+  }
+
+  /* ================= MODAL ================= */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+
+    .modal-content {
+      background: $white;
+      padding: 32px;
+      border-radius: 8px;
+      width: 100%;
+      margin: auto;
+      max-width: 450px;
+
+      h3 { margin: 0 0 20px 0; color: $gray-800; }
+      
+      textarea {
+        width: 100%;
+        height: 100px;
+        padding: 12px;
+        border: 1px solid $gray-300;
+        border-radius: 6px;
+        resize: none;
+        margin-bottom: 24px;
+        font-family: inherit;
+        outline: none;
+        &:focus { border-color: $primary-blue; }
+      }
+
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+      }
+    }
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .payslip-container {
+    padding: 16px;
+    
+    .employee-payslip-view .payslip-card .slip-body {
+      padding: 20px;
+      .details-grid, .salary-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+    }
+  }
+}

@@ -1,0 +1,707 @@
+// Reskinned to the shared design system — colors now come from _variables.scss
+// (palette change = one-file edit). See main.scss import order.
+.user-profile {
+  background: $color-surface-alt;
+  min-height: 100vh;
+  padding-bottom: 2rem;
+
+  // Header Section
+  .profile-header {
+    background: white;
+    padding: 2rem;
+    margin-bottom: 0;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+
+    .profile-header-content {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      position: relative;
+    }
+
+    .profile-avatar-section {
+      .profile-avatar {
+        position: relative;
+        width: 120px;
+        height: 120px;
+
+        img {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 4px solid white;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .edit-avatar-btn {
+          position: absolute;
+          bottom: 0;
+          right: 0;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: $color-secondary;
+          border: 3px solid white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.3s ease;
+
+          &:hover {
+            background: $color-secondary;
+            transform: scale(1.05);
+          }
+
+          label {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+          }
+
+          svg {
+            width: 18px;
+            height: 18px;
+          }
+        }
+      }
+    }
+
+    .profile-info {
+      flex: 1;
+
+      .profile-name {
+        font-size: 1.875rem;
+        font-weight: 700;
+        color: $color-text-primary;
+        margin: 0 0 0.25rem 0;
+      }
+
+      .profile-designation {
+        font-size: 1.125rem;
+        color: $color-secondary;
+        font-weight: 500;
+        margin: 0 0 0.75rem 0;
+      }
+
+      .profile-meta {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+
+        .meta-item {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.875rem;
+          color: $color-text-muted;
+
+          svg {
+            width: 16px;
+            height: 16px;
+          }
+        }
+
+        .meta-badge {
+          background: #d1fae5;
+          color: $color-success;
+          padding: 0.25rem 0.75rem;
+          border-radius: 9999px;
+          font-size: 0.875rem;
+          font-weight: 500;
+        }
+      }
+    }
+
+    .edit-profile-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.625rem 1.25rem;
+      background: white;
+      border: 1.5px solid $color-border;
+      border-radius: 8px;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      color: $color-text-primary;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: $color-surface-alt;
+        border-color: $color-border-dark;
+      }
+
+      svg {
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+
+  // Tabs Navigation
+  .profile-tabs {
+    background: white;
+    padding: 0 2rem;
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid $color-border;
+    max-width: 1280px;
+    margin: 0 auto;
+
+    .tab-btn {
+      padding: 1rem 1.5rem;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      color: $color-text-muted;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+
+      &:hover {
+        color: $color-secondary;
+      }
+
+      &.active {
+        color: $color-secondary;
+        border-bottom-color: $color-secondary;
+      }
+    }
+  }
+
+  // Tab Content
+  .profile-content {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem;
+
+    .tab-content {
+      animation: fadeIn 0.3s ease;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+
+      @media (max-width: 1024px) {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    // Info Cards
+    .info-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+
+      &.full-width {
+        grid-column: 1 / -1;
+      }
+
+      .card-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid $color-surface-alt;
+
+        svg {
+          width: 20px;
+          height: 20px;
+          color: $color-text-muted;
+        }
+
+        h3 {
+          font-size: 1.125rem;
+          font-weight: 600;
+          color: $color-text-primary;
+          margin: 0;
+        }
+
+        .emergency-title {
+          color: $color-danger;
+        }
+      }
+
+      .card-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+
+      .info-row {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+
+        .info-icon {
+          width: 40px;
+          height: 40px;
+          background: $color-surface-alt;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .info-text {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          flex: 1;
+
+          .info-label {
+            font-size: 0.875rem;
+            color: $color-text-muted;
+          }
+
+          .info-value {
+            font-size: 0.9375rem;
+            color: $color-text-primary;
+            font-weight: 500;
+          }
+        }
+      }
+
+      .emergency-content {
+        background: #f9fbff;
+        padding: 1rem;
+        border-radius: 8px;
+
+        .emergency-row {
+          display: flex;
+          align-items: center;
+          padding: 0.5rem 0;
+
+          &:not(:last-child) {
+            border-bottom: 1px solid #dcdee2;
+          }
+
+          .emergency-label {
+            font-size: 0.875rem;
+            color: #616163;
+            font-weight: 500;
+          }
+
+          .emergency-value {
+            font-size: 1rem;
+            color: $color-text-primary;
+            font-weight: 600;
+          }
+        }
+      }
+    }
+
+    // Work Details Grid
+    .work-details-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      margin-top: 1rem;
+
+      @media (max-width: 1024px) {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      @media (max-width: 640px) {
+        grid-template-columns: 1fr;
+      }
+
+      .work-detail-item {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+
+        .work-detail-icon {
+          width: 40px;
+          height: 40px;
+          background: $color-surface-alt;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        div {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+
+          .work-label {
+            font-size: 0.875rem;
+            color: $color-text-muted;
+          }
+
+          .work-value {
+            font-size: 0.9375rem;
+            color: $color-text-primary;
+            font-weight: 600;
+          }
+        }
+      }
+    }
+
+    // Documents Section
+    .documents-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+
+      .documents-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+
+        svg {
+          width: 20px;
+          height: 20px;
+          color: $color-secondary;
+        }
+
+        h3 {
+          font-size: 1.125rem;
+          font-weight: 600;
+          color: $color-text-primary;
+          margin: 0;
+        }
+      }
+
+      .upload-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        background: white;
+        border: 1.5px solid $color-border;
+        border-radius: 8px;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        color: $color-text-primary;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: $color-surface-alt;
+          border-color: $color-secondary;
+          color: $color-secondary;
+
+          svg {
+            color: $color-secondary;
+          }
+        }
+
+        svg {
+          width: 18px;
+          height: 18px;
+        }
+      }
+    }
+
+    .documents-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+
+      @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+      }
+
+      .document-card {
+        background: white;
+        border: 1.5px solid $color-border;
+        border-radius: 12px;
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.2s ease;
+
+        &:hover {
+          border-color: $color-secondary;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .document-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+
+          &.verified {
+            background: rgba($color-secondary, 0.14);
+          }
+
+          &.pending {
+            background: rgba($color-accent-light, 0.20);
+          }
+        }
+
+        .document-info {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          flex: 1;
+
+          .document-name {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: $color-text-primary;
+            margin: 0;
+          }
+
+          .document-status {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            padding: 0.125rem 0.5rem;
+            border-radius: 9999px;
+            width: fit-content;
+
+            &.verified {
+              background: #d1fae5;
+              color: $color-success;
+            }
+
+            &.pending {
+              background: rgba($color-accent-light, 0.20);
+              color: darken($color-accent-light, 20%);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.document-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.action-btn {
+  background: none;
+  border: 1px solid $color-border;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: $color-surface-alt;
+  border-color: $color-border-dark;
+}
+
+.action-btn.view-btn svg {
+  stroke: $color-secondary;
+}
+
+.action-btn.upload-btn svg {
+  stroke: $color-success;
+}
+// =====================================================================
+// INLINE CARD EDITING STYLES (New Addition)
+// =====================================================================
+
+.user-profile {
+
+  // Toast notification
+  .profile-toast-success {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    background: $color-success;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 14px;
+    z-index: 9999;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    animation: slideInRight 0.3s ease;
+  }
+
+  @keyframes slideInRight {
+    from { transform: translateX(100px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+  }
+
+  // Card header: push edit button to the right
+  .info-card .card-header {
+    .card-header-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  }
+
+  // Pencil edit button on each card
+  .btn-card-edit {
+    background: $color-surface-alt;
+    border: 1px solid $color-border;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 13px;
+    color: $color-text-muted;
+    cursor: pointer;
+    transition: all 0.15s;
+
+    &:hover {
+      background: $color-secondary-alt;
+      color: white;
+      border-color: $color-secondary-alt;
+    }
+  }
+
+  // Inline save/cancel buttons
+  .card-edit-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-card-save {
+    background: $color-success;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover { background: $color-success; }
+  }
+
+  .btn-card-cancel {
+    background: $color-surface-alt;
+    color: $color-danger;
+    border: 1px solid rgba($color-danger, 0.22);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+
+    &:hover { background: rgba($color-danger, 0.07); }
+  }
+
+  // Inline form inside a card
+  .card-inline-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 4px;
+    animation: fadeIn 0.2s ease;
+
+    .inline-form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+
+      @media (max-width: 640px) {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .inline-form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+
+      &.full-width {
+        grid-column: 1 / -1;
+      }
+
+      label {
+        font-size: 12px;
+        font-weight: 600;
+        color: $color-text-muted;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      input, select {
+        border: 1.5px solid $color-border;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 14px;
+        color: $color-text-primary;
+        background: $color-surface-alt;
+        outline: none;
+        transition: border-color 0.2s;
+        width: 100%;
+
+        &:focus {
+          border-color: $color-secondary-alt;
+          background: white;
+          box-shadow: 0 0 0 3px rgba(111, 94, 219, 0.1);
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  // Work mode badge in profile header
+  .meta-badge.workmode {
+    background: rgba($color-secondary-alt, 0.12);
+    color: $color-secondary-alt;
+    border-color: rgba($color-secondary-alt, 0.4);
+  }
+
+  // Work mode value inside card
+  .work-mode-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba($color-secondary-alt, 0.12);
+    color: $color-secondary-alt;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+}

@@ -1,0 +1,97 @@
+// Reskinned to the shared design system — colors now come from _variables.scss
+// (palette change = one-file edit). See main.scss import order.
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, $color-secondary-alt 0%, $color-secondary-alt 100%);
+}
+
+.auth-card {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+
+  h1 {
+    font-size: 28px;
+    margin-bottom: 30px;
+    text-align: center;
+    color: $color-text-primary;
+  }
+
+  p {
+    text-align: center;
+    margin-top: 20px;
+    color: $color-text-muted;
+  }
+
+  a {
+    color: $color-secondary-alt;
+    text-decoration: none;
+    font-weight: 600;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.form-group {
+  margin-bottom: 20px;
+
+  label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: $color-text-primary;
+  }
+
+  input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid $color-border-dark;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+
+    &:focus {
+      outline: none;
+      border-color: $color-secondary-alt;
+    }
+  }
+}
+
+button[type="submit"] {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, $color-secondary-alt 0%, $color-secondary-alt 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.error-message {
+  background-color: #fee;
+  color: #c33;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}

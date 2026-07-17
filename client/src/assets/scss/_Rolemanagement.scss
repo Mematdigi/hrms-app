@@ -1,0 +1,339 @@
+// Reskinned to the shared design system — colors now come from _variables.scss
+// (palette change = one-file edit). See main.scss import order.
+.role-management-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  // margin-top: 80px;
+}
+
+.role-header {
+  margin-bottom: 30px;
+
+  h1 {
+    font-size: 32px;
+    color: $color-text-primary;
+    margin-bottom: 10px;
+  }
+
+  p {
+    font-size: 16px;
+    color: $color-text-muted;
+  }
+}
+
+.error-message {
+  background-color: #fee;
+  color: #c33;
+  padding: 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border-left: 4px solid #c33;
+}
+
+.success-message {
+  background-color: #efe;
+  color: #3c3;
+  padding: 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border-left: 4px solid #3c3;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  font-size: 18px;
+  color: $color-text-muted;
+}
+
+.role-table-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  margin-bottom: 30px;
+}
+
+.role-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    background: $color-surface-alt;
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+    color: $color-text-primary;
+    border-bottom: 1px solid $color-border-dark;
+  }
+
+  td {
+    padding: 15px;
+    border-bottom: 1px solid $color-border;
+  }
+
+  tr:hover {
+    background: #f9f9f9;
+  }
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.role-admin {
+  background: $color-secondary-alt;
+  color: white;
+}
+
+.role-hr {
+  background: $color-secondary-alt;
+  color: white;
+}
+
+.role-manager {
+  background: #f093fb;
+  color: white;
+}
+
+.role-employee {
+  background: #4facfe;
+  color: white;
+}
+
+.role-select {
+  padding: 8px 12px;
+  border: 1px solid $color-border-dark;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  background: white;
+
+  &:focus {
+    outline: none;
+    border-color: $color-secondary-alt;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
+}
+
+.update-btn {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, $color-secondary-alt 0%, $color-secondary-alt 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: transform 0.2s;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.role-info {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+
+  h3 {
+    margin-top: 0;
+    color: $color-text-primary;
+    margin-bottom: 15px;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  li {
+    padding: 10px 0;
+    color: $color-text-muted;
+    border-bottom: 1px solid $color-border;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  strong {
+    color: $color-text-primary;
+  }
+}
+
+@media (max-width: 768px) {
+  .role-management-container {
+    padding: 20px 15px;
+  }
+
+  .role-table {
+    font-size: 14px;
+
+    th,
+    td {
+      padding: 10px;
+    }
+  }
+
+  .role-select,
+  .update-btn {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+}
+/* ── Add these styles to your RoleManagement.css ── */
+
+/* Filter Bar */
+.role-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding: 16px;
+  background: $color-surface-alt;
+  border: 1px solid $color-border;
+  border-radius: 10px;
+}
+
+/* Individual filter input wrapper */
+.filter-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 180px;
+  max-width: 260px;
+}
+
+.filter-icon {
+  position: absolute;
+  left: 10px;
+  color: $color-text-muted;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.filter-input {
+  width: 100%;
+  padding: 8px 32px 8px 32px;
+  border: 1px solid $color-border;
+  border-radius: 8px;
+  font-size: 14px;
+  background: $color-bg-primary;
+  color: $color-text-primary;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filter-input:focus {
+  border-color: #4a6cf7;
+  box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.12);
+}
+
+.filter-select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  padding-right: 10px;
+}
+
+/* ✕ per-field clear button */
+.filter-clear-btn {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: $color-text-light;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.filter-clear-btn:hover {
+  color: $color-danger;
+}
+
+/* Clear All button */
+.filter-reset-btn {
+  padding: 8px 16px;
+  background: $color-bg-primary;
+  border: 1px solid $color-danger;
+  border-radius: 8px;
+  color: $color-danger;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.filter-reset-btn:hover {
+  background: $color-danger;
+  color: $color-bg-primary;
+}
+
+/* Result count line */
+.filter-result-count {
+  font-size: 13px;
+  color: $color-text-muted;
+  margin-bottom: 14px;
+  padding-left: 2px;
+}
+
+.filter-active-label {
+  color: #4a6cf7;
+  font-weight: 500;
+}
+
+/* Empty state row */
+.no-results {
+  text-align: center;
+  padding: 32px 16px;
+  color: $color-text-muted;
+  font-size: 14px;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: #4a6cf7;
+  font-size: 14px;
+  cursor: pointer;
+  margin-left: 8px;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.link-btn:hover {
+  color: #2a4cd7;
+}
+
+/* Responsive: stack on mobile */
+@media (max-width: 576px) {
+  .filter-input-wrapper {
+    max-width: 100%;
+    flex: 0 0 100%;
+  }
+
+  .filter-reset-btn {
+    width: 100%;
+    text-align: center;
+  }
+}

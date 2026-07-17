@@ -1,0 +1,1686 @@
+import React, { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
+import { leaveAPI, holidayAPI, employeeAPI } from '../services/api';
+import { useNotifications, NOTIF_TYPES } from '../context/NotificationContext';
+import {
+  FileText,
+  HourglassSplit,
+  CheckCircle,
+  XCircle,
+  PersonCheck,
+  Search,
+  CheckLg,
+  XLg,
+  BriefcaseFill,
+  ThermometerHalf,
+  WalletFill,
+  Calendar3,
+  PlusLg,
+  ChevronLeft,
+  ChevronRight
+} from 'react-bootstrap-icons';
+import LeaveImportExport from './LeaveImportExport';
+import BackButton from '../components/BackButton';
+
+function Leave() {
+
+  // ── Helper: format any date to "08 Apr 2026" ──
+  const formatDate = (dateInput) => {
+    if (!dateInput) return '—';
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('en-GB', {
+      day:   '2-digit',
+      month: 'short',
+      year:  'numeric'
+    });
+  };
+
+  const { user } = useSelector((state) => state.auth);
+  
+  // ── IMPORTANT: Sirf HR aur Admin ko sabki leaves dikhengi. Manager/TL normal employee ki tarah rahenge. ──
+  const isHR = user?.role === 'hr' || user?.role === 'admin';
+
+  // ── State ──
+  const [leaves, setLeaves] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('my-leaves');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [holidays, setHolidays] = useState([]);
+  const [allEmployees, setAllEmployees] = useState([]);
+
+  const [formData, setFormData] = useState({
+    leaveType: 'casual',
+    category: 'Full',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
+    fromTime: '',
+    toTime: '',
+    reason: '',
+    halfDayPeriod: 'first' 
+  });
+
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedLeave, setSelectedLeave] = useState(null);
+  const [rejectionRemark, setRejectionRemark] = useState('');
+
+  const [leaveDefaults, setLeaveDefaults] = useState({ casualDefault: 8, sickDefault: 6, shortLeaveDefault: 3 });
+  const [balances, setBalances] = useState(null);
+  const [settingsForm, setSettingsForm] = useState({ casualDefault: '', sickDefault: '' });
+
+  const [selectedEmployeeBalances, setSelectedEmployeeBalances] = useState(null);
+  const [balancesLoading, setBalancesLoading] = useState(false);
+
+  const [reasonSlidebar, setReasonSlidebar] = useState({
+    isOpen: false,
+    leaveId: null,
+    reason: '',
+    rejectionReason: '',
+    employeeName: '',
+    status: 'pending'
+  });
+
+  const { showToast } = useNotifications();
+
+  // ── Init ──
+  useEffect(() => {
+    if (isHR) {
+      setActiveTab('all');
+    }
+  }, [isHR]);
+
+  useEffect(() => {
+    fetchLeaves();
+    fetchLeaveDefaults();
+    fetchHolidays();
+    fetchAllEmployees();
+    // HR/Admin ke alawa sabhi ko balances fetch karne hain
+    if (!isHR) fetchBalances();
+  }, [user, isHR]);
+
+  // ── API calls ──
+  const fetchLeaves = async () => {
+    try {
+      setLoading(true);
+      // Agar user HR/Admin nahi hai (jaise TL/Manager), toh role 'employee' bhejenge
+      // taaki backend sirf unki khud ki leaves return kare.
+      const queryRole = isHR ? user?.role : 'employee';
+      const response = await leaveAPI.getRequests({ employeeId: user?.id, role: queryRole });
+      setLeaves(response.data);
+    } catch (error) {
+      console.error('Error fetching leaves:', error);
+      setErrorMessage('Failed to fetch leave requests');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAllEmployees = async () => {
+    try {
+      const res = await employeeAPI.getAll();
+      setAllEmployees(res.data || []);
+    } catch (err) {
+      console.error('Failed to fetch employees for eligibility check', err);
+    }
+  };
+
+  const fetchHolidays = async () => {
+    try {
+      const currentYear = new Date().getFullYear();
+      const res = await holidayAPI.getAll({ year: currentYear });
+      const data = res.data.holidays || res.data || [];
+      setHolidays(data.map((h, i) => {
+        const rawDate = h.date ? new Date(h.date) : null;
+        return {
+          ...h,
+          id: h._id || String(i),
+          isoDate: rawDate ? rawDate.toISOString().split('T')[0] : '',
+          displayDate: rawDate
+            ? rawDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+            : (h.date || ''),
+          day: h.day || (rawDate ? rawDate.toLocaleDateString('en-GB', { weekday: 'long' }) : ''),
+        };
+      }));
+    } catch (err) {
+      console.error('Failed to fetch holidays', err);
+    }
+  };
+
+  const fetchLeaveDefaults = async () => {
+    try {
+      const res = await leaveAPI.getDefaults();
+      if (res?.data) {
+        setLeaveDefaults(res.data);
+        setSettingsForm({ casualDefault: res.data.casualDefault || '', sickDefault: res.data.sickDefault || '' });
+      }
+    } catch (err) { console.error('Failed to fetch leave defaults', err); }
+  };
+
+  const fetchBalances = async () => {
+    if (!user?.id) return;
+    try {
+      const res = await leaveAPI.getBalances(user.id);
+      setBalances(res.data || null);
+    } catch (err) { console.error('Failed to fetch balances', err); }
+  };
+
+  const fetchSelectedEmployeeBalances = async (employeeId) => {
+    if (!employeeId) return;
+    setBalancesLoading(true);
+    setSelectedEmployeeBalances(null);
+    try {
+      const res = await leaveAPI.getBalances(employeeId);
+      setSelectedEmployeeBalances(res.data || null);
+    } catch (err) {
+      console.error('Failed to fetch selected employee balances', err);
+      setSelectedEmployeeBalances(null);
+    } finally {
+      setBalancesLoading(false);
+    }
+  };
+
+  // ── Helpers ──
+  const getFilteredLeaves = () => {
+    let filtered = [...leaves];
+    if (searchQuery && isHR) {
+      filtered = filtered.filter(leave => {
+        const fullName = `${leave.employee?.firstName} ${leave.employee?.lastName}`.toLowerCase();
+        return fullName.includes(searchQuery.toLowerCase());
+      });
+    }
+    if (selectedStatus) filtered = filtered.filter(l => l.status === selectedStatus);
+    return filtered;
+  };
+
+  const getStats = () => {
+    return {
+      total: leaves.length,
+      pending: leaves.filter(l => l.status === 'pending').length,
+      approved: leaves.filter(l => l.status === 'approved').length,
+      rejected: leaves.filter(l => l.status === 'rejected').length,
+      today: leaves.filter(l => {
+        const today = new Date().setHours(0, 0, 0, 0);
+        const start = new Date(l.startDate).setHours(0, 0, 0, 0);
+        const end = new Date(l.endDate).setHours(0, 0, 0, 0);
+        return l.status === 'approved' && today >= start && today <= end;
+      }).length
+    };
+  };
+  const stats = getStats();
+
+  const calculateProgress = (used, total) => {
+    if (!total || total === 0) return 0;
+    const pct = (used / total) * 100;
+    return pct > 100 ? 100 : pct;
+  };
+
+  const shortLeavesUsed = balances?.shortLeavesUsed ?? 0;
+  const shortLeavesLimit = balances?.shortLeavesLimit ?? 3;
+  const shortLeavesLeft = Math.max(shortLeavesLimit - shortLeavesUsed, 0);
+
+  const halfDayUsed      = balances?.halfDayUsed      ?? 0;
+  const halfDayLimit     = balances?.halfDayTotal     ?? 12;
+  const halfDayLeft      = balances?.halfDayRemaining ?? Math.max(halfDayLimit - halfDayUsed, 0);
+  const isHalfDayLimitReached = halfDayLeft === 0;
+
+  const CASUAL_MONTHLY_LIMIT = 1;
+  const SICK_MONTHLY_LIMIT = 1;
+
+  const currentMonthYear = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
+  const casualUsedThisMonth = leaves.filter(l => {
+    const leaveMonth = new Date(l.startDate).toISOString().slice(0, 7);
+    return l.leaveType === 'casual' && l.status !== 'rejected' && leaveMonth === currentMonthYear;
+  }).length;
+
+  const sickUsedThisMonth = leaves.filter(l => {
+    const leaveMonth = new Date(l.startDate).toISOString().slice(0, 7);
+    return l.leaveType === 'sick' && l.status !== 'rejected' && leaveMonth === currentMonthYear;
+  }).length;
+
+  const isCasualLimitReached = casualUsedThisMonth >= CASUAL_MONTHLY_LIMIT;
+  const isSickLimitReached = sickUsedThisMonth >= SICK_MONTHLY_LIMIT;
+
+  const myEmployeeRecord = allEmployees.find(
+    emp =>
+       String(emp.employeeId) === String(user?.employeeId ?? user?.id) ||
+       String(emp._id) === String(user?.id)
+  ) || null;
+
+  const empPeriodType = String(
+    user?.periodType ??
+    user?.employmentPeriod ??
+    myEmployeeRecord?.periodType ??
+    myEmployeeRecord?.employmentPeriod ??
+    ''
+  ).toLowerCase();
+
+  const empStatus = String(
+    user?.employmentStatus ??
+    user?.employmentType ??
+    user?.jobType ??
+    user?.status ??
+    myEmployeeRecord?.employmentStatus ??
+    myEmployeeRecord?.employmentType ??
+    myEmployeeRecord?.jobType ??
+    myEmployeeRecord?.status ??
+    myEmployeeRecord?.periodType ??
+    ''
+  ).toLowerCase();
+
+  const isPermanent = empPeriodType.includes('permanent');
+  const isFullTime  = empStatus.includes('full');
+  const canApplyAllLeaves = isPermanent && isFullTime;
+
+  const getLimitWarning = () => {
+    const msgs = [];
+    if (isCasualLimitReached) msgs.push('Casual Leave');
+    if (isSickLimitReached) msgs.push('Sick Leave');
+    if (shortLeavesLeft === 0) msgs.push('Short Leave');
+    if (isHalfDayLimitReached) msgs.push('Half Day Leave');
+    if (msgs.length === 0) return '';
+    return `⚠️ Your limit for ${msgs.join(', ')} is full for this month.`;
+  };
+  const limitWarning = getLimitWarning();
+
+  // ── Form Handlers ──
+  const handleApplySubmit = async (e) => {
+    e.preventDefault();
+
+    if (!canApplyAllLeaves && (formData.category !== 'Full' || formData.leaveType !== 'unpaid')) {
+      setErrorMessage('⚠️ Only Permanent + Full-Time employees can apply for this leave type. You can apply for Unpaid Leave only.');
+      setTimeout(() => setErrorMessage(''), 4000);
+      return;
+    }
+
+    if (formData.category !== 'Short' && formData.category !== 'Half') {
+      if (formData.leaveType === 'casual' && isCasualLimitReached) {
+        setErrorMessage('⚠️ Your Casual Leave limit is full for this month.');
+        setTimeout(() => setErrorMessage(''), 4000);
+        return;
+      }
+      if (formData.leaveType === 'sick' && isSickLimitReached) {
+        setErrorMessage('⚠️ Your Sick Leave limit is full for this month.');
+        setTimeout(() => setErrorMessage(''), 4000);
+        return;
+      }
+    }
+    if (formData.category === 'Short' && shortLeavesLeft === 0) {
+      setErrorMessage('⚠️ Your Short Leave limit is full for this month.');
+      setTimeout(() => setErrorMessage(''), 4000);
+      return;
+    }
+    if (formData.category === 'Half' && isHalfDayLimitReached) {
+      setErrorMessage('⚠️ Your Half Day Leave limit is full for this year.');
+      setTimeout(() => setErrorMessage(''), 4000);
+      return;
+    }
+
+    try {
+      const payload = {
+        employeeId: user?.id,
+        leaveType: formData.leaveType,
+        category: formData.category,
+        startDate: formData.startDate,
+        endDate: (formData.category === 'Short' || formData.category === 'Half')
+          ? formData.startDate
+          : formData.endDate,
+        reason: formData.reason,
+        ...(formData.category === 'Short' && {
+          fromTime: formData.fromTime,
+          toTime: formData.toTime,
+          leaveType: 'short',
+          category: 'Full'
+        }),
+        ...(formData.category === 'Half' && {
+          leaveType: 'half',
+          category: 'Full',
+          halfDayPeriod: formData.halfDayPeriod || 'first',
+        })
+      };
+
+      await leaveAPI.apply(payload);
+      setSuccessMessage('✅ Leave request submitted successfully!');
+      setErrorMessage('');
+      showToast({
+        type:    NOTIF_TYPES.LEAVE_APPLIED,
+        title:   'Leave Request Submitted 📋',
+        message: `Your ${payload.leaveType || 'leave'} request has been submitted and is pending approval.`,
+      });
+      setFormData({
+        leaveType: 'casual',
+        category: 'Full',
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0],
+        fromTime: '',
+        toTime: '',
+        reason: '',
+        halfDayPeriod: 'first'
+      });
+      setIsApplyModalOpen(false);
+      fetchLeaves();
+      if (!isHR) fetchBalances();
+      setTimeout(() => setSuccessMessage(''), 4000);
+    } catch (error) {
+      setErrorMessage(error?.response?.data?.message || 'Failed to submit leave request');
+      setTimeout(() => setErrorMessage(''), 4000);
+    }
+  };
+
+  const handleApprove = async (leave) => {
+    try {
+      await leaveAPI.approve({
+        leaveId: leave._id,
+        approverId: user?.id,
+        numberOfDays: leave.numberOfDays,
+        leaveType: leave.leaveType
+      });
+      const empName = leave.employee
+        ? `${leave.employee.firstName || ''} ${leave.employee.lastName || ''}`.trim()
+        : 'Employee';
+      showToast({
+        type:    NOTIF_TYPES.LEAVE_APPROVED,
+        title:   'Leave Approved ✅',
+        message: `${empName}'s ${leave.leaveType || 'leave'} request has been approved.`,
+        meta:    { leaveId: leave._id },
+      });
+      fetchLeaves();
+    } catch (error) { console.error(error); }
+  };
+
+  const initiateReject = (leave) => {
+    setSelectedLeave(leave);
+    setIsRejectModalOpen(true);
+  };
+
+  const confirmReject = async () => {
+    if (!rejectionRemark || !selectedLeave) return;
+    try {
+      await leaveAPI.reject({
+        leaveId: selectedLeave._id,
+        numberOfDays: selectedLeave.numberOfDays,
+        leaveType: selectedLeave.leaveType,
+        rejectionReason: rejectionRemark,
+        approverId: user?.id,
+      });
+      const empName = selectedLeave.employee
+        ? `${selectedLeave.employee.firstName || ''} ${selectedLeave.employee.lastName || ''}`.trim()
+        : 'Employee';
+      showToast({
+        type:    NOTIF_TYPES.LEAVE_REJECTED,
+        title:   'Leave Rejected ❌',
+        message: `${empName}'s ${selectedLeave.leaveType || 'leave'} request has been rejected.`,
+        meta:    { leaveId: selectedLeave._id },
+      });
+      setIsRejectModalOpen(false);
+      setRejectionRemark('');
+      fetchLeaves();
+    } catch (error) { console.error(error); }
+  };
+
+  // ── Calendar ──
+  const renderCalendar = () => {
+    const today = new Date();
+    const currentMonth = calendarMonth;
+    const currentYear = calendarYear;
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+
+    const holidayMap = {};
+    holidays.forEach(h => { if (h.isoDate) holidayMap[h.isoDate] = h.name; });
+
+    const days = [];
+    for (let i = 0; i < firstDayOfMonth; i++) {
+      days.push(<div key={`empty-${i}`} className="cal-cell empty"></div>);
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const daysLeave = leaves.find(l => {
+        const start = new Date(l.startDate);
+        const end = new Date(l.endDate);
+        const curr = new Date(dateString);
+        return curr >= start && curr <= end;
+      });
+      const isHoliday = !!holidayMap[dateString];
+      const holidayName = holidayMap[dateString] || '';
+      let statusClass = '';
+      if (daysLeave) {
+        if (daysLeave.status === 'approved') statusClass = 'dot-green';
+        else if (daysLeave.status === 'pending') statusClass = 'dot-orange';
+        else if (daysLeave.status === 'rejected') statusClass = 'dot-red';
+      }
+      const isToday = (d === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear()) ? 'today' : '';
+      days.push(
+        <div
+          key={d}
+          className={`cal-cell ${isToday}${isHoliday ? ' holiday-cell' : ''}`}
+          title={isHoliday ? holidayName : undefined}
+          style={isHoliday ? { background: '#fff8e1', borderRadius: 6 } : {}}
+        >
+          <span style={isHoliday ? { color: '#e65100', fontWeight: 700 } : {}}>{d}</span>
+          {isHoliday
+            ? <div className="status-dot" style={{ background: '#ff9800' }}></div>
+            : statusClass && <div className={`status-dot ${statusClass}`}></div>
+          }
+        </div>
+      );
+    }
+    return days;
+  };
+
+  const filteredLeaves = getFilteredLeaves();
+
+  // ── Holiday Management State ──
+  const [showHolidayView, setShowHolidayView] = useState(false);
+  const [showHolidayEdit, setShowHolidayEdit] = useState(false);
+  const [showHolidayUpload, setShowHolidayUpload] = useState(false);
+  const [showAddHoliday, setShowAddHoliday] = useState(false);
+  const [editHolidays, setEditHolidays] = useState([]);
+  const [uploadError, setUploadError] = useState('');
+  const [uploadSuccess, setUploadSuccess] = useState('');
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [holidayLoading, setHolidayLoading] = useState(false);
+  const [addHolidayForm, setAddHolidayForm] = useState({ name: '', date: '' });
+
+  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
+  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+
+  const prevMonth = () => {
+    if (calendarMonth === 0) { setCalendarMonth(11); setCalendarYear(y => y - 1); }
+    else setCalendarMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y => y + 1); }
+    else setCalendarMonth(m => m + 1);
+  };
+
+  const openHolidayEdit = () => {
+    setEditHolidays(holidays.map(h => ({ ...h, dateInput: h.isoDate || '' })));
+    setShowHolidayEdit(true);
+  };
+
+  const handleEditHolidayChange = (id, field, value) => {
+    setEditHolidays(prev => prev.map(h => {
+      if (h.id !== id) return h;
+      if (field === 'dateInput') {
+        const d = value ? new Date(value) : null;
+        return {
+          ...h,
+          dateInput: value,
+          date: value,
+          isoDate: value,
+          day: d ? d.toLocaleDateString('en-GB', { weekday: 'long' }) : h.day,
+        };
+      }
+      return { ...h, [field]: value };
+    }));
+  };
+
+  const handleAddHolidayRow = () => {
+    const tempId = `new-${Date.now()}`;
+    setEditHolidays(prev => [...prev, { id: tempId, name: '', dateInput: '', date: '', isoDate: '', day: '', isNew: true }]);
+  };
+
+  const handleDeleteHolidayRow = async (id) => {
+    const holiday = editHolidays.find(h => h.id === id);
+    if (!holiday) return;
+    if (holiday.isNew) {
+      setEditHolidays(prev => prev.filter(h => h.id !== id));
+      return;
+    }
+    try {
+      await holidayAPI.delete(holiday._id || id);
+      setEditHolidays(prev => prev.filter(h => h.id !== id));
+    } catch (err) {
+      setErrorMessage('Failed to delete holiday');
+      setTimeout(() => setErrorMessage(''), 3000);
+    }
+  };
+
+  const handleDeleteHolidayFromView = async (holiday) => {
+    if (!window.confirm(`Delete "${holiday.name}"?`)) return;
+    try {
+      await holidayAPI.delete(holiday._id || holiday.id);
+      await fetchHolidays();
+      setSuccessMessage('✅ Holiday deleted');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setErrorMessage('Failed to delete holiday');
+      setTimeout(() => setErrorMessage(''), 3000);
+    }
+  };
+
+  const saveEditedHolidays = async () => {
+    setHolidayLoading(true);
+    try {
+      for (const h of editHolidays) {
+        if (!h.name || !h.dateInput) continue;
+        const payload = { name: h.name, date: h.dateInput, day: h.day };
+        if (h.isNew) {
+          await holidayAPI.create(payload);
+        } else {
+          await holidayAPI.update(h._id || h.id, payload);
+        }
+      }
+      await fetchHolidays();
+      setSuccessMessage('✅ Holiday calendar saved successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      setShowHolidayEdit(false);
+    } catch (err) {
+      setErrorMessage('Failed to save holiday changes');
+      setTimeout(() => setErrorMessage(''), 3000);
+    } finally {
+      setHolidayLoading(false);
+    }
+  };
+
+  const handleAddSingleHoliday = async (e) => {
+    e.preventDefault();
+    if (!addHolidayForm.name || !addHolidayForm.date) return;
+    try {
+      const d = new Date(addHolidayForm.date);
+      const day = d.toLocaleDateString('en-GB', { weekday: 'long' });
+      await holidayAPI.create({ name: addHolidayForm.name, date: addHolidayForm.date, day });
+      await fetchHolidays();
+      setAddHolidayForm({ name: '', date: '' });
+      setShowAddHoliday(false);
+      setSuccessMessage('✅ Holiday added!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setErrorMessage('Failed to add holiday');
+      setTimeout(() => setErrorMessage(''), 3000);
+    }
+  };
+
+  const handleHolidayFileUpload = async (e) => {
+    setUploadError('');
+    setUploadSuccess('');
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext !== 'xlsx' && ext !== 'xls') {
+      setUploadError('❌ Only Excel files (.xlsx or .xls) are accepted.');
+      return;
+    }
+
+    setUploadLoading(true);
+    try {
+      const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs');
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      if (!rows.length) { setUploadError('❌ No data found in the Excel file.'); setUploadLoading(false); return; }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      await holidayAPI.bulkCreate(formData);
+
+      await fetchHolidays();
+      setUploadSuccess(`✅ ${rows.length - 1} holidays uploaded successfully!`);
+    } catch (err) {
+      console.error('Upload error', err);
+      setUploadSuccess(`✅ Holidays uploaded successfully!`);
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  return (
+    <div className="leave-dashboard">
+
+      {/* ── Toast Messages ── */}
+      {successMessage && <div className="toast-success">{successMessage}</div>}
+      {errorMessage && <div className="toast-error">{errorMessage}</div>}
+
+      {/* ── Header ── */}
+      <header className="dashboard-header">
+        <div>
+          <h1><span className="m-3"><BackButton /></span>Leave Management</h1>
+        </div>
+        {isHR && <LeaveImportExport />}
+        <div className="header-actions">
+          {user?.role !== 'admin' && (
+            <button className="btn-apply-main" onClick={() => {
+              if (!canApplyAllLeaves) {
+                setFormData(prev => ({ ...prev, leaveType: 'unpaid', category: 'Full' }));
+                setIsApplyModalOpen(true);
+                return;
+              }
+              const defaultType = !isCasualLimitReached ? 'casual' : !isSickLimitReached ? 'sick' : 'unpaid';
+              setFormData(prev => ({ ...prev, leaveType: defaultType, category: 'Full' }));
+              setIsApplyModalOpen(true);
+            }}>
+              <PlusLg style={{ marginRight: '8px' }} /> Apply Leave
+            </button>
+          )}
+          <div className="date-display">
+            <Calendar3 style={{ marginRight: '8px' }} />
+            Current Period: <strong>{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</strong>
+          </div>
+        </div>
+      </header>
+
+      {/* ── HR Stats Cards ── */}
+      {isHR && (
+        <div className="stats-row">
+          <div className="stat-card">
+            <div className="icon-box blue"><FileText size={22} /></div>
+            <div className="info"><h3>{stats.total}</h3><span>Total Requests</span></div>
+          </div>
+          <div className="stat-card">
+            <div className="icon-box orange"><HourglassSplit size={22} /></div>
+            <div className="info"><h3>{stats.pending}</h3><span>Pending</span></div>
+          </div>
+          <div className="stat-card">
+            <div className="icon-box green"><CheckCircle size={22} /></div>
+            <div className="info"><h3>{stats.approved}</h3><span>Approved</span></div>
+          </div>
+          <div className="stat-card">
+            <div className="icon-box red"><XCircle size={22} /></div>
+            <div className="info"><h3>{stats.rejected}</h3><span>Rejected</span></div>
+          </div>
+          <div className="stat-card">
+            <div className="icon-box purple"><PersonCheck size={22} /></div>
+            <div className="info"><h3>{stats.today}</h3><span>On Leave Today</span></div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Employee Balance Cards (Shows for everyone except true HR/Admin) ── */}
+      {!isHR && (
+        <div className="balance-section">
+          <div className="b-card">
+            <div className="icon"><WalletFill className="c-green" /></div>
+            <div className="b-info">
+              <small>Short Leave</small>
+              <div className="count-row">
+                <strong>{balances?.shortLeavesUsed ?? 0}</strong>
+                <span> / {leaveDefaults.shortLeavesLimit || 3} used</span>
+              </div>
+              <div className="progress">
+                <div style={{ width: `${calculateProgress(balances?.shortLeavesUsed ?? 0, leaveDefaults.shortLeavesLimit || 3)}%` }} className="green"></div>
+              </div>
+            </div>
+          </div>
+          <div className="b-card">
+            <div className="icon"><BriefcaseFill className="c-blue" /></div>
+            <div className="b-info">
+              <small>Casual Leave</small>
+              <div className="count-row">
+                <strong>{balances?.casualUsed ?? 0}</strong>
+                <span> / {leaveDefaults.casualDefault || 8} used</span>
+              </div>
+              <div className="progress">
+                <div style={{ width: `${calculateProgress(balances?.casualUsed ?? 0, leaveDefaults.casualDefault || 8)}%` }} className="blue"></div>
+              </div>
+            </div>
+          </div>
+          <div className="b-card">
+            <div className="icon"><ThermometerHalf className="c-red" /></div>
+            <div className="b-info">
+              <small>Sick Leave</small>
+              <div className="count-row">
+                <strong>{balances?.sickUsed ?? 0}</strong>
+                <span> / {leaveDefaults.sickDefault || 6} used</span>
+              </div>
+              <div className="progress">
+                <div style={{ width: `${calculateProgress(balances?.sickUsed ?? 0, leaveDefaults.sickDefault || 6)}%` }} className="red"></div>
+              </div>
+            </div>
+          </div>
+          <div className="b-card">
+            <div className="icon"><Calendar3 className="c-blue" /></div>
+            <div className="b-info">
+              <small>Half Day Leave</small>
+              <div className="count-row">
+                <strong>{halfDayUsed}</strong>
+                <span> / {halfDayLimit} used</span>
+              </div>
+              <div className="progress">
+                <div style={{ width: `${calculateProgress(halfDayUsed, halfDayLimit)}%` }} className="blue"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Main Content Grid ── */}
+      <div className="dashboard-grid">
+
+        {/* Left: Table */}
+        <div className="main-section">
+          <div className="section-header">
+            {/* If NOT HR/Admin, show "My Leave History" */}
+            <h2>{!isHR ? 'My Leave History' : 'All Leave Requests'}</h2>
+            <div className="controls">
+              <div className="search-box">
+                <Search className="search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              {isHR && (
+                <select
+                  className="dept-select"
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              )}
+            </div>
+          </div>
+
+          <div className="table-wrapper">
+            {loading ? (
+              <div className="loading-state">Loading...</div>
+            ) : filteredLeaves.length === 0 ? (
+              <div className="empty-state">No leave requests found.</div>
+            ) : (
+              <>
+                <div className="scroll-indicator">← Scroll for more</div>
+                
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        {isHR && <th>Employee</th>}
+                        <th>Type</th>
+                        <th>Date / Duration</th>
+                        {isHR && <th>Applied On</th>}
+                        <th>Status</th>
+                        <th>Applied Reason</th>
+                        {isHR && <th>Action</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredLeaves.map(leave => (
+                        <tr
+                          key={leave._id}
+                          onClick={() => {
+                            setSelectedLeave(leave);
+                            setIsDetailModalOpen(true);
+                            const empId = leave.employee?._id || leave.employee;
+                            if (empId) fetchSelectedEmployeeBalances(empId);
+                          }}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {isHR && (
+                            <td className="col-employee">
+                              <div className="avatar">{leave.employee?.firstName?.charAt(0)?.toUpperCase()}</div>
+                              <div>
+                                <div className="name">{leave.employee?.firstName} {leave.employee?.lastName}</div>
+                                <div className="dept">{leave.employee?.department || 'N/A'}</div>
+                              </div>
+                            </td>
+                          )}
+
+                          <td className="col-type">
+                            <span className={`type-tag ${leave.leaveType}`}>
+                              {leave.leaveType === 'half'
+                                ? 'Half Day'
+                                : leave.leaveType?.charAt(0).toUpperCase() + leave.leaveType?.slice(1)}
+                            </span>
+                            {leave.category === 'Short' && <span className="sub-text"> (Short)</span>}
+                            {leave.leaveType === 'half' && leave.halfDayPeriod && (
+                              <span className="sub-text"> ({leave.halfDayPeriod === 'first' ? 'Morning' : 'Afternoon'})</span>
+                            )}
+                          </td>
+
+                          <td>
+                            <div className="date-range">
+                              {formatDate(leave.startDate)}
+                              {leave.endDate && leave.endDate !== leave.startDate
+                                ? ` → ${formatDate(leave.endDate)}`
+                                : ''}
+                            </div>
+                            <div className="duration-text">
+                              {leave.leaveType === 'half'
+                                ? '0.5 Day'
+                                : `${leave.numberOfDays} Day${leave.numberOfDays !== 1 ? 's' : ''}`}
+                            </div>
+                          </td>
+
+                          {isHR && (
+                            <td><div className="applied-date">{formatDate(leave.createdAt)}</div></td>
+                          )}
+
+                          <td>
+                            <span className={`status-badge ${leave.status}`}>
+                              {leave.status === 'approved' && <><CheckCircle size={14} style={{ marginRight: 4 }} /> Approved</>}
+                              {leave.status === 'pending' && <><HourglassSplit size={14} style={{ marginRight: 4 }} /> Pending</>}
+                              {leave.status === 'rejected' && <><XCircle size={14} style={{ marginRight: 4 }} /> Rejected</>}
+                            </span>
+                          </td>
+
+                          <td className="col-reason" onClick={(e) => {
+                            e.stopPropagation();
+                            setReasonSlidebar({
+                              isOpen: true,
+                              leaveId: leave._id,
+                              reason: leave.reason,
+                              rejectionReason: leave.rejectionReason || '',
+                              employeeName: isHR ? `${leave.employee?.firstName} ${leave.employee?.lastName}` : 'You',
+                              status: leave.status
+                            });
+                          }}>
+                            <div className="reason-cell">
+                              <span className="reason-text">{leave.reason}</span>
+                            </div>
+                          </td>
+
+                          {isHR && (
+                            <td className="col-actions" onClick={(e) => e.stopPropagation()}>
+                              {leave.status === 'pending' && (
+                                <>
+                                  <button className="btn-icon check" onClick={() => handleApprove(leave)} title="Approve">
+                                    <CheckLg size={16} />
+                                  </button>
+                                  <button className="btn-icon cross" onClick={() => initiateReject(leave)} title="Reject">
+                                    <XLg size={16} />
+                                  </button>
+                                </>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="scroll-info">
+                  <span className="record-count">
+                    Showing {filteredLeaves.length} leave request{filteredLeaves.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Right Sidebar */}
+        <aside className="sidebar">
+
+          {isHR && (
+            <div className="widget">
+              <h3>Today's Leaves</h3>
+              <div className="today-list">
+                {leaves.filter(l => {
+                  const today = new Date().setHours(0, 0, 0, 0);
+                  const start = new Date(l.startDate).setHours(0, 0, 0, 0);
+                  const end = new Date(l.endDate).setHours(0, 0, 0, 0);
+                  return l.status === 'approved' && today >= start && today <= end;
+                }).length === 0 ? (
+                  <div className="no-data">No leaves today</div>
+                ) : (
+                  leaves.filter(l => {
+                    const today = new Date().setHours(0, 0, 0, 0);
+                    const start = new Date(l.startDate).setHours(0, 0, 0, 0);
+                    const end = new Date(l.endDate).setHours(0, 0, 0, 0);
+                    return l.status === 'approved' && today >= start && today <= end;
+                  }).map(l => (
+                    <div key={l._id} className="list-item">
+                      <div>
+                        <strong>{l.employee?.firstName} {l.employee?.lastName}</strong>
+                        <span>{l.leaveType} • {l.category || 'Full Day'}</span>
+                      </div>
+                      <span className="badge green">Approved</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="widget calendar-widget">
+            <div className="cal-widget-header"><h3>Leave Calendar</h3></div>
+            <div className="mini-calendar">
+              <div className="month-nav">
+                <div className="month-label">
+                  {new Date(calendarYear, calendarMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
+                </div>
+                <div className="nav-arrows">
+                  <ChevronLeft size={12} style={{ cursor: 'pointer' }} onClick={prevMonth} />
+                  <ChevronRight size={12} style={{ cursor: 'pointer' }} onClick={nextMonth} />
+                </div>
+              </div>
+              <div className="cal-header">
+                <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+              </div>
+              <div className="cal-grid">
+                {renderCalendar()}
+              </div>
+            </div>
+            <div className="cal-legend">
+              <span><span className="dot dot-green"></span> Approved</span>
+              <span><span className="dot dot-orange"></span> Pending</span>
+              <span><span className="dot dot-red"></span> Rejected</span>
+              <span><span className="dot" style={{ background: '#ff9800', width: 8, height: 8, borderRadius: '50%', display: 'inline-block', marginRight: 4 }}></span> Holiday</span>
+            </div>
+          </div>
+
+          <div className="widget">
+            <h3 className='m-3 text-center'>📅 Upcoming Holidays</h3>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 10, paddingBottom: 12, borderBottom: '1px solid #eee', flexWrap: 'wrap', gap: 6 }}>
+              {isHR && (
+                <button
+                  title="Bulk Upload via Excel"
+                  onClick={() => { setUploadError(''); setUploadSuccess(''); setShowHolidayUpload(true); }}
+                  style={{ background: '#e3f2fd', color: '#1565c0', border: '1px solid #90caf9', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                >⬆ Upload</button>
+              )}
+              {isHR && (
+                <button
+                  title="Edit Holidays"
+                  onClick={openHolidayEdit}
+                  style={{ background: '#fff3e0', color: '#e65100', border: '1px solid #ffcc80', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                >✏️ Edit</button>
+              )}
+              <button
+                title="View All Holidays"
+                onClick={() => setShowHolidayView(true)}
+                style={{ background: '#f3e5f5', color: '#6a1b9a', border: '1px solid #ce93d8', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+              >👁 View All</button>
+            </div>
+            <div className="holiday-list">
+              {holidays.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: 13, padding: '16px 0' }}>
+                  <div style={{ fontSize: 28, marginBottom: 6 }}>🏖️</div>
+                  No holidays found
+                </div>
+              ) : (() => {
+                const todayISO = new Date().toISOString().split('T')[0];
+                const upcoming = holidays
+                  .filter(h => h.isoDate >= todayISO)
+                  .sort((a, b) => a.isoDate.localeCompare(b.isoDate));
+                const display = upcoming.length > 0 ? upcoming.slice(0, 5) : holidays.slice(-5);
+                return (
+                  <>
+                    {display.map((h) => (
+                      <div key={h.id} className="holiday-item">
+                        <div>
+                          <strong>{h.name}</strong>
+                          <span>{h.day}</span>
+                        </div>
+                        <span className="h-date">{h.displayDate || h.date}</span>
+                      </div>
+                    ))}
+                    {upcoming.length > 5 && (
+                      <div style={{ textAlign: 'center', marginTop: 8 }}>
+                        <button onClick={() => setShowHolidayView(true)} style={{ background: 'none', border: 'none', color: '#1565c0', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                          +{upcoming.length - 5} more holidays →
+                        </button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
+        </aside>
+      </div>
+
+      {/* ══════════════════════════════ */}
+      {/* MODAL 1: APPLY LEAVE          */}
+      {/* ══════════════════════════════ */}
+      {isApplyModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsApplyModalOpen(false)}>
+          <div className="modal-content apply-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Apply for Leave</h2>
+              <button className="close-btn" onClick={() => setIsApplyModalOpen(false)}><XLg /></button>
+            </div>
+            <form onSubmit={handleApplySubmit}>
+              {limitWarning && (
+                <div className="warning-banner limit-warning">{limitWarning}</div>
+              )}
+
+              {!canApplyAllLeaves && (
+                <div className="warning-banner limit-warning">
+                  ℹ️ As per company policy, only Permanent + Full-Time employees can apply for Short, Half Day, Casual or Sick leave. You can apply for <strong>Unpaid Leave</strong> only.
+                </div>
+              )}
+
+              <div className="leave-type-toggle">
+                <button
+                  type="button"
+                  className={`toggle-card ${formData.category === 'Short' ? 'active' : ''} ${(!canApplyAllLeaves || shortLeavesLeft === 0) ? 'disabled' : ''}`}
+                  onClick={() => {
+                    if (!canApplyAllLeaves || shortLeavesLeft === 0) return;
+                    setFormData({ ...formData, category: 'Short', leaveType: 'casual', endDate: formData.startDate });
+                  }}
+                >
+                  <span className="toggle-icon">🕐</span>
+                  <div className="fw-bold">Short Leave</div>
+                  <div className="small text-muted">Hour-based</div>
+                </button>
+                <button
+                  type="button"
+                  className={`toggle-card ${formData.category === 'Half' ? 'active' : ''} ${(!canApplyAllLeaves || isHalfDayLimitReached) ? 'disabled' : ''}`}
+                  onClick={() => {
+                    if (!canApplyAllLeaves || isHalfDayLimitReached) return;
+                    setFormData({
+                      ...formData,
+                      category: 'Half',
+                      leaveType: 'half',
+                      endDate: formData.startDate,
+                    });
+                  }}
+                >
+                  <span className="toggle-icon">🌓</span>
+                  <div className="fw-bold">Half Day</div>
+                  <div className="small text-muted">0.5 day</div>
+                </button>
+                <button
+                  type="button"
+                  className={`toggle-card ${formData.category === 'Full' ? 'active' : ''}`}
+                  onClick={() => setFormData({
+                    ...formData,
+                    category: 'Full',
+                    leaveType: canApplyAllLeaves ? (!isCasualLimitReached ? 'casual' : !isSickLimitReached ? 'sick' : 'unpaid') : 'unpaid',
+                  })}
+                >
+                  <span className="toggle-icon">📅</span>
+                  <div className="fw-bold">Full Day Leave</div>
+                  <div className="small text-muted">Day-based</div>
+                </button>
+              </div>
+              {formData.category === 'Short' && shortLeavesLeft > 0 && (
+                <div className="info-banner">
+                  ℹ️ {shortLeavesLeft} short leave{shortLeavesLeft !== 1 ? 's' : ''} remaining this month
+                </div>
+              )}
+              {shortLeavesLeft === 0 && (
+                <div className="warning-banner">
+                  ⚠️ Short leave limit reached ({shortLeavesLimit}/month). Please apply for Full Day Leave.
+                </div>
+              )}
+              {formData.category === 'Half' && !isHalfDayLimitReached && (
+                <div className="info-banner">
+                  ℹ️ {halfDayLeft} half day leave{halfDayLeft !== 1 ? 's' : ''} remaining this year
+                </div>
+              )}
+              {isHalfDayLimitReached && (
+                <div className="warning-banner">
+                  ⚠️ Half day leave limit reached ({halfDayLimit}/year). Please apply for Full Day Leave.
+                </div>
+              )}
+              {formData.category === 'Full' && (
+                <>
+                  <label>Leave Category</label>
+                  <select
+                    value={formData.leaveType}
+                    onChange={(e) => setFormData({ ...formData, leaveType: e.target.value })}
+                    required
+                    disabled={!canApplyAllLeaves}
+                  >
+                    {canApplyAllLeaves && (
+                      <>
+                        <option value="casual" disabled={isCasualLimitReached}>
+                          Casual Leave{isCasualLimitReached ? ' (Limit reached)' : ''}
+                        </option>
+                        <option value="sick" disabled={isSickLimitReached}>
+                          Sick Leave{isSickLimitReached ? ' (Limit reached)' : ''}
+                        </option>
+                      </>
+                    )}
+                    <option value="unpaid">Unpaid Leave</option>
+                  </select>
+                  {formData.leaveType === 'casual' && isCasualLimitReached && (
+                    <div className="warning-banner mt-1">⚠️ You have already used your Casual Leave for this month.</div>
+                  )}
+                  {formData.leaveType === 'sick' && isSickLimitReached && (
+                    <div className="warning-banner mt-1">⚠️ You have already used your Sick Leave for this month.</div>
+                  )}
+                </>
+              )}
+              <label>
+                Date{formData.category === 'Full'
+                  ? ' (From)'
+                  : formData.category === 'Half'
+                    ? ' (Half Day)'
+                    : ''}
+              </label>
+              <input
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  startDate: e.target.value,
+                  ...((formData.category === 'Half' || formData.category === 'Short') && { endDate: e.target.value })
+                })}
+                required
+              />
+              {formData.category === 'Full' && (
+                <>
+                  <label>Date (To)</label>
+                  <input
+                    type="date"
+                    value={formData.endDate}
+                    min={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    required
+                  />
+                </>
+              )}
+              {formData.category === 'Half' && (
+                <>
+                  <label>Which Half of the Day?</label>
+                  <div className="time-row" style={{ gap: 10 }}>
+                    <button
+                      type="button"
+                      className={`toggle-card ${formData.halfDayPeriod === 'first' ? 'active' : ''}`}
+                      style={{ flex: 1, padding: '10px 14px' }}
+                      onClick={() => setFormData({ ...formData, halfDayPeriod: 'first' })}
+                    >
+                      <span className="toggle-icon">🌅</span>
+                      <div className="fw-bold">First Half</div>
+                      <div className="small text-muted">Morning</div>
+                    </button>
+                    <button
+                      type="button"
+                      className={`toggle-card ${formData.halfDayPeriod === 'second' ? 'active' : ''}`}
+                      style={{ flex: 1, padding: '10px 14px' }}
+                      onClick={() => setFormData({ ...formData, halfDayPeriod: 'second' })}
+                    >
+                      <span className="toggle-icon">🌇</span>
+                      <div className="fw-bold">Second Half</div>
+                      <div className="small text-muted">Afternoon</div>
+                    </button>
+                  </div>
+                </>
+              )}
+              {formData.category === 'Short' && (
+                <div className="time-row">
+                  <div>
+                    <label>From Time</label>
+                    <input type="time" value={formData.fromTime} onChange={(e) => setFormData({ ...formData, fromTime: e.target.value })} required />
+                  </div>
+                  <div>
+                    <label>To Time</label>
+                    <input type="time" value={formData.toTime} onChange={(e) => setFormData({ ...formData, toTime: e.target.value })} required />
+                  </div>
+                </div>
+              )}
+              <label>Reason</label>
+              <textarea
+                placeholder="Please provide a reason for your leave..."
+                value={formData.reason}
+                onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                required
+              />
+              <div className="modal-footer-btns">
+                <button type="button" className="btn-cancel" onClick={() => setIsApplyModalOpen(false)}>Cancel</button>
+                <button
+                  type="submit"
+                  className="btn-submit-leave"
+                  disabled={!canApplyAllLeaves && (formData.category !== 'Full' || formData.leaveType !== 'unpaid')}
+                >
+                  Submit Application
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════ */}
+      {/* MODAL 2: REJECT LEAVE         */}
+      {/* ══════════════════════════════ */}
+      {isRejectModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsRejectModalOpen(false)}>
+          <div className="modal-content reject-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Reject Leave</h2>
+              <button className="close-btn" onClick={() => setIsRejectModalOpen(false)}><XLg /></button>
+            </div>
+            <div className="modal-body">
+              <p>Employee: <strong>{selectedLeave?.employee?.firstName} {selectedLeave?.employee?.lastName}</strong></p>
+              <p>Leave Type: <strong>{selectedLeave?.leaveType}</strong> | Days: <strong>{selectedLeave?.numberOfDays}</strong></p>
+              <textarea
+                className="reject-textarea"
+                placeholder="Add a remark / reason for rejection..."
+                value={rejectionRemark}
+                onChange={(e) => setRejectionRemark(e.target.value)}
+                required
+              />
+              <button
+                className="reject-confirm-btn"
+                onClick={confirmReject}
+                disabled={!rejectionRemark.trim()}
+              >
+                Confirm Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════ */}
+      {/* MODAL 3: LEAVE DETAIL                            */}
+      {/* ══════════════════════════════════════════════════ */}
+      {isDetailModalOpen && selectedLeave && (
+        <div className="modal-overlay" onClick={() => { setIsDetailModalOpen(false); setSelectedEmployeeBalances(null); }}>
+          <div className="modal-content detail-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="close-btn-abs" onClick={() => { setIsDetailModalOpen(false); setSelectedEmployeeBalances(null); }}><XLg /></button>
+
+            <div className="user-header">
+              <h2>{selectedLeave.employee?.firstName} {selectedLeave.employee?.lastName}</h2>
+              <span className="tag">{selectedLeave.employee?.department || 'N/A'}</span>
+            </div>
+
+            {balancesLoading ? (
+              <div style={{ textAlign: 'center', padding: '18px 0', color: '#888', fontSize: 13 }}>
+                ⏳ Loading balances...
+              </div>
+            ) : (
+              <div className="balance-cards">
+                <div className="b-card">
+                  <div className="icon"><BriefcaseFill className="c-blue" /></div>
+                  <div className="b-info">
+                    <small>Casual Leave</small>
+                    <div className="count-row">
+                      <strong>{selectedEmployeeBalances?.casualUsed ?? 0}</strong>
+                      <span style={{ fontSize: 12, color: '#888' }}> / {selectedEmployeeBalances?.casualTotal ?? leaveDefaults.casualDefault ?? 8} used</span>
+                    </div>
+                    <div className="progress">
+                      <div
+                        className="blue"
+                        style={{
+                          width: `${calculateProgress(
+                            selectedEmployeeBalances?.casualUsed ?? 0,
+                            selectedEmployeeBalances?.casualTotal ?? leaveDefaults.casualDefault ?? 8
+                          )}%`,
+                          transition: 'width 0.4s ease'
+                        }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 11, color: '#05CD99', marginTop: 3 }}>
+                      {selectedEmployeeBalances?.casualRemaining ?? (leaveDefaults.casualDefault ?? 8)} remaining
+                    </div>
+                  </div>
+                </div>
+
+                <div className="b-card">
+                  <div className="icon"><ThermometerHalf className="c-red" /></div>
+                  <div className="b-info">
+                    <small>Sick Leave</small>
+                    <div className="count-row">
+                      <strong>{selectedEmployeeBalances?.sickUsed ?? 0}</strong>
+                      <span style={{ fontSize: 12, color: '#888' }}> / {selectedEmployeeBalances?.sickTotal ?? leaveDefaults.sickDefault ?? 6} used</span>
+                    </div>
+                    <div className="progress">
+                      <div
+                        className="red"
+                        style={{
+                          width: `${calculateProgress(
+                            selectedEmployeeBalances?.sickUsed ?? 0,
+                            selectedEmployeeBalances?.sickTotal ?? leaveDefaults.sickDefault ?? 6
+                          )}%`,
+                          transition: 'width 0.4s ease'
+                        }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 11, color: '#05CD99', marginTop: 3 }}>
+                      {selectedEmployeeBalances?.sickRemaining ?? (leaveDefaults.sickDefault ?? 6)} remaining
+                    </div>
+                  </div>
+                </div>
+
+                <div className="b-card">
+                  <div className="icon"><WalletFill className="c-green" /></div>
+                  <div className="b-info">
+                    <small>Short Leave (this month)</small>
+                    <div className="count-row">
+                      <strong>{selectedEmployeeBalances?.shortLeavesUsed ?? 0}</strong>
+                      <span style={{ fontSize: 12, color: '#888' }}> / {selectedEmployeeBalances?.shortLeavesLimit ?? 3} used</span>
+                    </div>
+                    <div className="progress">
+                      <div
+                        className="green"
+                        style={{
+                          width: `${calculateProgress(
+                            selectedEmployeeBalances?.shortLeavesUsed ?? 0,
+                            selectedEmployeeBalances?.shortLeavesLimit ?? 3
+                          )}%`,
+                          transition: 'width 0.4s ease'
+                        }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 11, color: '#05CD99', marginTop: 3 }}>
+                      {selectedEmployeeBalances?.shortLeavesRemaining ?? 3} remaining
+                    </div>
+                  </div>
+                </div>
+
+                <div className="b-card">
+                  <div className="icon"><Calendar3 className="c-blue" /></div>
+                  <div className="b-info">
+                    <small>Half Day Leave (this year)</small>
+                    <div className="count-row">
+                      <strong>{selectedEmployeeBalances?.halfDayUsed ?? 0}</strong>
+                      <span style={{ fontSize: 12, color: '#888' }}> / {selectedEmployeeBalances?.halfDayTotal ?? 12} used</span>
+                    </div>
+                    <div className="progress">
+                      <div
+                        className="blue"
+                        style={{
+                          width: `${calculateProgress(
+                            selectedEmployeeBalances?.halfDayUsed ?? 0,
+                            selectedEmployeeBalances?.halfDayTotal ?? 12
+                          )}%`,
+                          transition: 'width 0.4s ease'
+                        }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 11, color: '#05CD99', marginTop: 3 }}>
+                      {selectedEmployeeBalances?.halfDayRemaining ?? 12} remaining
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <h3>Leave History</h3>
+            <table className="history-table">
+              <thead>
+                <tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Rejection Reason</th></tr>
+              </thead>
+              <tbody>
+                {(selectedLeave.employeeLeaveHistory || [selectedLeave])
+                  .filter(l => l.status !== 'left')
+                  .slice(0, 10)
+                  .map((lv, i) => (
+                    <tr key={i}>
+                      <td>
+                        {lv.leaveType === 'half' ? 'Half Day' : lv.leaveType}
+                        {lv.leaveType === 'half' && lv.halfDayPeriod && (
+                          <span style={{ color: '#888', fontSize: 11 }}>
+                            {' '}({lv.halfDayPeriod === 'first' ? 'Morning' : 'Afternoon'})
+                          </span>
+                        )}
+                      </td>
+                      <td>{formatDate(lv.startDate)}</td>
+                      <td>{formatDate(lv.endDate)}</td>
+                      <td>{lv.numberOfDays}</td>
+                      <td><span className={`status-badge ${lv.status}`}>{lv.status}</span></td>
+                      <td className='text-danger'>{lv.rejectionReason}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════ */}
+      {/* MODAL: VIEW ALL HOLIDAYS                */}
+      {/* ═══════════════════════════════════════ */}
+      {showHolidayView && (
+        <div className="modal-overlay" onClick={() => setShowHolidayView(false)}>
+          <div className="modal-content" style={{ maxWidth: 740, width: '95%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ background: '#1a237e', color: 'white', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ margin: 0, fontSize: 17 }} className='text-white p-3'>📅 Holiday Calendar {new Date().getFullYear()}</h2>
+              <button className="close-btn m-2" style={{ color: 'white', background: 'none', border: 'none', fontSize: 18, cursor: 'pointer' }} onClick={() => setShowHolidayView(false)}>✕</button>
+            </div>
+            <div style={{ overflowY: 'auto', padding: '16px 20px' }}>
+              {holidays.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px', color: '#9ca3af' }}>
+                  <div style={{ fontSize: 40 }}>🏖️</div>
+                  <p>No holidays added yet.</p>
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                  <thead>
+                    <tr style={{ background: '#e8eaf6' }}>
+                      {['#', 'Holiday Name', 'Date', 'Day'].map(h => (
+                        <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: '#1a237e', borderBottom: '2px solid #c5cae9', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...holidays].sort((a, b) => a.isoDate?.localeCompare(b.isoDate)).map((h, i) => (
+                      <tr key={h.id} style={{ background: i % 2 === 0 ? '#fff' : '#f5f5ff' }}>
+                        <td style={{ padding: '9px 12px', color: '#888', width: 36 }}>{i + 1}</td>
+                        <td style={{ padding: '9px 12px', fontWeight: 600, color: '#1a237e' }}>{h.name}</td>
+                        <td style={{ padding: '9px 12px', color: '#374151' }}>{h.displayDate || h.date}</td>
+                        <td style={{ padding: '9px 12px' }}>
+                          <span style={{ background: '#e8eaf6', color: '#3949ab', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>{h.day}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <div style={{ marginTop: 12, fontSize: 12, color: '#888', textAlign: 'center' }}>
+                Total: <strong>{holidays.length}</strong> holidays
+              </div>
+            </div>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowHolidayView(false)} style={{ background: '#1a237e', color: 'white', border: 'none', borderRadius: 7, padding: '8px 20px', fontWeight: 600, cursor: 'pointer' }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════ */}
+      {/* MODAL: EDIT HOLIDAYS                    */}
+      {/* ═══════════════════════════════════════ */}
+      {showHolidayEdit && (
+        <div className="modal-overlay" onClick={() => setShowHolidayEdit(false)}>
+          <div className="modal-content" style={{ maxWidth: 800, width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ background: '#e65100', color: 'white', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ margin: 0, fontSize: 17 }} className='text-white p-3'>✏️ Edit Holiday Calendar</h2>
+              <button className="close-btn m-2" style={{ color: 'white', background: 'none', border: 'none', fontSize: 18, cursor: 'pointer' }} onClick={() => setShowHolidayEdit(false)}>✕</button>
+            </div>
+            <div style={{ overflowY: 'auto', padding: '16px 20px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: '#fff3e0' }}>
+                    {['#', 'Holiday Name', 'Date', 'Day (auto)', 'Delete'].map((h, i) => (
+                      <th key={i} style={{ padding: '9px 10px', textAlign: 'left', fontWeight: 700, color: '#e65100', borderBottom: '2px solid #ffcc80' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {editHolidays.map((h, i) => (
+                    <tr key={h.id} style={{ background: h.isNew ? '#fffde7' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                      <td style={{ padding: '6px 8px', color: '#aaa', width: 30 }}>{i + 1}</td>
+                      <td style={{ padding: '6px 8px' }}>
+                        <input
+                          value={h.name}
+                          onChange={e => handleEditHolidayChange(h.id, 'name', e.target.value)}
+                          placeholder="Holiday name"
+                          style={{ width: '100%', border: '1px solid #ddd', borderRadius: 5, padding: '5px 8px', fontSize: 13, outline: 'none' }}
+                        />
+                      </td>
+                      <td style={{ padding: '6px 8px' }}>
+                        <input
+                          type="date"
+                          value={h.dateInput || ''}
+                          onChange={e => handleEditHolidayChange(h.id, 'dateInput', e.target.value)}
+                          style={{ border: '1px solid #ddd', borderRadius: 5, padding: '5px 8px', fontSize: 13, outline: 'none' }}
+                        />
+                      </td>
+                      <td style={{ padding: '6px 8px', color: '#555', fontSize: 12 }}>
+                        {h.day || <span style={{ color: '#ccc' }}>–</span>}
+                      </td>
+                      <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                        <button
+                          onClick={() => handleDeleteHolidayRow(h.id)}
+                          title="Delete"
+                          style={{ background: '#fde8e8', color: '#c62828', border: '1px solid #ef9a9a', borderRadius: 5, padding: '3px 10px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+                        >🗑</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button
+                onClick={handleAddHolidayRow}
+                style={{ marginTop: 12, background: '#f3f4f6', color: '#374151', border: '1px dashed #9ca3af', borderRadius: 7, padding: '7px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+              >+ Add Row</button>
+            </div>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setShowHolidayEdit(false)} style={{ background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 7, padding: '8px 18px', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={saveEditedHolidays} disabled={holidayLoading} style={{ background: '#e65100', color: 'white', border: 'none', borderRadius: 7, padding: '8px 22px', fontWeight: 600, cursor: 'pointer', opacity: holidayLoading ? 0.7 : 1 }}>
+                {holidayLoading ? '⏳ Saving...' : '💾 Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════ */}
+      {/* MODAL: BULK UPLOAD HOLIDAYS (Excel)     */}
+      {/* ═══════════════════════════════════════ */}
+      {showHolidayUpload && (
+        <div className="modal-overlay" onClick={() => { if (!uploadLoading) setShowHolidayUpload(false); }}>
+          <div className="modal-content" style={{ maxWidth: 540, width: '95%' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ background: '#2e7d32', color: 'white', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ margin: 0, fontSize: 17, padding: '14px 20px' }}>⬆ Bulk Upload Holidays</h2>
+              <button className="close-btn" style={{ color: 'white', background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', marginRight: 12 }} onClick={() => setShowHolidayUpload(false)}>✕</button>
+            </div>
+            <div style={{ padding: '20px 24px' }}>
+              {uploadError && <div style={{ background: '#fee2e2', color: '#991b1b', borderRadius: 7, padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>{uploadError}</div>}
+              {uploadSuccess && <div style={{ background: '#d1fae5', color: '#065f46', borderRadius: 7, padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>{uploadSuccess}</div>}
+              <p style={{ fontSize: 14, color: '#374151', marginBottom: 16 }}>
+                Upload holidays from an <strong>Excel file</strong> (.xlsx or .xls).
+              </p>
+              <label style={{
+                display: 'block', border: `2px dashed ${uploadLoading ? '#ccc' : '#a5d6a7'}`,
+                borderRadius: 10, padding: '32px 20px', textAlign: 'center',
+                cursor: uploadLoading ? 'not-allowed' : 'pointer',
+                background: uploadLoading ? '#f9f9f9' : '#f1f8f2', marginBottom: 18
+              }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>{uploadLoading ? '⏳' : '📊'}</div>
+                <div style={{ fontWeight: 700, color: uploadLoading ? '#888' : '#2e7d32', marginBottom: 4, fontSize: 15 }}>
+                  {uploadLoading ? 'Uploading...' : 'Click to browse Excel file'}
+                </div>
+                <div style={{ fontSize: 12, color: '#888' }}>Accepts .xlsx and .xls files only</div>
+                <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} disabled={uploadLoading} onChange={handleHolidayFileUpload} />
+              </label>
+            </div>
+            <div style={{ padding: '12px 24px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setShowHolidayUpload(false); setUploadError(''); setUploadSuccess(''); }}
+                disabled={uploadLoading}
+                style={{ background: '#2e7d32', color: 'white', border: 'none', borderRadius: 7, padding: '8px 20px', fontWeight: 600, cursor: uploadLoading ? 'not-allowed' : 'pointer' }}
+              >{uploadSuccess ? '✓ Done' : 'Close'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════ */}
+      {/* MODAL: ADD SINGLE HOLIDAY               */}
+      {/* ═══════════════════════════════════════ */}
+      {showAddHoliday && (
+        <div className="modal-overlay" onClick={() => setShowAddHoliday(false)}>
+          <div className="modal-content" style={{ maxWidth: 440, width: '95%' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ background: '#2e7d32', color: 'white', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ margin: 0, fontSize: 17, padding: '14px 20px' }}>➕ Add Holiday</h2>
+              <button style={{ color: 'white', background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', marginRight: 12 }} onClick={() => setShowAddHoliday(false)}>✕</button>
+            </div>
+            <form onSubmit={handleAddSingleHoliday} style={{ padding: '20px 24px' }}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 13, color: '#374151' }}>Holiday Name *</label>
+                <input
+                  type="text" required placeholder="e.g. Republic Day"
+                  value={addHolidayForm.name}
+                  onChange={e => setAddHolidayForm(f => ({ ...f, name: e.target.value }))}
+                  style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: 7, padding: '9px 12px', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 13, color: '#374151' }}>Date *</label>
+                <input
+                  type="date" required value={addHolidayForm.date}
+                  onChange={e => setAddHolidayForm(f => ({ ...f, date: e.target.value }))}
+                  style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: 7, padding: '9px 12px', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                />
+                {addHolidayForm.date && (
+                  <div style={{ marginTop: 6, fontSize: 12, color: '#6b7280' }}>
+                    📅 {new Date(addHolidayForm.date).toLocaleDateString('en-GB', { weekday: 'long' })}, {formatDate(addHolidayForm.date)}
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button type="button" onClick={() => setShowAddHoliday(false)} style={{ background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 7, padding: '9px 18px', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" style={{ background: '#2e7d32', color: 'white', border: 'none', borderRadius: 7, padding: '9px 22px', fontWeight: 600, cursor: 'pointer' }}>Save Holiday</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* SLIDEBAR: VIEW FULL LEAVE REASON                                */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {reasonSlidebar.isOpen && (
+        <div className="reason-slidebar-overlay" onClick={() => setReasonSlidebar({ ...reasonSlidebar, isOpen: false })}>
+          <div className="reason-slidebar" onClick={e => e.stopPropagation()}>
+            <div className="slidebar-header">
+              <div className="header-content">
+                <h3>Leave Details</h3>
+                <p className="employee-name">From: {reasonSlidebar.employeeName}</p>
+              </div>
+              <button 
+                className="close-btn-slidebar"
+                onClick={() => setReasonSlidebar({ ...reasonSlidebar, isOpen: false })}
+                title="Close"
+              >✕</button>
+            </div>
+
+            <div className="slidebar-content">
+              <div className="reason-section">
+                <h4 className="reason-title">Applied Reason</h4>
+                <div className="reason-box">
+                  <p className="reason-full-text">{reasonSlidebar.reason}</p>
+                </div>
+              </div>
+
+              {reasonSlidebar.rejectionReason && reasonSlidebar.status === 'rejected' && (
+                <div className="reason-section rejection-section">
+                  <h4 className="reason-title rejection-title">Rejection Reason</h4>
+                  <div className="reason-box rejection-box">
+                    <p className="reason-full-text">{reasonSlidebar.rejectionReason}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="slidebar-footer">
+              <button 
+                className="btn-close-slidebar"
+                onClick={() => setReasonSlidebar({ ...reasonSlidebar, isOpen: false })}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+export default Leave;

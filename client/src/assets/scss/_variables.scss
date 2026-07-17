@@ -1,0 +1,137 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// _variables.scss — SHARED DESIGN TOKENS
+//
+// This is the FIRST import in main.scss so every other partial can use these.
+// Before this file existed, colors were hardcoded per-page. A palette change
+// is now a one-file edit.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Core palette ───────────────────────────────────────────────────────────
+$color-bg-primary:    #FFFFFF;   // primary background — pages, cards, panels, tables
+$color-secondary:     #1976D2;   // blue — navbar, sidebar, active tabs, links, chart accents
+$color-secondary-alt: #3F51B5;   // alt/hover shade of blue
+$color-accent:        #FF7043;   // orange — ALL primary CTAs (Add/Save/Submit/Approve)
+$color-accent-light:  #FFA726;   // lighter orange tint — badges, hover states
+$color-text-primary:  #333333;   // all body copy, labels, table text
+
+// ── Derived neutrals ───────────────────────────────────────────────────────
+$color-text-muted:  #6B7280;
+$color-text-light:  #9CA3AF;
+$color-border:      #E5E7EB;
+$color-border-dark: #D1D5DB;
+$color-surface-alt: #F9FAFB;   // subtle section divider ONLY — not a page background
+
+// ── Status palette (ONE consistent mapping used everywhere) ────────────────
+// Orange = positive / attention (per the brief), then a consistent secondary set.
+$color-success: #2E7D32;   // approved, present, completed
+$color-warning: $color-accent-light;
+$color-danger:  #D32F2F;   // rejected, absent
+$color-info:    $color-secondary;
+$color-pending: $color-accent;   // pending / needs attention → orange
+
+// Score bands (Analytics)
+$color-score-excellent: $color-success;
+$color-score-good:      $color-secondary;
+$color-score-average:   $color-accent-light;
+$color-score-poor:      $color-danger;
+
+// ── Typography ─────────────────────────────────────────────────────────────
+$font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+$font-size-base: 14px;
+$h1-size: 28px;  $h1-weight: 700;
+$h2-size: 24px;  $h2-weight: 700;
+$h3-size: 20px;  $h3-weight: 600;
+$h4-size: 17px;  $h4-weight: 600;
+$h5-size: 15px;  $h5-weight: 600;
+$h6-size: 13px;  $h6-weight: 600;
+
+// ── Spacing / radius / elevation ───────────────────────────────────────────
+$radius-sm: 6px;
+$radius-md: 10px;
+$radius-lg: 16px;
+
+$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+$shadow-md: 0 4px 14px rgba(0, 0, 0, 0.08);
+$shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+
+$transition-base: all 0.18s ease;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Reusable mixins
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Primary CTA — orange, reserved strictly for Add / Save / Submit / Approve / Assign
+@mixin btn-primary {
+  background: $color-accent;
+  color: #fff;
+  border: 1px solid $color-accent;
+  border-radius: $radius-sm;
+  padding: 9px 18px;
+  font-weight: 600;
+  font-size: $font-size-base;
+  cursor: pointer;
+  transition: $transition-base;
+
+  &:hover:not(:disabled) {
+    background: $color-accent-light;
+    border-color: $color-accent-light;
+  }
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+}
+
+// Secondary / cancel — neutral outline, keeps orange visually reserved
+@mixin btn-secondary {
+  background: transparent;
+  color: $color-text-primary;
+  border: 1px solid $color-border-dark;
+  border-radius: $radius-sm;
+  padding: 9px 18px;
+  font-weight: 600;
+  font-size: $font-size-base;
+  cursor: pointer;
+  transition: $transition-base;
+
+  &:hover:not(:disabled) {
+    background: $color-surface-alt;
+    border-color: $color-secondary;
+    color: $color-secondary;
+  }
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+}
+
+// Blue outline — for non-destructive secondary actions (View / Filter)
+@mixin btn-outline-blue {
+  background: transparent;
+  color: $color-secondary;
+  border: 1px solid $color-secondary;
+  border-radius: $radius-sm;
+  padding: 9px 18px;
+  font-weight: 600;
+  font-size: $font-size-base;
+  cursor: pointer;
+  transition: $transition-base;
+
+  &:hover:not(:disabled) { background: $color-secondary; color: #fff; }
+}
+
+@mixin card {
+  background: $color-bg-primary;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  padding: 20px;
+}
+
+@mixin status-chip($bg, $fg) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: $bg;
+  color: $fg;
+  white-space: nowrap;
+}

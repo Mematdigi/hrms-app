@@ -1,0 +1,242 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// _base.scss — GLOBAL TYPOGRAPHY & COMPONENT BASELINE
+//
+// Applied across EVERY page (existing + new), so page partials no longer need
+// their own ad-hoc heading sizes, button colors, or status-chip styles.
+// Imported straight after _variables.scss in main.scss.
+// ═══════════════════════════════════════════════════════════════════════════
+
+body,
+.app-shell,
+.page-container {
+  background: $color-bg-primary;
+  color: $color-text-primary;
+  font-family: $font-family-base;
+  font-size: $font-size-base;
+}
+
+// ── Heading scale — consistent weight/size steps app-wide ──────────────────
+h1, .h1 { font-size: $h1-size; font-weight: $h1-weight; color: $color-text-primary; line-height: 1.25; }
+h2, .h2 { font-size: $h2-size; font-weight: $h2-weight; color: $color-text-primary; line-height: 1.3; }
+h3, .h3 { font-size: $h3-size; font-weight: $h3-weight; color: $color-text-primary; line-height: 1.35; }
+h4, .h4 { font-size: $h4-size; font-weight: $h4-weight; color: $color-text-primary; line-height: 1.4; }
+h5, .h5 { font-size: $h5-size; font-weight: $h5-weight; color: $color-text-primary; line-height: 1.45; }
+h6, .h6 { font-size: $h6-size; font-weight: $h6-weight; color: $color-text-primary; line-height: 1.5;
+          text-transform: uppercase; letter-spacing: 0.04em; color: $color-text-muted; }
+
+p, td, th, label, span, li { color: $color-text-primary; }
+
+a {
+  color: $color-secondary;
+  text-decoration: none;
+  transition: $transition-base;
+  &:hover { color: $color-secondary-alt; text-decoration: underline; }
+}
+
+// ── Shared page scaffolding used by all new pages ──────────────────────────
+.page-container {
+  padding: 26px 30px 60px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid $color-border;
+
+  .page-title {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    h1 { margin: 0; }
+    .page-title-icon {
+      width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: $radius-md;
+      background: rgba($color-secondary, 0.09);
+      color: $color-secondary;
+    }
+  }
+  .page-subtitle { margin: 4px 0 0; color: $color-text-muted; font-size: 13px; }
+  .page-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+}
+
+.card { @include card; }
+
+// ── Buttons — orange reserved for primary CTAs only ────────────────────────
+.btn-primary-cta   { @include btn-primary; }
+.btn-secondary-cta { @include btn-secondary; }
+.btn-outline-cta   { @include btn-outline-blue; }
+
+.btn-icon {
+  width: 34px; height: 34px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid $color-border;
+  background: $color-bg-primary;
+  border-radius: $radius-sm;
+  color: $color-text-muted;
+  cursor: pointer;
+  transition: $transition-base;
+
+  &:hover { border-color: $color-secondary; color: $color-secondary; }
+  &.danger:hover { border-color: $color-danger; color: $color-danger; }
+}
+
+// ── Status chips — ONE mapping, used by Attendance, Leave, Regularization,
+//    Weekly Report, Task Report and Analytics alike ────────────────────────
+.status-chip {
+  @include status-chip(rgba($color-text-muted, 0.1), $color-text-muted);
+
+  &.pending, &.submitted, &.attention {
+    @include status-chip(rgba($color-accent, 0.13), darken($color-accent, 12%));
+  }
+  &.approved, &.present, &.completed, &.accepted, &.reviewed, &.excellent {
+    @include status-chip(rgba($color-success, 0.12), $color-success);
+  }
+  &.rejected, &.absent, &.poor {
+    @include status-chip(rgba($color-danger, 0.11), $color-danger);
+  }
+  &.info, &.working, &.good {
+    @include status-chip(rgba($color-secondary, 0.11), $color-secondary);
+  }
+  &.warning, &.late, &.half-day, &.average {
+    @include status-chip(rgba($color-accent-light, 0.18), darken($color-accent-light, 18%));
+  }
+}
+
+// ── Forms ──────────────────────────────────────────────────────────────────
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 15px;
+
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: $color-text-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  input, select, textarea {
+    padding: 9px 12px;
+    border: 1px solid $color-border-dark;
+    border-radius: $radius-sm;
+    font-size: $font-size-base;
+    font-family: $font-family-base;
+    color: $color-text-primary;
+    background: $color-bg-primary;
+    transition: $transition-base;
+
+    &:focus {
+      outline: none;
+      border-color: $color-secondary;
+      box-shadow: 0 0 0 3px rgba($color-secondary, 0.12);
+    }
+  }
+  textarea { resize: vertical; min-height: 72px; }
+}
+
+// ── Tables — white background, #333 text ───────────────────────────────────
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: $color-bg-primary;
+
+  thead th {
+    text-align: left;
+    padding: 12px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $color-text-muted;
+    background: $color-surface-alt;
+    border-bottom: 1px solid $color-border;
+    white-space: nowrap;
+  }
+
+  tbody td {
+    padding: 13px 14px;
+    font-size: $font-size-base;
+    color: $color-text-primary;
+    border-bottom: 1px solid $color-border;
+    vertical-align: middle;
+  }
+
+  tbody tr {
+    transition: $transition-base;
+    &:hover { background: $color-surface-alt; }
+    &:last-child td { border-bottom: none; }
+  }
+}
+
+.table-wrap {
+  @include card;
+  padding: 0;
+  overflow-x: auto;
+}
+
+// ── Loading / empty / error states — required on every new chart + list ────
+.state-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 54px 20px;
+  text-align: center;
+  color: $color-text-muted;
+
+  .state-icon { color: $color-text-light; }
+  .state-title { font-weight: 600; color: $color-text-primary; font-size: 15px; }
+  .state-msg { font-size: 13px; max-width: 380px; }
+  &.error .state-title { color: $color-danger; }
+}
+
+.spinner {
+  width: 30px; height: 30px;
+  border: 3px solid rgba($color-secondary, 0.2);
+  border-top-color: $color-secondary;
+  border-radius: 50%;
+  animation: hrms-spin 0.7s linear infinite;
+}
+@keyframes hrms-spin { to { transform: rotate(360deg); } }
+
+// ── Stat cards (Dashboards, Analytics) ─────────────────────────────────────
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  @include card;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: $transition-base;
+
+  &:hover { box-shadow: $shadow-md; transform: translateY(-2px); }
+
+  .stat-icon {
+    width: 46px; height: 46px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: $radius-md;
+    background: rgba($color-secondary, 0.1);
+    color: $color-secondary;
+  }
+  &.accent .stat-icon { background: rgba($color-accent, 0.13); color: $color-accent; }
+  &.success .stat-icon { background: rgba($color-success, 0.12); color: $color-success; }
+  &.danger  .stat-icon { background: rgba($color-danger, 0.11); color: $color-danger; }
+
+  .stat-value { font-size: 23px; font-weight: 700; color: $color-text-primary; line-height: 1.2; }
+  .stat-label { font-size: 12px; color: $color-text-muted; margin-top: 2px; }
+}

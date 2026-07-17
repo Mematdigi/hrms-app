@@ -1,0 +1,903 @@
+// Reskinned to the shared design system — colors now come from _variables.scss
+// (palette change = one-file edit). See main.scss import order.
+/* ==========================================================================
+   Attendance.scss
+   Fully responsive + interactive styles for the Attendance page
+   (Employee view + HR view, punch widget, calendar, regularization tables)
+   ========================================================================== */
+
+// ---------------------------------------------------------------------------
+// Tokens
+// ---------------------------------------------------------------------------
+$primary: $color-secondary-alt;
+$primary-dark: #4338ca;
+$primary-light: rgba($color-secondary-alt, 0.14);
+$bg-light: $color-bg-primary;
+$text-dark: $color-text-primary;
+$text-grey: $color-text-muted;
+$border: $color-border;
+
+$success: $color-success;
+$danger: $color-danger;
+$warning: $color-accent-light;
+$info: $color-secondary;
+$purple: $color-secondary-alt;
+
+$radius-sm: 6px;
+$radius-md: 8px;
+$radius-lg: 12px;
+
+$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 12px rgba(17, 24, 39, 0.08);
+$shadow-lift: 0 10px 24px rgba(17, 24, 39, 0.12);
+
+$transition-fast: 0.15s ease;
+$transition-base: 0.2s ease;
+$transition-slow: 0.35s ease;
+
+// Breakpoints
+$bp-xl: 1200px;
+$bp-lg: 992px;
+$bp-md: 768px;
+$bp-sm: 576px;
+$bp-xs: 400px;
+
+@mixin respond($bp) {
+  @media (max-width: $bp) {
+    @content;
+  }
+}
+
+// Thin, subtle scrollbar used anywhere content scrolls horizontally
+@mixin thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba($primary, 0.35) transparent;
+
+  &::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba($primary, 0.35);
+    border-radius: 10px;
+    &:hover { background: rgba($primary, 0.55); }
+  }
+}
+
+// Visible, accessible focus ring — used on every interactive element
+@mixin focus-ring {
+  &:focus-visible {
+    outline: 2px solid $primary;
+    outline-offset: 2px;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Keyframes
+// ---------------------------------------------------------------------------
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pulseRing {
+  0%   { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.35); }
+  70%  { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+}
+
+@keyframes selectPop {
+  0%   { transform: scale(0.9); }
+  60%  { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
+
+// Respect users who've asked for reduced motion — disable everything above
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Page shell
+// ---------------------------------------------------------------------------
+.attendance-page {
+  padding: 24px;
+  background-color: $bg-light;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+
+  @include respond($bp-md) { padding: 16px; }
+  @include respond($bp-sm) { padding: 12px; }
+}
+
+// Entrance animation — used on .employee-layout / .hr-layout
+.fade-in {
+  animation: fadeInUp 0.35s ease both;
+}
+
+// ---------------------------------------------------------------------------
+// Header
+// ---------------------------------------------------------------------------
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: $text-dark;
+    margin: 0;
+    display: flex;
+    align-items: center;
+  }
+  p { margin: 4px 0 0; color: $text-grey; font-size: 13px; }
+
+  .header-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+
+    .badge-role {
+      background: $primary-light;
+      color: $primary;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: $radius-sm;
+      font-weight: 600;
+    }
+  }
+
+  @include respond($bp-md) {
+    flex-direction: column;
+    align-items: flex-start;
+
+    h1 { font-size: 19px; }
+  }
+}
+
+.header-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+
+  .btn-action {
+    padding: 10px 16px;
+    border-radius: $radius-md;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    transition: transform $transition-fast, box-shadow $transition-fast, filter $transition-fast, background $transition-fast;
+    @include focus-ring;
+
+    &:hover { transform: translateY(-2px); }
+    &:active { transform: translateY(0) scale(0.98); }
+
+    &.btn-gradient-blue {
+      background: linear-gradient(135deg, $color-secondary, $color-secondary);
+      color: $color-bg-primary;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+      &:hover { filter: brightness(1.06); box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35); }
+    }
+
+    &.download-btn {
+      background: #eef2ff;
+      color: $primary;
+      border: 1px solid $primary-light;
+      &:hover { background: $primary-light; }
+    }
+
+    &.punch-btn {
+      &.check-in { background: $primary; color: $color-bg-primary; }
+      &.check-out { background: $danger; color: $color-bg-primary; }
+    }
+  }
+
+  @include respond($bp-md) {
+    width: 100%;
+
+    .btn-action { flex: 1 1 auto; }
+    .date-nav { flex: 1 1 100%; justify-content: center; }
+  }
+
+  @include respond($bp-sm) {
+    flex-direction: column;
+    align-items: stretch;
+
+    .btn-action { width: 100%; }
+  }
+}
+
+.date-nav {
+  background: white;
+  border: 1px solid $border;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+
+  button {
+    background: none;
+    border: none;
+    padding: 8px 12px;
+    cursor: pointer;
+    color: $text-grey;
+    font-size: 16px;
+    line-height: 1;
+    border-radius: $radius-sm;
+    transition: background $transition-fast, color $transition-fast;
+    @include focus-ring;
+
+    &:hover { background: $color-surface-alt; color: $primary; }
+    &:active { transform: scale(0.94); }
+  }
+
+  span {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0 12px;
+    min-width: 120px;
+    text-align: center;
+    color: $text-dark;
+  }
+
+  @include respond($bp-sm) {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Punch Widget (Employee)
+// ---------------------------------------------------------------------------
+.punch-widget-bar {
+  background: white;
+  border-radius: $radius-lg;
+  padding: 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: $shadow-sm;
+  transition: box-shadow $transition-base;
+
+  &:hover { box-shadow: $shadow-md; }
+
+  .punch-btn-area {
+    width: 200px;
+    flex-shrink: 0;
+
+    .btn-main-punch {
+      width: 100%;
+      padding: 14px;
+      border-radius: $radius-md;
+      border: none;
+      background: linear-gradient(135deg, $color-secondary, $color-secondary);
+      color: white;
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+      transition: transform $transition-base, box-shadow $transition-base, filter $transition-base, background $transition-slow;
+      @include focus-ring;
+
+      &:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.38);
+      }
+      &:active:not(:disabled) { transform: translateY(0) scale(0.98); }
+
+      &:disabled {
+        cursor: not-allowed;
+        opacity: 0.75;
+        transform: none;
+      }
+    }
+
+    // Currently punched-in — softer color + a gentle pulsing ring so the
+    // "you're clocked in" state is unmistakable at a glance.
+    &.checked-in .btn-main-punch {
+      background: #93c5fd;
+      color: $color-secondary-alt;
+      box-shadow: none;
+      animation: pulseRing 2.4s ease-out infinite;
+
+      &:hover:not(:disabled) {
+        background: #7cb2fc;
+        transform: translateY(-2px);
+      }
+    }
+
+    @include respond($bp-md) { width: 100%; }
+  }
+
+  .punch-info {
+    display: flex;
+    gap: 40px;
+    text-align: center;
+    flex-wrap: wrap;
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: transform $transition-fast;
+
+      small { font-size: 11px; color: $text-grey; text-transform: uppercase; letter-spacing: 0.03em; }
+      strong { font-size: 18px; color: $text-dark; font-variant-numeric: tabular-nums; }
+
+      &.highlight strong { color: $primary; }
+    }
+
+    @include respond($bp-sm) {
+      width: 100%;
+      justify-content: space-between;
+      gap: 12px;
+
+      .info-item { flex: 1 1 0; }
+    }
+  }
+
+  @include respond($bp-md) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  @include respond($bp-sm) { padding: 16px; }
+}
+
+// ---------------------------------------------------------------------------
+// Stats Row
+// ---------------------------------------------------------------------------
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+
+  .stat-box {
+    background: white;
+    padding: 16px;
+    border-radius: $radius-lg;
+    border: 1px solid $border;
+    position: relative;
+    overflow: hidden;
+    transition: transform $transition-base, box-shadow $transition-base, border-color $transition-base;
+    animation: fadeInUp 0.4s ease both;
+
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: $shadow-md;
+      border-color: rgba($primary, 0.25);
+    }
+
+    // Stagger the entrance slightly across boxes
+    @for $i from 1 through 8 {
+      &:nth-child(#{$i}) { animation-delay: $i * 0.04s; }
+    }
+
+    small { color: $text-grey; font-size: 12px; display: block; margin-bottom: 8px; }
+    h3 { margin: 0; font-size: 24px; font-weight: 700; color: $text-dark; }
+
+    i { position: absolute; top: 16px; right: 16px; font-size: 18px; color: $color-border; }
+
+    // Icon colors
+    .text-success { color: $success !important; }
+    .text-danger  { color: $danger !important; }
+    .text-warning { color: $warning !important; }
+    .text-info    { color: $info !important; }
+    .text-primary { color: $primary !important; }
+    .text-purple  { color: $purple !important; }
+  }
+
+  @include respond($bp-sm) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+
+    .stat-box {
+      padding: 12px;
+      h3 { font-size: 20px; }
+    }
+  }
+
+  @include respond($bp-xs) {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  &.hr {
+    @include respond($bp-sm) { grid-template-columns: repeat(2, 1fr); }
+  }
+}
+
+.stat-box.clean {
+  background: white;
+  padding: 20px;
+  border-radius: $radius-lg;
+  border: 1px solid $border;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: transform $transition-base, box-shadow $transition-base;
+
+  &:hover { transform: translateY(-3px); box-shadow: $shadow-md; }
+
+  .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    span { color: $color-text-muted; font-size: 13px; font-weight: 500; }
+    i { font-size: 18px; }
+  }
+  h3 { font-size: 28px; font-weight: 700; color: #111; margin: 0; }
+}
+
+// ---------------------------------------------------------------------------
+// Main Split Content (table + calendar)
+// ---------------------------------------------------------------------------
+.content-split {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  align-items: start;
+
+  @include respond($bp-lg) {
+    grid-template-columns: 1fr;
+
+    // On mobile the calendar is the faster glance — show it first,
+    // detailed table below.
+    .calendar-section { order: -1; }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Table
+// ---------------------------------------------------------------------------
+.table-section {
+  background: white;
+  border-radius: $radius-lg;
+  border: 1px solid $border;
+  padding: 0;
+  // Horizontal scroll on narrow screens instead of clipping content
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  @include thin-scrollbar;
+
+  &.full-width { width: 100%; }
+
+  .modern-table {
+    width: 100%;
+    border-collapse: collapse;
+
+    th {
+      text-align: left;
+      padding: 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: $text-grey;
+      background: $color-surface-alt;
+      border-bottom: 1px solid $border;
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    td {
+      padding: 16px;
+      font-size: 14px;
+      border-bottom: 1px solid $color-surface-alt;
+      color: $text-dark;
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    tbody tr {
+      transition: background $transition-fast;
+      &:hover { background: $color-surface-alt; }
+    }
+
+    .status-pill {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      transition: transform $transition-fast;
+
+      &:hover { transform: scale(1.05); }
+
+      &.present     { background: rgba($color-success, 0.13); color: $color-success; }
+      &.absent      { background: rgba($color-danger, 0.12); color: $color-danger; }
+      &.overtime    { background: rgba($color-accent, 0.14); color: darken($color-accent, 16%); }
+      &.half-day    { background: #f3e8ff; color: #6b21a8; }
+      &.short-leave { background: rgba($color-secondary, 0.10); color: #075985; }
+      &.working     { background: #fac4f3; color: #075985; }
+    }
+
+    .emp-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      .avatar {
+        width: 32px;
+        height: 32px;
+        background: $primary-light;
+        color: $primary;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 12px;
+        flex-shrink: 0;
+      }
+    }
+
+    @include respond($bp-md) {
+      min-width: 640px; // forces the wrapper's horizontal scroll instead of squeezing columns unreadably
+
+      th, td { padding: 12px; font-size: 13px; }
+    }
+  }
+
+  @include respond($bp-sm) {
+    border-radius: $radius-md;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Calendar Side Widget
+// ---------------------------------------------------------------------------
+.calendar-section {
+  background: white;
+  border-radius: $radius-lg;
+  border: 1px solid $border;
+  padding: 20px;
+  width: 100%;
+  transition: box-shadow $transition-base;
+
+  h5 {
+    margin: 0 0 16px;
+    font-size: 15px;
+    font-weight: 700;
+    color: $text-dark;
+  }
+
+  .cal-header-row {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    text-align: center;
+    font-size: 12px;
+    color: $text-grey;
+    margin-bottom: 12px;
+    font-weight: 600;
+    gap: 8px !important;
+    width: 100%;
+
+    span { padding: 8px 0; }
+  }
+
+  .cal-grid {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    gap: 8px !important;
+    row-gap: 10px !important;
+    width: 100%;
+
+    .cal-day {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 4px;
+      font-size: 13px;
+      color: $text-dark;
+      min-height: 50px !important;
+      padding: 6px 4px !important;
+      border-radius: $radius-sm;
+      border: 1px solid $color-surface-alt;
+      background: white;
+      cursor: pointer;
+      transition: background $transition-fast, border-color $transition-fast, transform $transition-fast, box-shadow $transition-fast;
+      position: relative;
+      box-sizing: border-box !important;
+      @include focus-ring;
+
+      .day-num {
+        font-weight: 500;
+        font-size: 14px;
+        display: block;
+      }
+
+      &.empty {
+        pointer-events: none;
+        border: none !important;
+        background: transparent !important;
+        cursor: default;
+        min-height: 50px !important;
+      }
+
+      &:hover:not(.empty) {
+        background: #f0f4ff;
+        border-color: #d0d9ff;
+        transform: translateY(-1px);
+      }
+
+      &:active:not(.empty) { transform: translateY(0) scale(0.96); }
+
+      &.selected {
+        background: #e3f2fd !important;
+        border: 2px solid $color-secondary !important;
+        box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+        animation: selectPop 0.25s ease;
+      }
+
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        position: absolute;
+        bottom: 5px;
+        left: 50%;
+        transform: translateX(-50%);
+
+        &.dot-present { background: $success; }
+        &.dot-absent  { background: $danger; }
+        &.dot-warning    { background: $warning; }
+        &.dot-short   { background: $info; }
+        &.dot-half    { background: $purple; }
+      }
+    }
+  }
+
+  .cal-legend {
+    margin-top: 24px;
+    border-top: 1px solid $color-surface-alt;
+    padding-top: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+
+    span {
+      font-size: 11px;
+      color: $text-grey;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+    .dot-present { background: $success; }
+    .dot-absent  { background: $danger; }
+    .dot-overtime { background: $warning; }
+    .dot-short   { background: $info; }
+    .dot-half    { background: $purple; }
+  }
+
+  @include respond($bp-md) { padding: 16px; }
+
+  @include respond($bp-sm) {
+    .cal-grid .cal-day {
+      min-height: 38px !important;
+      font-size: 11px;
+
+      .day-num { font-size: 12px; }
+    }
+  }
+}
+
+// Calendar Column (Calendar + Employee Card) — reserved for future use
+.calendar-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+// Employee Attendance Card (Below Calendar) — reserved for future use
+.employee-attendance-card {
+  background: white;
+  border-radius: $radius-lg;
+  border: 1px solid $border;
+  padding: 20px;
+
+  h5 {
+    margin: 0 0 16px;
+    font-size: 15px;
+    font-weight: 700;
+    color: $text-dark;
+  }
+
+  .attendance-card-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .attendance-card-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: $color-surface-alt;
+    border-radius: $radius-md;
+    border: 1px solid $color-surface-alt;
+    transition: background $transition-fast;
+
+    &:hover { background: $color-surface-alt; }
+
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+
+      &.punch-in       { background: rgba($color-secondary, 0.14); color: $color-secondary; }
+      &.punch-out      { background: rgba($color-accent, 0.08); color: $color-accent; }
+      &.working-hours  { background: rgba($color-success, 0.13); color: $color-success; }
+    }
+
+    .card-content {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+
+      small { font-size: 11px; color: $text-grey; text-transform: uppercase; font-weight: 500; }
+      strong { font-size: 16px; color: $text-dark; font-weight: 600; }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Filters (HR view)
+// ---------------------------------------------------------------------------
+.filter-card-clean {
+  background: transparent;
+  padding: 0;
+  margin-bottom: 20px;
+
+  // Shared look for every <select class="filter-select">, whether it sits
+  // inline in the header (regularization status) or in the filter bar
+  // below (status / department). Defined once here so both pick it up —
+  // previously this lived only inside .filter-input-group and the header
+  // select fell back to a bare, unstyled browser dropdown.
+  .filter-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    border: 1px solid $color-border;
+    border-radius: $radius-sm;
+    padding: 7px 30px 7px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: $color-text-primary;
+    background-color: $color-surface-alt;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 10px 7px;
+    cursor: pointer;
+    min-width: 140px;
+    transition: border-color $transition-fast, background-color $transition-fast, box-shadow $transition-fast;
+
+    &:hover { border-color: $primary; background-color: $color-bg-primary; }
+
+    // A soft on-brand ring instead of the browser's default hard-edged
+    // outline — still clearly visible for keyboard and mouse focus alike.
+    &:focus {
+      outline: none;
+      border-color: $primary;
+      background-color: $color-bg-primary;
+      box-shadow: 0 0 0 3px rgba($primary, 0.15);
+    }
+  }
+
+  .filter-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: $color-text-muted;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    @include respond($bp-sm) {
+      justify-content: space-between;
+
+      .filter-select { max-width: 100% !important; width: 100%; }
+    }
+  }
+
+  .filter-input-group {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    background: white;
+    padding: 10px 16px;
+    border-radius: $radius-lg;
+    border: 1px solid $color-border;
+    flex-wrap: wrap;
+    transition: box-shadow $transition-base;
+
+    &:focus-within { box-shadow: 0 0 0 3px rgba($primary, 0.12); border-color: $primary; }
+
+    .search-box {
+      flex: 1 1 200px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      i { color: $color-text-light; }
+      input {
+        border: none;
+        outline: none;
+        width: 100%;
+        font-size: 14px;
+        background: transparent;
+      }
+    }
+
+    @include respond($bp-md) {
+      .search-box { flex: 1 1 100%; }
+      .filter-select { flex: 1 1 calc(50% - 6px); min-width: 0; }
+      .date-nav { flex: 1 1 100%; }
+    }
+
+    @include respond($bp-sm) {
+      padding: 12px;
+      .filter-select { flex: 1 1 100%; }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// HR layout grid (attendance table + calendar column)
+// ---------------------------------------------------------------------------
+.hr-layout {
+  .row {
+    row-gap: 20px; // keeps table/calendar from touching once they stack on mobile
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Small utility niceties
+// ---------------------------------------------------------------------------
+// Loading text shown while data is being fetched
+.p-5.text-center {
+  animation: fadeIn 0.2s ease;
+  color: $text-grey;
+}
