@@ -105,7 +105,7 @@ const RoleManagement = () => {
   return (
     <div className="role-management-container">
       <div className="role-header">
-        
+
         <h1><span className="m-3"><BackButton/></span>🔐Role Management</h1>
         {/* <p>Manage user roles and permissions</p> */}
       </div>
@@ -158,6 +158,7 @@ const RoleManagement = () => {
             <option value="admin">Admin</option>
             <option value="hr">HR Manager</option>
             <option value="manager">Manager</option>
+            <option value="tl">Team Lead</option>
             <option value="employee">Employee</option>
           </select>
         </div>
@@ -219,6 +220,7 @@ const RoleManagement = () => {
                         <option value="admin">Admin</option>
                         <option value="hr">HR Manager</option>
                         <option value="manager">Manager</option>
+                        <option value="tl">Team Lead</option>
                         <option value="employee">Employee</option>
                       </select>
                     </td>
@@ -245,6 +247,7 @@ const RoleManagement = () => {
           <li><strong>Admin:</strong> Full system access, manage all users and settings</li>
           <li><strong>HR Manager:</strong> Manage employees, attendance, leave, and payroll</li>
           <li><strong>Manager:</strong> View team members, approve leave requests</li>
+          <li><strong>Team Lead:</strong> Manage own team members, weekly reports, scoring</li>
           <li><strong>Employee:</strong> View personal data, apply for leave, check attendance</li>
         </ul>
       </div> */}

@@ -1,13 +1,37 @@
 const User = require('../models/User');
+const Employee = require('../models/Employee');
 const { createNotification } = require('./Notificationcontroller');
 const cacheMiddleware = require('../middleware/cacheMiddleware');
 
 /**
- * Company Hierarchy — implemented directly on User.js
- * (reportingManager_id + teamLead_id + designationLevel), NOT a third parallel
- * collection, per the "reconcile instead of adding a third place" rule.
+ * Company Hierarchy — structural fields (reportingManager_id, teamLead_id,
+ * designationLevel, role) live on User. Display fields (department,
+ * designation, profilePhoto) live on Employee. The two collections are
+ * joined by the shared `employeeId` field — there is no direct _id link.
  */
 class HierarchyController {
+
+  // ── Enrich a list of lean User docs with matching Employee display data ──
+  // Falls back to the User's own department/designation/profileImage if no
+  // Employee record is found for that employeeId (keeps things from breaking
+  // rather than showing blank cards).
+  enrichWithEmployeeData = async (users) => {
+    const employeeIds = users.map(u => u.employeeId).filter(Boolean);
+    const employees = await Employee.find({ employeeId: { $in: employeeIds } })
+      .select('employeeId department designation profilePhoto')
+      .lean();
+    const byEmployeeId = new Map(employees.map(e => [e.employeeId, e]));
+
+    return users.map(u => {
+      const emp = byEmployeeId.get(u.employeeId);
+      return {
+        ...u,
+        department: emp?.department || u.department || '',
+        designation: emp?.designation || u.designation || '',
+        profilePhoto: emp?.profilePhoto || u.profileImage || null,
+      };
+    });
+  };
 
   // ── GET /hierarchy/tree ──────────────────────────────────────────────────
   // Full org tree (nested JSON, roots = users with no reporting manager).
@@ -18,7 +42,9 @@ class HierarchyController {
         .select('firstName lastName email employeeId role department designation designationLevel reportingManager_id teamLead_id profileImage')
         .lean();
 
-      const byId = new Map(users.map(u => [u._id.toString(), { ...u, children: [] }]));
+      const enriched = await this.enrichWithEmployeeData(users);
+
+      const byId = new Map(enriched.map(u => [u._id.toString(), { ...u, children: [] }]));
       const roots = [];
 
       for (const u of byId.values()) {
@@ -65,7 +91,8 @@ class HierarchyController {
         currentId = next;
       }
 
-      res.json({ success: true, data: branch });
+      const enrichedBranch = await this.enrichWithEmployeeData(branch);
+      res.json({ success: true, data: enrichedBranch });
     } catch (error) {
       res.status(500).json({ success: false, message: error.message });
     }
@@ -85,7 +112,26 @@ class HierarchyController {
         .sort({ firstName: 1 })
         .lean();
 
-      res.json({ success: true, count: team.length, data: team });
+      const enrichedTeam = await this.enrichWithEmployeeData(team);
+      res.json({ success: true, count: enrichedTeam.length, data: enrichedTeam });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  // ── GET /hierarchy/assignable ───────────────────────────────────────────
+  // Flat list of active users for the Reporting Manager / Team Lead dropdowns.
+  // IMPORTANT: this returns User._id (not Employee._id) since that's what
+  // reportingManager_id / teamLead_id actually reference.
+  getAssignableUsers = async (req, res) => {
+    try {
+      const users = await User.find({ isActive: true })
+        .select('firstName lastName employeeId role department designation profileImage')
+        .sort({ firstName: 1 })
+        .lean();
+
+      const enriched = await this.enrichWithEmployeeData(users);
+      res.json({ success: true, data: enriched });
     } catch (error) {
       res.status(500).json({ success: false, message: error.message });
     }
@@ -93,14 +139,21 @@ class HierarchyController {
 
   // ── PUT /hierarchy/:userId ──────────────────────────────────────────────
   // admin/hr/manager only — reassign reportingManager_id / teamLead_id /
-  // designationLevel. Validates against circular reporting.
+  // designationLevel / role. Validates against circular reporting.
+  // Operates on User, since that's where these fields live.
   updateHierarchy = async (req, res) => {
     try {
       const { userId } = req.params;
-      const { reportingManager_id, teamLead_id, designationLevel } = req.body;
+      const { reportingManager_id, teamLead_id, designationLevel, role } = req.body;
 
       const user = await User.findById(userId);
       if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+      // ── Role validation (only if a role is being set) ──
+      const validRoles = ['admin', 'hr', 'manager', 'tl', 'employee'];
+      if (role !== undefined && role !== null && role !== '' && !validRoles.includes(role)) {
+        return res.status(400).json({ success: false, message: 'Invalid role' });
+      }
 
       // ── Circular-reporting validation ──
       const wouldBeCircular = async (startId, newParentId) => {
@@ -132,14 +185,20 @@ class HierarchyController {
         }
       }
 
+      // Capture the old role BEFORE the update so we can detect a real change
+      const oldRole = user.role;
+
       const update = {};
       if (reportingManager_id !== undefined) update.reportingManager_id = reportingManager_id || null;
       if (teamLead_id !== undefined)         update.teamLead_id = teamLead_id || null;
-      if (designationLevel !== undefined)    update.designationLevel = designationLevel;
+      if (designationLevel !== undefined)    update.designationLevel = Number(designationLevel);
+      if (role !== undefined && role)        update.role = role;
       update.updatedAt = new Date();
 
       const updated = await User.findByIdAndUpdate(userId, { $set: update }, { new: true })
         .select('-password');
+
+      const roleChanged = !!update.role && update.role !== oldRole;
 
       // 🔔 Notify the affected user that their reporting line changed
       await createNotification({
@@ -147,10 +206,23 @@ class HierarchyController {
         sender:    req.user.id || req.user._id,
         type:      'hierarchy_updated',
         title:     'Your Reporting Line Was Updated',
-        message:   'Your reporting manager / team lead assignment has been updated. Check the Hierarchy page for your new reporting line.',
+        message:   'Your reporting manager / team lead / designation level has been updated. Check the Hierarchy page for your new reporting line.',
         refId:     userId,
         refModel:  'User',
       });
+
+      // 🔔 If the role actually changed, notify separately (this one requires re-login)
+      if (roleChanged) {
+        await createNotification({
+          recipient: userId,
+          sender:    req.user.id || req.user._id,
+          type:      'role_changed',
+          title:     'Your Role Was Updated',
+          message:   `Your role was updated to "${update.role.toUpperCase()}". Your menu and permissions have changed — please log out and log back in.`,
+          refId:     userId,
+          refModel:  'User',
+        });
+      }
 
       // Invalidate the cached org tree so the change shows up immediately
       cacheMiddleware.invalidate('cache:');

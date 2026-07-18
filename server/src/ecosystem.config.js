@@ -6,7 +6,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 5000,
-        MONGO_URI: 'mongodb+srv://YOUR_USER:YOUR_PASSWORD@cluster0.xxxxx.mongodb.net/YOUR_DB?retryWrites=true&w=majority',
+        MONGO_URI: 'mongodb+srv://ordersmego_db_user:mematdigiuser2026@cluster0.nzmwtff.mongodb.net/hrms',
         JWT_SECRET: 'your_jwt_secret',
       }
     }

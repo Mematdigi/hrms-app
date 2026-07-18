@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5002/v1';
+const API_BASE_URL = 'https://hrms.mematdigi.com/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -250,6 +250,9 @@ export const hierarchyAPI = {
   getMyBranch: ()               => api.get('/hierarchy/my-branch'),
   /** TL/Manager: my direct team roster */
   getMyTeam:   ()               => api.get('/hierarchy/my-team'),
+  /** admin/hr/manager: flat list of active users for the Reporting Manager /
+   *  Team Lead dropdowns — returns User._id enriched with Employee display data */
+  getAssignableUsers: ()        => api.get('/hierarchy/assignable'),
   /** admin/hr/manager: reassign — { reportingManager_id, teamLead_id, designationLevel } */
   update:      (userId, data)   => api.put(`/hierarchy/${userId}`, data),
 };

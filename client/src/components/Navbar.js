@@ -93,6 +93,9 @@ export const NOTIF_LABELS = {
 
 };
 
+// Number of nav items shown directly before the rest collapse into "More"
+const VISIBLE_NAV_COUNT = 6;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper — relative time
 // ─────────────────────────────────────────────────────────────────────────────
@@ -132,13 +135,17 @@ const Navbar = () => {
   };
 
   // ── UI state ───────────────────────────────────────────────────────────────
-  const [menuOpen,      setMenuOpen]      = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isBellOpen,    setIsBellOpen]    = useState(false);
+  const [menuOpen,        setMenuOpen]        = useState(false); // mobile drawer
+  const [isProfileOpen,   setIsProfileOpen]   = useState(false); // top-bar profile dropdown (desktop + mobile avatar)
+  const [isBellOpen,      setIsBellOpen]      = useState(false);
+  const [isMoreOpen,      setIsMoreOpen]      = useState(false); // desktop "More" dropdown
+  const [drawerProfileOpen, setDrawerProfileOpen] = useState(false); // mobile drawer's profile footer submenu
 
-  const profileRef = useRef(null);
-  const bellRef    = useRef(null);
-  const pollRef    = useRef(null);
+  const profileRef       = useRef(null); // desktop profile wrapper
+  const mobileProfileRef = useRef(null); // mobile avatar-only wrapper
+  const bellRef           = useRef(null);
+  const moreRef            = useRef(null);
+  const pollRef            = useRef(null);
 
   // ── Fetch notifications ────────────────────────────────────────────────────
   const fetchNotifications = useCallback(async () => {
@@ -198,13 +205,17 @@ const Navbar = () => {
     return () => clearInterval(pollRef.current);
   }, [user, fetchNotifications]);
 
-  
+
 
   // ── Close on outside click ─────────────────────────────────────────────────
   useEffect(() => {
     const handle = (e) => {
-      if (profileRef.current && !profileRef.current.contains(e.target)) setIsProfileOpen(false);
-      if (bellRef.current    && !bellRef.current.contains(e.target))    setIsBellOpen(false);
+      const insideProfile =
+        (profileRef.current && profileRef.current.contains(e.target)) ||
+        (mobileProfileRef.current && mobileProfileRef.current.contains(e.target));
+      if (!insideProfile) setIsProfileOpen(false);
+      if (bellRef.current && !bellRef.current.contains(e.target)) setIsBellOpen(false);
+      if (moreRef.current && !moreRef.current.contains(e.target)) setIsMoreOpen(false);
     };
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
@@ -222,6 +233,7 @@ const Navbar = () => {
     const next = !isBellOpen;
     setIsBellOpen(next);
     setIsProfileOpen(false);
+    setIsMoreOpen(false);
     if (next) await fetchNotifications();
   };
 
@@ -292,6 +304,7 @@ const Navbar = () => {
     if (l.includes('analytics'))   return 'bi-bar-chart-line';
     if (l.includes('my team'))     return 'bi-people-fill';
     if (l.includes('scoring'))     return 'bi-sliders';
+    if (l.includes('notification')) return 'bi-bell';
     return 'bi-circle';
   };
 
@@ -304,13 +317,13 @@ const Navbar = () => {
     const analytics = { label: 'Analytics', path: '/analytics' };
 
     if (user?.role === 'admin')
-      return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' }, { label: 'Office Documents', path: '/office-document-upload' }, { label: 'Payroll', path: '/payroll' }, { label: 'Employees', path: '/employees' }, hierarchy, { label: 'Weekly Reports', path: '/weekly-report' }, analytics, { label: 'Scoring Rules', path: '/scoring-settings' }, { label: 'Roles', path: '/roles' }, profile];
+      return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' }, { label: 'Office Documents', path: '/office-document-upload' }, { label: 'Payroll', path: '/payroll' }, { label: 'Employees', path: '/employees' }, hierarchy, { label: 'Weekly Reports', path: '/weekly-report' }, analytics, { label: 'Scoring Rules', path: '/scoring-settings' }, { label: 'Roles', path: '/roles' }];
 
     if (user?.role === 'hr')
-      return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' }, { label: 'Office Documents', path: '/office-document-upload' }, { label: 'Payroll', path: '/payroll' }, { label: 'Employees', path: '/employees' }, hierarchy, { label: 'Weekly Reports', path: '/weekly-report' }, analytics, profile];
+      return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' }, { label: 'Office Documents', path: '/office-document-upload' }, { label: 'Payroll', path: '/payroll' }, { label: 'Employees', path: '/employees' }, hierarchy, { label: 'Weekly Reports', path: '/weekly-report' }, analytics];
 
     if (user?.role === 'manager')
-      return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' }, { label: 'Office Documents', path: '/office-document-upload' }, { label: 'Employees', path: '/employees' }, { label: 'Payroll', path: '/payroll' }, hierarchy, { label: 'Weekly Reports', path: '/weekly-report' }, analytics, profile];
+      return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' }, { label: 'Office Documents', path: '/office-document-upload' }, { label: 'Employees', path: '/employees' }, { label: 'Payroll', path: '/payroll' }, hierarchy, { label: 'Weekly Reports', path: '/weekly-report' }, analytics];
 
     // ── NEW: Team Lead ──
     // A TL owns task data for their team and submits weekly reports. Their
@@ -325,18 +338,22 @@ const Navbar = () => {
         { label: 'Leaves', path: '/leave' },
         { label: 'Office Documents', path: '/office-document-upload' },
         hierarchy,
-        profile,
       ];
 
     if (user?.role === 'employee')
-      return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' }, { label: 'Office Documents', path: '/office-document-upload' }, { label: 'Payroll', path: '/payroll' }, { label: 'Task Report', path: '/task-report' }, analytics, hierarchy, profile];
+      return [...base, { label: 'Attendance', path: '/attendance' }, { label: 'Leaves', path: '/leave' }, { label: 'Office Documents', path: '/office-document-upload' }, { label: 'Payroll', path: '/payroll' }, { label: 'Task Report', path: '/task-report' }, analytics, hierarchy];
 
     return base;
   };
 
+  // ── Split into primary (always visible) + overflow ("More" / mobile drawer) ──
+  const allMenuItems  = getMenuItems();
+  const primaryItems  = allMenuItems.slice(0, VISIBLE_NAV_COUNT);
+  const overflowItems = allMenuItems.slice(VISIBLE_NAV_COUNT);
 
-  const menuItems      = getMenuItems();
   const filteredNotifs = bellFilter === 'unread' ? bellNotifs.filter(n => !n.read) : bellNotifs;
+
+  const initials = `${user?.firstName ? user.firstName[0].toUpperCase() : 'J'}${user?.lastName ? user.lastName[0].toUpperCase() : 'S'}`;
 
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
@@ -351,6 +368,8 @@ const Navbar = () => {
         @keyframes __bdSlideIn  { from{opacity:0;transform:translateX(110%)} to{opacity:1;transform:translateX(0)} }
         @keyframes __confetti   { 0%{transform:translateY(0) rotate(0deg);opacity:1} 100%{transform:translateY(60px) rotate(720deg);opacity:0} }
         @keyframes __bdShimmer  { 0%{background-position:200% center} 100%{background-position:-200% center} }
+        @keyframes __drawerIn   { from{opacity:0;transform:translateX(-100%)} to{opacity:1;transform:translateX(0)} }
+        @keyframes __overlayIn  { from{opacity:0} to{opacity:1} }
 
         .notif-item               { transition: background 0.15s; }
         .notif-item:hover         { background: #f8fafc !important; }
@@ -362,17 +381,23 @@ const Navbar = () => {
         .nscroll::-webkit-scrollbar       { width: 4px; }
         .nscroll::-webkit-scrollbar-track { background: transparent; }
         .nscroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+        @media (max-width: 480px) {
+          .notif-panel { width: calc(100vw - 24px) !important; right: -12px !important; }
+          .birthday-toast-wrap { right: 12px !important; }
+          .birthday-toast-card { width: calc(100vw - 24px) !important; }
+        }
       `}</style>
 
       {/* ══════════════ BIRTHDAY TOASTS ══════════════ */}
       {birthdayToasts.length > 0 && (
-        <div style={{
+        <div className="birthday-toast-wrap" style={{
           position: 'fixed', top: '80px', right: '20px',
           zIndex: 99999, display: 'flex', flexDirection: 'column', gap: '10px',
           pointerEvents: 'none',
         }}>
           {birthdayToasts.map((toast) => (
-            <div key={toast.id} style={{
+            <div key={toast.id} className="birthday-toast-card" style={{
               pointerEvents: 'auto',
               width: '340px',
               background: 'linear-gradient(135deg, #fdf4ff 0%, #fce7f3 50%, #ede9fe 100%)',
@@ -481,7 +506,18 @@ const Navbar = () => {
       <div className="hr-mains">
         <div className="navbar-row">
 
-          {/* LEFT — Logo + Nav links */}
+          {/* Mobile hamburger — leftmost on mobile only */}
+          <div className="mobile-menu-trigger d-lg-none">
+            <button
+              className={`menu-icon ${menuOpen ? 'open' : ''}`}
+              onClick={() => setMenuOpen(p => !p)}
+              aria-label="Toggle navigation"
+            >
+              <span className="bar" /><span className="bar" /><span className="bar" />
+            </button>
+          </div>
+
+          {/* LEFT — Logo + Nav links (desktop) */}
           <div className="navbar-left-section">
             <Link to="/dashboard" className="text-decoration-none logo-block">
               <div className="logo-icon">
@@ -490,7 +526,7 @@ const Navbar = () => {
             </Link>
             <div className="nav-divider d-none d-lg-block" />
             <ul className="nav d-none d-lg-flex nav-custom">
-              {getMenuItems().map((item) => (
+              {primaryItems.map((item) => (
                 <li className="nav-item" key={item.path}>
                   <Link
                     to={item.path}
@@ -502,10 +538,48 @@ const Navbar = () => {
                 </li>
               ))}
             </ul>
+
+            {/* ══════════════ MORE DROPDOWN (desktop) ══════════════ */}
+            {overflowItems.length > 0 && (
+              <div className="more-menu-wrapper d-none d-lg-block" ref={moreRef}>
+                <button
+                  className={`more-menu-btn ${isMoreOpen ? 'active' : ''}`}
+                  onClick={() => { setIsMoreOpen(p => !p); setIsBellOpen(false); setIsProfileOpen(false); }}
+                >
+                  More
+                  <i className={`bi ${isMoreOpen ? 'bi-chevron-up' : 'bi-chevron-down'} ms-1`} />
+                </button>
+
+                {isMoreOpen && (
+                  <div className="more-menu-panel">
+                    {overflowItems.map((item) => (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        className={`more-menu-item ${location.pathname.startsWith(item.path) ? 'active' : ''}`}
+                        onClick={() => setIsMoreOpen(false)}
+                      >
+                        <i className={`bi ${getIcon(item.label)}`} />
+                        <span>{item.label}</span>
+                      </Link>
+                    ))}
+                    {/* <button
+                      className="more-menu-item"
+                      onClick={() => { setIsMoreOpen(false); handleBellToggle(); }}
+                    >
+                      <i className="bi bi-bell" />
+                      <span>Notifications</span>
+                      {unreadCount > 0 && <span className="more-menu-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+                    </button> */}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* ══════════════ END MORE DROPDOWN ══════════════ */}
           </div>
 
-          {/* RIGHT — Bell + Profile */}
-          <div className="navbar-right-section d-none d-lg-flex" style={{ alignItems: 'center', gap: '8px' }}>
+          {/* RIGHT — Bell (always visible) + Profile */}
+          <div className="navbar-right-section" style={{ alignItems: 'center', gap: '8px' }}>
 
             {/* ══════════════ BELL ══════════════ */}
             <div ref={bellRef} style={{ position: 'relative' }}>
@@ -535,7 +609,7 @@ const Navbar = () => {
 
               {/* ── PANEL ── */}
               {isBellOpen && (
-                <div style={{
+                <div className="notif-panel" style={{
                   position: 'absolute', top: 'calc(100% + 14px)', right: '-8px',
                   width: '400px', background: '#fff',
                   border: '1px solid #e5e7eb', borderRadius: '18px',
@@ -797,19 +871,16 @@ const Navbar = () => {
             </div>
             {/* ══════════════ END BELL ══════════════ */}
 
-            <div className="nav-divider" />
+            <div className="nav-divider d-none d-lg-block" />
 
-            {/* Profile dropdown */}
+            {/* Profile — full version (desktop) */}
             <div
-              className="profile-wrapper"
+              className="profile-wrapper d-none d-lg-flex"
               ref={profileRef}
-              onClick={() => { setIsProfileOpen(p => !p); setIsBellOpen(false); }}
+              onClick={() => { setIsProfileOpen(p => !p); setIsBellOpen(false); setIsMoreOpen(false); }}
               title="Account Settings"
             >
-              <div className="profile-avatar">
-                {user?.firstName ? user.firstName[0].toUpperCase() : 'J'}
-                {user?.lastName  ? user.lastName[0].toUpperCase()  : 'S'}
-              </div>
+              <div className="profile-avatar">{initials}</div>
               <div className="profile-info">
                 <span className="profile-name">
                   {user?.firstName ? `${user.firstName} ${user.lastName}` : 'John Smith'}
@@ -832,42 +903,111 @@ const Navbar = () => {
               </div>
             </div>
 
-          </div>
-
-          {/* Mobile hamburger */}
-          <div className="d-lg-none">
-            <button
-              className={`menu-icon ${menuOpen ? 'open' : ''}`}
-              onClick={() => setMenuOpen(p => !p)}
-              aria-label="Toggle navigation"
+            {/* Profile — avatar-only version (mobile) */}
+            <div
+              className="profile-avatar-mobile d-lg-none"
+              ref={mobileProfileRef}
+              onClick={() => { setIsProfileOpen(p => !p); setIsBellOpen(false); }}
+              title="Account Settings"
             >
-              <span className="bar" /><span className="bar" /><span className="bar" />
-            </button>
+              {initials}
+              <div className={`profile-dropdown mobile-profile-dropdown ${isProfileOpen ? 'show' : ''}`}>
+                <div className="dropdown-header">
+                  <p className="mb-0 fw-bold">My Account</p>
+                </div>
+                <Link to="/profile-settings" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>
+                  <i className="bi bi-person-gear me-2" /> Manage Profile
+                </Link>
+                <div className="dropdown-divider" />
+                <button onClick={handleLogout} className="dropdown-item text-danger">
+                  <i className="bi bi-box-arrow-right me-2" /> Logout
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
 
-        {/* Mobile menu */}
-        <div className={`nav-menu-mobile d-lg-none ${menuOpen ? 'active' : ''}`}>
-          <ul className="list-unstyled mb-2">
-            {menuItems.map((item) => (
-              <li key={item.path} className="mb-1">
-                <Link
-                  to={item.path}
-                  className={`nav-link-mobile ${location.pathname.startsWith(item.path) ? 'active' : ''}`}
-                  onClick={() => setMenuOpen(false)}
-                >
-                  <i className={`bi ${getIcon(item.label)} me-2`} />
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <div className="mobile-footer">
-            <button onClick={handleLogout} className="btn btn-sm btn-outline-danger w-100">Logout</button>
-          </div>
+        {/* ══════════════ MOBILE QUICK-ACCESS STRIP ══════════════ */}
+        <div className="mobile-quick-nav d-lg-none">
+          {primaryItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`quick-nav-item ${location.pathname.startsWith(item.path) ? 'active' : ''}`}
+            >
+              <i className={`bi ${getIcon(item.label)}`} />
+              <span>{item.label}</span>
+            </Link>
+          ))}
         </div>
 
       </div>
+
+      {/* ══════════════ MOBILE DRAWER ══════════════ */}
+      {menuOpen && (
+        <div className="mobile-drawer-overlay d-lg-none" onClick={() => setMenuOpen(false)}>
+          <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-drawer-header">
+              <img src={logo} alt="Logo" className="mobile-drawer-logo" />
+              <button className="mobile-drawer-close" onClick={() => setMenuOpen(false)}>
+                <i className="bi bi-x-lg" />
+              </button>
+            </div>
+
+            <div className="mobile-drawer-list">
+              {overflowItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`mobile-drawer-item ${location.pathname.startsWith(item.path) ? 'active' : ''}`}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <i className={`bi ${getIcon(item.label)}`} />
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+
+              <button
+                className="mobile-drawer-item"
+                onClick={() => { setMenuOpen(false); handleBellToggle(); }}
+              >
+                <i className="bi bi-bell" />
+                <span>Notifications</span>
+                {unreadCount > 0 && <span className="mobile-drawer-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+              </button>
+            </div>
+
+            <div className="mobile-drawer-footer">
+              <div
+                className="mobile-drawer-profile"
+                onClick={() => setDrawerProfileOpen(p => !p)}
+              >
+                <div className="profile-avatar">{initials}</div>
+                <span className="mobile-drawer-profile-name">
+                  {user?.firstName ? `${user.firstName} ${user.lastName}` : 'John Smith'}
+                </span>
+                <i className={`bi ${drawerProfileOpen ? 'bi-chevron-up' : 'bi-chevron-down'}`} />
+              </div>
+              {drawerProfileOpen && (
+                <div className="mobile-drawer-profile-menu">
+                  <Link
+                    to="/profile-settings"
+                    className="mobile-drawer-item"
+                    onClick={() => { setMenuOpen(false); setDrawerProfileOpen(false); }}
+                  >
+                    <i className="bi bi-person-gear" /> <span>Manage Profile</span>
+                  </Link>
+                  <button className="mobile-drawer-item text-danger" onClick={handleLogout}>
+                    <i className="bi bi-box-arrow-right" /> <span>Logout</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ══════════════ END MOBILE DRAWER ══════════════ */}
     </>
   );
 };
