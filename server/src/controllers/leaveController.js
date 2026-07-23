@@ -562,6 +562,116 @@ class LeaveController {
   };
 
   // ───────────────────────────────────────────────────────────────────────────
+  // REVOKE LEAVE (Employee self-service — cancel own pending/approved request)
+  // Route: PUT /leave/revoke
+  // Body: { leaveId, employeeId, revokeReason }
+  // ───────────────────────────────────────────────────────────────────────────
+  revokeLeave = async (req, res) => {
+    try {
+      const { leaveId, employeeId, revokeReason } = req.body;
+
+      if (!leaveId || !employeeId) {
+        return res.status(400).json({ message: 'leaveId and employeeId are required.' });
+      }
+
+      const leave = await Leave.findById(leaveId)
+        .populate('employee', 'firstName lastName email employeeId _id');
+
+      if (!leave) return res.status(404).json({ message: 'Leave not found.' });
+
+      // ── Ownership check: only the employee who applied can revoke it ────────
+      if (leave.employee._id.toString() !== String(employeeId)) {
+        return res.status(403).json({ message: 'You can only revoke your own leave requests.' });
+      }
+
+      if (leave.status === 'rejected') {
+        return res.status(400).json({ message: 'A rejected leave cannot be revoked.' });
+      }
+      if (leave.status === 'revoked') {
+        return res.status(400).json({ message: 'This leave has already been revoked.' });
+      }
+      if (leave.status === 'left') {
+        return res.status(400).json({ message: 'This leave record cannot be revoked.' });
+      }
+
+      // Prevent revoking a leave whose period has already fully passed
+      const today  = new Date();
+      today.setHours(0, 0, 0, 0);
+      const endDay = new Date(leave.endDate);
+      endDay.setHours(23, 59, 59, 999);
+      if (endDay < today) {
+        return res.status(400).json({ message: 'This leave period has already ended and cannot be revoked.' });
+      }
+
+      const wasApproved = leave.status === 'approved';
+
+      leave.status       = 'revoked';
+      leave.revokedAt    = new Date();
+      leave.revokeReason = revokeReason || '';
+      leave.updatedAt    = new Date();
+      await leave.save();
+
+      // ── If it was already approved, reverse the payroll deduction made at approval time ──
+      if (wasApproved && leave.numberOfDays > 0) {
+        try {
+          const payroll = await Payroll.findOne({
+            employee: leave.employee._id,
+            month:    new Date().getMonth() + 1,
+            year:     new Date().getFullYear()
+          });
+          if (payroll) {
+            const perDay = payroll.baseSalary / (payroll.workingDays || 26);
+            payroll.deductions = Math.max((payroll.deductions || 0) - (perDay * leave.numberOfDays), 0);
+            payroll.netSalary  = payroll.baseSalary - payroll.deductions;
+            await payroll.save();
+          }
+        } catch (payrollErr) {
+          console.error('Payroll reversal failed (non-critical):', payrollErr.message);
+        }
+      }
+
+      // ── Notify HR (in-app) ────────────────────────────────────────────────
+      const empName = `${leave.employee.firstName || ''} ${leave.employee.lastName || ''}`.trim();
+      await notifyAllHR({
+        sender:   leave.employee._id,
+        type:     'leave_revoked',
+        title:    'Leave Request Revoked',
+        message:  `${empName} has revoked their ${leave.leaveType} leave request${wasApproved ? ' (was already approved)' : ''}.`,
+        refId:    leave._id,
+        refModel: 'Leave',
+        meta:     { leaveType: leave.leaveType, numberOfDays: leave.numberOfDays, revokeReason },
+      });
+
+      // ── Notify HR (email) ─────────────────────────────────────────────────
+      const hrManagers = await User.find({ role: 'hr' }, 'email firstName lastName');
+      if (hrManagers.length > 0) {
+        const emailList = hrManagers.map(h => h.email).filter(Boolean).join(', ');
+        sendMail({
+          from:    process.env.EMAIL_USER || 'your-email@gmail.com',
+          to:      emailList,
+          subject: `Leave Request Revoked – ${empName}`,
+          html: `
+            <h2>Leave Request Revoked by Employee</h2>
+            <p><strong>Employee:</strong> ${empName}</p>
+            <p><strong>Leave Type:</strong> ${leave.leaveType}</p>
+            <p><strong>Start Date:</strong> ${new Date(leave.startDate).toLocaleDateString()}</p>
+            <p><strong>End Date:</strong> ${new Date(leave.endDate).toLocaleDateString()}</p>
+            <p><strong>Days:</strong> ${leave.numberOfDays}</p>
+            ${wasApproved ? '<p style="color:#B54708;font-weight:bold">Note: This leave was already approved — any payroll deduction has been reversed.</p>' : ''}
+            <p><strong>Reason for Revoke:</strong> ${revokeReason || 'No reason provided'}</p>
+            <p style="color:#6b7280;font-weight:bold">Status: REVOKED</p>
+          `
+        });
+      }
+
+      return res.json({ message: 'Leave revoked successfully.', leave });
+    } catch (error) {
+      console.error('revokeLeave error:', error);
+      return res.status(500).json({ message: error.message });
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────────────────────
   // GET LEAVE STATS
   // ───────────────────────────────────────────────────────────────────────────
   getLeaveStats = async (req, res) => {

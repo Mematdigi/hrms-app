@@ -18,6 +18,9 @@ const leaveSchema = new mongoose.Schema({
     type:     String,
     enum:     ['sick', 'casual', 'short', 'half', 'earned', 'maternity', 'paternity', 'unpaid', 'holidays', 'Initial Allocation'],
     required: true
+    // NOTE: 'half', 'earned', 'maternity', 'paternity', 'holidays' kept in the enum
+    // only for backward-compatibility with existing/bulk-uploaded records.
+    // The Apply Leave UI now only offers: casual, sick, unpaid, short.
   },
 
   // Leave duration
@@ -29,17 +32,17 @@ const leaveSchema = new mongoose.Schema({
   // Request details
   reason:   { type: String, default: '' },
   category: { type: String, enum: ['Prob', 'Full', 'Intern'], default: 'Full' },
-  fromTime: { type: String, default: null },  // for Short / Half Day leave (optional)
-  toTime:   { type: String, default: null },  // for Short / Half Day leave (optional)
+  fromTime: { type: String, default: null },  // for Short leave (optional)
+  toTime:   { type: String, default: null },  // for Short leave (optional)
 
-  // Half day specific: which half of the day
+  // Half day specific: which half of the day (legacy records only)
   // 'first' = morning half, 'second' = afternoon half
   halfDayPeriod: { type: String, enum: ['first', 'second', null], default: null },
 
-  // Status lifecycle: pending → approved / rejected
+  // Status lifecycle: pending → approved / rejected / revoked
   status: {
     type:    String,
-    enum:    ['pending', 'approved', 'rejected', 'left'],
+    enum:    ['pending', 'approved', 'rejected', 'revoked', 'left'],
     default: 'pending'
   },
 
@@ -50,6 +53,10 @@ const leaveSchema = new mongoose.Schema({
   approvedBy:      { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   approvalDate:    { type: Date   },
   rejectionReason: { type: String },
+
+  // ── Revoke info (NEW) — set when employee self-revokes an applied leave ──
+  revokedAt:    { type: Date   },
+  revokeReason: { type: String, default: '' },
 
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }

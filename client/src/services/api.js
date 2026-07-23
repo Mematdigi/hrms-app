@@ -97,6 +97,8 @@ export const leaveAPI = {
   getStats:       ()           => api.get('/leave/stats'),
   approve:        (data)       => api.put('/leave/approve', data),
   reject:         (data)       => api.put('/leave/reject', data),
+  /** Employee self-service: revoke own pending/approved leave — { leaveId, employeeId, revokeReason } */
+  revoke:         (data)       => api.put('/leave/revoke', data),
   getDefaults:    ()           => api.get('/leave/defaults'),
   updateDefaults: (data)       => api.put('/leave/defaults', data),
   getBalances:    (employeeId) => api.get(`/leave/balances/${employeeId}`),

@@ -50,6 +50,8 @@ function Leave() {
   const [holidays, setHolidays] = useState([]);
   const [allEmployees, setAllEmployees] = useState([]);
 
+  // NOTE: Half Day is intentionally NOT in this form anymore.
+  // Leave section now only supports: casual, sick, unpaid, short.
   const [formData, setFormData] = useState({
     leaveType: 'casual',
     category: 'Full',
@@ -57,8 +59,7 @@ function Leave() {
     endDate: new Date().toISOString().split('T')[0],
     fromTime: '',
     toTime: '',
-    reason: '',
-    halfDayPeriod: 'first' 
+    reason: ''
   });
 
   const [successMessage, setSuccessMessage] = useState('');
@@ -69,6 +70,11 @@ function Leave() {
   const [selectedLeave, setSelectedLeave] = useState(null);
   const [rejectionRemark, setRejectionRemark] = useState('');
 
+  // ── Revoke Leave (Employee self-service) ──
+  const [isRevokeModalOpen, setIsRevokeModalOpen] = useState(false);
+  const [leaveToRevoke, setLeaveToRevoke] = useState(null);
+  const [revokeRemark, setRevokeRemark] = useState('');
+
   const [leaveDefaults, setLeaveDefaults] = useState({ casualDefault: 8, sickDefault: 6, shortLeaveDefault: 3 });
   const [balances, setBalances] = useState(null);
   const [settingsForm, setSettingsForm] = useState({ casualDefault: '', sickDefault: '' });
@@ -76,11 +82,13 @@ function Leave() {
   const [selectedEmployeeBalances, setSelectedEmployeeBalances] = useState(null);
   const [balancesLoading, setBalancesLoading] = useState(false);
 
+  // ── Reason Slidebar — now also carries revokeReason so both Employee & HR can view it ──
   const [reasonSlidebar, setReasonSlidebar] = useState({
     isOpen: false,
     leaveId: null,
     reason: '',
     rejectionReason: '',
+    revokeReason: '',
     employeeName: '',
     status: 'pending'
   });
@@ -223,11 +231,6 @@ function Leave() {
   const shortLeavesLimit = balances?.shortLeavesLimit ?? 3;
   const shortLeavesLeft = Math.max(shortLeavesLimit - shortLeavesUsed, 0);
 
-  const halfDayUsed      = balances?.halfDayUsed      ?? 0;
-  const halfDayLimit     = balances?.halfDayTotal     ?? 12;
-  const halfDayLeft      = balances?.halfDayRemaining ?? Math.max(halfDayLimit - halfDayUsed, 0);
-  const isHalfDayLimitReached = halfDayLeft === 0;
-
   const CASUAL_MONTHLY_LIMIT = 1;
   const SICK_MONTHLY_LIMIT = 1;
 
@@ -282,7 +285,6 @@ function Leave() {
     if (isCasualLimitReached) msgs.push('Casual Leave');
     if (isSickLimitReached) msgs.push('Sick Leave');
     if (shortLeavesLeft === 0) msgs.push('Short Leave');
-    if (isHalfDayLimitReached) msgs.push('Half Day Leave');
     if (msgs.length === 0) return '';
     return `⚠️ Your limit for ${msgs.join(', ')} is full for this month.`;
   };
@@ -298,7 +300,7 @@ function Leave() {
       return;
     }
 
-    if (formData.category !== 'Short' && formData.category !== 'Half') {
+    if (formData.category !== 'Short') {
       if (formData.leaveType === 'casual' && isCasualLimitReached) {
         setErrorMessage('⚠️ Your Casual Leave limit is full for this month.');
         setTimeout(() => setErrorMessage(''), 4000);
@@ -315,11 +317,6 @@ function Leave() {
       setTimeout(() => setErrorMessage(''), 4000);
       return;
     }
-    if (formData.category === 'Half' && isHalfDayLimitReached) {
-      setErrorMessage('⚠️ Your Half Day Leave limit is full for this year.');
-      setTimeout(() => setErrorMessage(''), 4000);
-      return;
-    }
 
     try {
       const payload = {
@@ -327,9 +324,7 @@ function Leave() {
         leaveType: formData.leaveType,
         category: formData.category,
         startDate: formData.startDate,
-        endDate: (formData.category === 'Short' || formData.category === 'Half')
-          ? formData.startDate
-          : formData.endDate,
+        endDate: formData.category === 'Short' ? formData.startDate : formData.endDate,
         reason: formData.reason,
         ...(formData.category === 'Short' && {
           fromTime: formData.fromTime,
@@ -337,11 +332,6 @@ function Leave() {
           leaveType: 'short',
           category: 'Full'
         }),
-        ...(formData.category === 'Half' && {
-          leaveType: 'half',
-          category: 'Full',
-          halfDayPeriod: formData.halfDayPeriod || 'first',
-        })
       };
 
       await leaveAPI.apply(payload);
@@ -359,8 +349,7 @@ function Leave() {
         endDate: new Date().toISOString().split('T')[0],
         fromTime: '',
         toTime: '',
-        reason: '',
-        halfDayPeriod: 'first'
+        reason: ''
       });
       setIsApplyModalOpen(false);
       fetchLeaves();
@@ -421,6 +410,39 @@ function Leave() {
       setRejectionRemark('');
       fetchLeaves();
     } catch (error) { console.error(error); }
+  };
+
+  // ── Revoke Leave (Employee self-service) ──────────────────────────────
+  const initiateRevoke = (leave) => {
+    setLeaveToRevoke(leave);
+    setRevokeRemark('');
+    setIsRevokeModalOpen(true);
+  };
+
+  const confirmRevoke = async () => {
+    if (!leaveToRevoke) return;
+    try {
+      await leaveAPI.revoke({
+        leaveId: leaveToRevoke._id,
+        employeeId: user?.id,
+        revokeReason: revokeRemark,
+      });
+      setSuccessMessage('✅ Leave request revoked successfully.');
+      showToast({
+        type:    NOTIF_TYPES.LEAVE_REJECTED,
+        title:   'Leave Revoked',
+        message: `Your ${leaveToRevoke.leaveType || 'leave'} request has been revoked.`,
+      });
+      setIsRevokeModalOpen(false);
+      setRevokeRemark('');
+      setLeaveToRevoke(null);
+      fetchLeaves();
+      if (!isHR) fetchBalances();
+      setTimeout(() => setSuccessMessage(''), 4000);
+    } catch (error) {
+      setErrorMessage(error?.response?.data?.message || 'Failed to revoke leave request');
+      setTimeout(() => setErrorMessage(''), 4000);
+    }
   };
 
   // ── Calendar ──
@@ -696,6 +718,7 @@ function Leave() {
       )}
 
       {/* ── Employee Balance Cards (Shows for everyone except true HR/Admin) ── */}
+      {/* NOTE: Half Day Leave card removed — leave section now only tracks Short / Casual / Sick */}
       {!isHR && (
         <div className="balance-section">
           <div className="b-card">
@@ -737,19 +760,6 @@ function Leave() {
               </div>
             </div>
           </div>
-          <div className="b-card">
-            <div className="icon"><Calendar3 className="c-blue" /></div>
-            <div className="b-info">
-              <small>Half Day Leave</small>
-              <div className="count-row">
-                <strong>{halfDayUsed}</strong>
-                <span> / {halfDayLimit} used</span>
-              </div>
-              <div className="progress">
-                <div style={{ width: `${calculateProgress(halfDayUsed, halfDayLimit)}%` }} className="blue"></div>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
@@ -781,6 +791,7 @@ function Leave() {
                   <option value="pending">Pending</option>
                   <option value="approved">Approved</option>
                   <option value="rejected">Rejected</option>
+                  <option value="revoked">Revoked</option>
                 </select>
               )}
             </div>
@@ -805,7 +816,7 @@ function Leave() {
                         {isHR && <th>Applied On</th>}
                         <th>Status</th>
                         <th>Applied Reason</th>
-                        {isHR && <th>Action</th>}
+                        <th>Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -865,9 +876,13 @@ function Leave() {
                               {leave.status === 'approved' && <><CheckCircle size={14} style={{ marginRight: 4 }} /> Approved</>}
                               {leave.status === 'pending' && <><HourglassSplit size={14} style={{ marginRight: 4 }} /> Pending</>}
                               {leave.status === 'rejected' && <><XCircle size={14} style={{ marginRight: 4 }} /> Rejected</>}
+                              {leave.status === 'revoked' && <><XCircle size={14} style={{ marginRight: 4 }} /> Revoked</>}
                             </span>
                           </td>
 
+                          {/* NOTE: clicking the reason cell opens the slidebar with Applied Reason
+                              + Rejection Reason (if rejected) + Revoke Reason (if revoked) — visible
+                              to both Employee and HR. */}
                           <td className="col-reason" onClick={(e) => {
                             e.stopPropagation();
                             setReasonSlidebar({
@@ -875,6 +890,7 @@ function Leave() {
                               leaveId: leave._id,
                               reason: leave.reason,
                               rejectionReason: leave.rejectionReason || '',
+                              revokeReason: leave.revokeReason || '',
                               employeeName: isHR ? `${leave.employee?.firstName} ${leave.employee?.lastName}` : 'You',
                               status: leave.status
                             });
@@ -884,7 +900,7 @@ function Leave() {
                             </div>
                           </td>
 
-                          {isHR && (
+                          {isHR ? (
                             <td className="col-actions" onClick={(e) => e.stopPropagation()}>
                               {leave.status === 'pending' && (
                                 <>
@@ -895,6 +911,16 @@ function Leave() {
                                     <XLg size={16} />
                                   </button>
                                 </>
+                              )}
+                            </td>
+                          ) : (
+                            <td className="col-actions" onClick={(e) => e.stopPropagation()}>
+                              {(leave.status === 'pending' || leave.status === 'approved') ? (
+                                <button className="btn-icon revoke" onClick={() => initiateRevoke(leave)} title="Revoke Leave">
+                                  <XLg size={16} />
+                                </button>
+                              ) : (
+                                <span style={{ color: '#ccc', fontSize: 12 }}>—</span>
                               )}
                             </td>
                           )}
@@ -1054,7 +1080,7 @@ function Leave() {
 
               {!canApplyAllLeaves && (
                 <div className="warning-banner limit-warning">
-                  ℹ️ As per company policy, only Permanent + Full-Time employees can apply for Short, Half Day, Casual or Sick leave. You can apply for <strong>Unpaid Leave</strong> only.
+                  ℹ️ As per company policy, only Permanent + Full-Time employees can apply for Short, Casual or Sick leave. You can apply for <strong>Unpaid Leave</strong> only.
                 </div>
               )}
 
@@ -1070,23 +1096,6 @@ function Leave() {
                   <span className="toggle-icon">🕐</span>
                   <div className="fw-bold">Short Leave</div>
                   <div className="small text-muted">Hour-based</div>
-                </button>
-                <button
-                  type="button"
-                  className={`toggle-card ${formData.category === 'Half' ? 'active' : ''} ${(!canApplyAllLeaves || isHalfDayLimitReached) ? 'disabled' : ''}`}
-                  onClick={() => {
-                    if (!canApplyAllLeaves || isHalfDayLimitReached) return;
-                    setFormData({
-                      ...formData,
-                      category: 'Half',
-                      leaveType: 'half',
-                      endDate: formData.startDate,
-                    });
-                  }}
-                >
-                  <span className="toggle-icon">🌓</span>
-                  <div className="fw-bold">Half Day</div>
-                  <div className="small text-muted">0.5 day</div>
                 </button>
                 <button
                   type="button"
@@ -1110,16 +1119,6 @@ function Leave() {
               {shortLeavesLeft === 0 && (
                 <div className="warning-banner">
                   ⚠️ Short leave limit reached ({shortLeavesLimit}/month). Please apply for Full Day Leave.
-                </div>
-              )}
-              {formData.category === 'Half' && !isHalfDayLimitReached && (
-                <div className="info-banner">
-                  ℹ️ {halfDayLeft} half day leave{halfDayLeft !== 1 ? 's' : ''} remaining this year
-                </div>
-              )}
-              {isHalfDayLimitReached && (
-                <div className="warning-banner">
-                  ⚠️ Half day leave limit reached ({halfDayLimit}/year). Please apply for Full Day Leave.
                 </div>
               )}
               {formData.category === 'Full' && (
@@ -1152,11 +1151,7 @@ function Leave() {
                 </>
               )}
               <label>
-                Date{formData.category === 'Full'
-                  ? ' (From)'
-                  : formData.category === 'Half'
-                    ? ' (Half Day)'
-                    : ''}
+                Date{formData.category === 'Full' ? ' (From)' : ''}
               </label>
               <input
                 type="date"
@@ -1164,7 +1159,7 @@ function Leave() {
                 onChange={(e) => setFormData({
                   ...formData,
                   startDate: e.target.value,
-                  ...((formData.category === 'Half' || formData.category === 'Short') && { endDate: e.target.value })
+                  ...(formData.category === 'Short' && { endDate: e.target.value })
                 })}
                 required
               />
@@ -1178,33 +1173,6 @@ function Leave() {
                     onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                     required
                   />
-                </>
-              )}
-              {formData.category === 'Half' && (
-                <>
-                  <label>Which Half of the Day?</label>
-                  <div className="time-row" style={{ gap: 10 }}>
-                    <button
-                      type="button"
-                      className={`toggle-card ${formData.halfDayPeriod === 'first' ? 'active' : ''}`}
-                      style={{ flex: 1, padding: '10px 14px' }}
-                      onClick={() => setFormData({ ...formData, halfDayPeriod: 'first' })}
-                    >
-                      <span className="toggle-icon">🌅</span>
-                      <div className="fw-bold">First Half</div>
-                      <div className="small text-muted">Morning</div>
-                    </button>
-                    <button
-                      type="button"
-                      className={`toggle-card ${formData.halfDayPeriod === 'second' ? 'active' : ''}`}
-                      style={{ flex: 1, padding: '10px 14px' }}
-                      onClick={() => setFormData({ ...formData, halfDayPeriod: 'second' })}
-                    >
-                      <span className="toggle-icon">🌇</span>
-                      <div className="fw-bold">Second Half</div>
-                      <div className="small text-muted">Afternoon</div>
-                    </button>
-                  </div>
                 </>
               )}
               {formData.category === 'Short' && (
@@ -1267,6 +1235,49 @@ function Leave() {
                 disabled={!rejectionRemark.trim()}
               >
                 Confirm Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════ */}
+      {/* MODAL: REVOKE LEAVE           */}
+      {/* Employee self-service — cancel own pending/approved leave */}
+      {/* ══════════════════════════════ */}
+      {isRevokeModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsRevokeModalOpen(false)}>
+          <div className="modal-content reject-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Revoke Leave</h2>
+              <button className="close-btn" onClick={() => setIsRevokeModalOpen(false)}><XLg /></button>
+            </div>
+            <div className="modal-body">
+              <p>Leave Type: <strong>{leaveToRevoke?.leaveType}</strong> | Days: <strong>{leaveToRevoke?.numberOfDays}</strong></p>
+              <p>
+                Dates: <strong>
+                  {formatDate(leaveToRevoke?.startDate)}
+                  {leaveToRevoke?.endDate && leaveToRevoke.endDate !== leaveToRevoke.startDate
+                    ? ` → ${formatDate(leaveToRevoke?.endDate)}`
+                    : ''}
+                </strong>
+              </p>
+              {leaveToRevoke?.status === 'approved' && (
+                <div className="warning-banner limit-warning" style={{ marginTop: 12 }}>
+                  ⚠️ This leave is already approved. Revoking it will also reverse any salary deduction made for this period.
+                </div>
+              )}
+              <textarea
+                className="reject-textarea"
+                placeholder="Reason for revoking (optional)..."
+                value={revokeRemark}
+                onChange={(e) => setRevokeRemark(e.target.value)}
+              />
+              <button
+                className="reject-confirm-btn"
+                onClick={confirmRevoke}
+              >
+                Confirm Revoke
               </button>
             </div>
           </div>
@@ -1369,39 +1380,13 @@ function Leave() {
                     </div>
                   </div>
                 </div>
-
-                <div className="b-card">
-                  <div className="icon"><Calendar3 className="c-blue" /></div>
-                  <div className="b-info">
-                    <small>Half Day Leave (this year)</small>
-                    <div className="count-row">
-                      <strong>{selectedEmployeeBalances?.halfDayUsed ?? 0}</strong>
-                      <span style={{ fontSize: 12, color: '#888' }}> / {selectedEmployeeBalances?.halfDayTotal ?? 12} used</span>
-                    </div>
-                    <div className="progress">
-                      <div
-                        className="blue"
-                        style={{
-                          width: `${calculateProgress(
-                            selectedEmployeeBalances?.halfDayUsed ?? 0,
-                            selectedEmployeeBalances?.halfDayTotal ?? 12
-                          )}%`,
-                          transition: 'width 0.4s ease'
-                        }}
-                      />
-                    </div>
-                    <div style={{ fontSize: 11, color: '#05CD99', marginTop: 3 }}>
-                      {selectedEmployeeBalances?.halfDayRemaining ?? 12} remaining
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
 
             <h3>Leave History</h3>
             <table className="history-table">
               <thead>
-                <tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Rejection Reason</th></tr>
+                <tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Reason (Rejected/Revoked)</th></tr>
               </thead>
               <tbody>
                 {(selectedLeave.employeeLeaveHistory || [selectedLeave])
@@ -1421,7 +1406,13 @@ function Leave() {
                       <td>{formatDate(lv.endDate)}</td>
                       <td>{lv.numberOfDays}</td>
                       <td><span className={`status-badge ${lv.status}`}>{lv.status}</span></td>
-                      <td className='text-danger'>{lv.rejectionReason}</td>
+                      <td className='text-danger'>
+                        {lv.status === 'rejected'
+                          ? lv.rejectionReason
+                          : lv.status === 'revoked'
+                            ? lv.revokeReason
+                            : '—'}
+                      </td>
                     </tr>
                   ))}
               </tbody>
@@ -1633,6 +1624,8 @@ function Leave() {
 
       {/* ═══════════════════════════════════════════════════════════════ */}
       {/* SLIDEBAR: VIEW FULL LEAVE REASON                                */}
+      {/* Now shows Applied Reason + Rejection Reason (if rejected)       */}
+      {/* + Revoke Reason (if revoked) — visible to both Employee & HR    */}
       {/* ═══════════════════════════════════════════════════════════════ */}
       {reasonSlidebar.isOpen && (
         <div className="reason-slidebar-overlay" onClick={() => setReasonSlidebar({ ...reasonSlidebar, isOpen: false })}>
@@ -1662,6 +1655,17 @@ function Leave() {
                   <h4 className="reason-title rejection-title">Rejection Reason</h4>
                   <div className="reason-box rejection-box">
                     <p className="reason-full-text">{reasonSlidebar.rejectionReason}</p>
+                  </div>
+                </div>
+              )}
+
+              {reasonSlidebar.status === 'revoked' && (
+                <div className="reason-section revoke-section">
+                  <h4 className="reason-title revoke-title">Revoke Reason</h4>
+                  <div className="reason-box revoke-box">
+                    <p className="reason-full-text">
+                      {reasonSlidebar.revokeReason || 'No reason provided.'}
+                    </p>
                   </div>
                 </div>
               )}

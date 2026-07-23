@@ -32,6 +32,11 @@ router.get('/pending',   authMiddleware, leaveController.getPendingLeaveRequests
 router.put('/approve',   authMiddleware, roleMiddleware(['hr', 'admin', 'manager']), leaveController.approveLeave);
 router.put('/reject',    authMiddleware, roleMiddleware(['hr', 'admin', 'manager']), leaveController.rejectLeave);
 
+// ── Employee: revoke own pending/approved leave ─────────────────────────────
+// NOTE: this router is mounted at '/leave' in routes/v1/index.js,
+// so this path resolves to PUT /leave/revoke — do NOT prefix with '/leave' here.
+router.put('/revoke',    authMiddleware, leaveController.revokeLeave);
+
 // ── Leave defaults ─────────────────────────────────────────────────────────
 router.get('/defaults',  leaveController.getDefaults);
 router.put('/defaults',  authMiddleware, roleMiddleware(['hr', 'admin']), leaveController.updateDefaults);
