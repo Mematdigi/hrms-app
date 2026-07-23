@@ -17,6 +17,35 @@
     .wr-week-nav { display: flex; gap: 8px; align-items: center; }
   }
 
+  // Team filter (HR/Manager/Admin audit view)
+  .wr-team-filter {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: rgb(196, 193, 193);
+    border: 1px solid $color-border;
+    border-radius: $radius-sm;
+    padding: 0 10px 0 11px;
+    height: 36px;
+
+    .wr-team-filter-icon { color: $color-text-muted; flex-shrink: 0; }
+
+    .wr-team-select {
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 500;
+      color: $color-text-primary;
+      height: 100%;
+      padding-right: 4px;
+      cursor: pointer;
+      appearance: none;
+
+      &:disabled { cursor: not-allowed; color: $color-text-muted; }
+      &:focus { outline: none; }
+    }
+  }
+
   .wr-member-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -91,6 +120,35 @@
     }
     input:checked + .slider { background: $color-accent; }
     input:checked + .slider::before { transform: translateX(19px); }
+  }
+
+  // Task and behaviour notes — rendered as bullets in the audit view
+  .wr-notes-list {
+    margin: 6px 0 0;
+    padding-left: 0;
+    list-style: none;
+
+    li {
+      position: relative;
+      padding-left: 15px;
+      margin-bottom: 7px;
+      line-height: 1.55;
+
+      &:last-child { margin-bottom: 0; }
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 8px;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: $color-secondary;
+      }
+
+      strong { color: $color-text-primary; }
+    }
   }
 
   .wr-audit-note {

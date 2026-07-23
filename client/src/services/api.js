@@ -80,7 +80,11 @@ export const regularizationAPI = {
   getMine: (employeeId) => api.get('/regularization/my', { params: { employeeId } }),
   /** HR/Admin: view all requests, optional { status: 'pending' | 'approved' | 'rejected' } */
   getAll: (params) => api.get('/regularization', { params }),
-  /** HR/Admin: approve — { hrId } */
+  /**
+   * HR/Admin: approve — { hrId, checkInTime: 'HH:mm', checkOutTime: 'HH:mm', status }
+   * checkInTime/checkOutTime are 24-hour "HH:mm" strings (IST wall-clock).
+   * Working hours are calculated server-side from the two times.
+   */
   approve: (id, data) => api.put(`/regularization/${id}/approve`, data),
   /** HR/Admin: reject — { hrId, rejectionReason } */
   reject: (id, data) => api.put(`/regularization/${id}/reject`, data),

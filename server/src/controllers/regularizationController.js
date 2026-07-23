@@ -3,6 +3,33 @@ const Attendance = require('../models/Attendance');
 const User = require('../models/User');
 const { createNotification, notifyByRoles, notifyUsers } = require('./Notificationcontroller');
 
+// Statuses HR is allowed to set on the attendance record while approving
+const ALLOWED_APPROVAL_STATUSES = ['present', 'late', 'half-day', 'short-leave', 'absent'];
+
+// ── Convert an "HH:mm" wall-clock time (assumed IST, UTC+5:30) into the
+// correct UTC Date object anchored on baseDate's calendar day. Handles the
+// early-morning edge case where the IST time rolls back into the previous
+// UTC calendar day. ──────────────────────────────────────────────────────
+function istTimeToUtcDate(baseDate, hhmm) {
+  if (!hhmm || typeof hhmm !== 'string') return null;
+  const parts = hhmm.split(':').map(Number);
+  const h = parts[0];
+  const m = parts[1] || 0;
+  if (Number.isNaN(h) || Number.isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) return null;
+
+  let totalMin = (h * 60 + m) - 330; // IST is UTC+5:30
+  const d = new Date(baseDate);
+  if (totalMin < 0) {
+    totalMin += 24 * 60;
+    d.setUTCDate(d.getUTCDate() - 1);
+  } else if (totalMin >= 24 * 60) {
+    totalMin -= 24 * 60;
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  d.setUTCHours(Math.floor(totalMin / 60), totalMin % 60, 0, 0);
+  return d;
+}
+
 class RegularizationController {
 
   // ── Employee: submit a new regularization request ──────────────────────
@@ -61,8 +88,7 @@ class RegularizationController {
 
       await regularization.save();
 
-      // 🔔 Notify HR/Admin/Manager + the employee's TL (added — this flow
-      // previously produced NO notifications at all)
+      // 🔔 Notify HR/Admin/Manager + the employee's TL
       const dateStr = targetDate.toDateString();
       await notifyByRoles(['hr', 'admin', 'manager'], {
         sender:   employeeId,
@@ -129,11 +155,22 @@ class RegularizationController {
     }
   };
 
-  // ── HR/Admin/Manager: approve → regularizes the attendance record ──────
+  // ── HR/Admin/Manager: approve → HR sets punch-in/punch-out/status, working
+  // hours are auto-calculated, and the previous attendance state (if any) is
+  // snapshotted for audit before being overwritten. ───────────────────────
   approveRequest = async (req, res) => {
     try {
       const { id } = req.params;
-      const { hrId } = req.body;
+      const { hrId, checkInTime, checkOutTime, status } = req.body;
+
+      if (!checkInTime || !checkOutTime) {
+        return res.status(400).json({
+          success: false,
+          message: 'checkInTime and checkOutTime (HH:mm, 24-hour) are required to approve a regularization request'
+        });
+      }
+
+      const finalStatus = ALLOWED_APPROVAL_STATUSES.includes(status) ? status : 'present';
 
       const regularization = await Regularization.findById(id);
       if (!regularization) {
@@ -148,21 +185,47 @@ class RegularizationController {
 
       const regDate = new Date(regularization.date);
 
-      const checkInTime = new Date(regDate);
-      checkInTime.setUTCHours(4, 0, 0, 0);
+      const newCheckInTime = istTimeToUtcDate(regDate, checkInTime);
+      const newCheckOutTime = istTimeToUtcDate(regDate, checkOutTime);
 
-      const checkOutTime = new Date(regDate);
-      checkOutTime.setUTCHours(13, 0, 0, 0);
+      if (!newCheckInTime || !newCheckOutTime) {
+        return res.status(400).json({ success: false, message: 'Invalid time format. Use HH:mm (24-hour).' });
+      }
+
+      const workingHoursRaw = (newCheckOutTime.getTime() - newCheckInTime.getTime()) / (1000 * 60 * 60);
+      if (workingHoursRaw <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Punch-out time must be after punch-in time'
+        });
+      }
+      const newWorkingHours = parseFloat(workingHoursRaw.toFixed(2));
+
+      // ── Snapshot whatever attendance existed BEFORE this change ──
+      const existingAttendance = await Attendance.findOne({
+        employee: regularization.employee,
+        date: regDate
+      });
+
+      const previousAttendance = existingAttendance
+        ? {
+            existed:      true,
+            checkInTime:  existingAttendance.checkInTime || null,
+            checkOutTime: existingAttendance.checkOutTime || null,
+            status:       existingAttendance.status || null,
+            workingHours: existingAttendance.workingHours || null
+          }
+        : { existed: false, checkInTime: null, checkOutTime: null, status: null, workingHours: null };
 
       const attendance = await Attendance.findOneAndUpdate(
         { employee: regularization.employee, date: regDate },
         {
           $set: {
             username: regularization.username,
-            checkInTime,
-            checkOutTime,
-            workingHours: 9,
-            status: 'present',
+            checkInTime: newCheckInTime,
+            checkOutTime: newCheckOutTime,
+            workingHours: newWorkingHours,
+            status: finalStatus,
             isRegularized: true,
             regularizedFrom: regularization._id
           },
@@ -177,15 +240,22 @@ class RegularizationController {
       regularization.status = 'approved';
       regularization.reviewedBy = hrId;
       regularization.reviewedAt = new Date();
+      regularization.previousAttendance = previousAttendance;
+      regularization.newAttendance = {
+        checkInTime: newCheckInTime,
+        checkOutTime: newCheckOutTime,
+        status: finalStatus,
+        workingHours: newWorkingHours
+      };
       await regularization.save();
 
-      // 🔔 Notify the employee their request was approved (added)
+      // 🔔 Notify the employee their request was approved
       await createNotification({
         recipient: regularization.employee,
         sender:    hrId || req.user.id || req.user._id,
         type:      'regularization_approved',
         title:     'Regularization Approved ✅',
-        message:   `Your attendance regularization for ${regDate.toDateString()} has been approved. Your attendance is now marked present.`,
+        message:   `Your attendance regularization for ${regDate.toDateString()} has been approved. Marked as ${finalStatus} (${checkInTime} – ${checkOutTime}, ${newWorkingHours} hrs).`,
         refId:     regularization._id,
         refModel:  'Regularization',
       });
@@ -231,7 +301,7 @@ class RegularizationController {
       regularization.reviewedAt = new Date();
       await regularization.save();
 
-      // 🔔 Notify the employee their request was rejected (added)
+      // 🔔 Notify the employee their request was rejected
       await createNotification({
         recipient: regularization.employee,
         sender:    hrId || req.user.id || req.user._id,

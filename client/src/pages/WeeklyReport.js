@@ -3,10 +3,11 @@
 // TL WEEKLY REPORT.
 //
 //   TL view:              one card per team member for the selected week —
-//                         dress code, behaviour notes, negative-feedback flag,
-//                         recommendation, weekend client meetings.
-//   HR / Manager / Admin: read-only audit view. They can add an HR note but can
-//                         NEVER silently alter what the TL submitted.
+//                         dress code, task/behaviour notes, negative-feedback
+//                         flag, recommendation, weekend client meetings.
+//   HR / Manager / Admin: read-only audit view, filterable by team (TL).
+//                         They can add an HR note but can NEVER silently
+//                         alter what the TL submitted.
 //
 // Submitting a negative-feedback flag auto-creates a Feedback record; a
 // recommendation auto-creates a Recommendation record. Both feed the score.
@@ -15,7 +16,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import {
   CalendarCheck, ChevronLeft, ChevronRight, Send, AlertCircle,
-  CheckCircle2, MessageSquare, Eye, Save,
+  CheckCircle2, MessageSquare, Eye, Save, Users,
 } from 'lucide-react';
 import { weeklyReportAPI, hierarchyAPI } from '../services/api';
 
@@ -34,7 +35,20 @@ const addDays = (d, n) => {
 };
 const fmt = (d) =>
   new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-const iso = (d) => new Date(d).toISOString().slice(0, 10);
+
+// Local calendar date as YYYY-MM-DD. IMPORTANT: do NOT use
+// `new Date(d).toISOString().slice(0,10)` here — toISOString() converts to
+// UTC first, which shifts the date backward by a day for any timezone ahead
+// of UTC (e.g. IST, UTC+5:30) whenever the local time is between midnight
+// and the UTC offset. weekStart() builds local midnight, so that bug would
+// silently send/compare the WRONG week's date to the backend.
+const iso = (d) => {
+  const x = new Date(d);
+  const y = x.getFullYear();
+  const m = String(x.getMonth() + 1).padStart(2, '0');
+  const day = String(x.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 const blankEntry = () => ({
   dressCodeFollowed: true,
@@ -44,6 +58,42 @@ const blankEntry = () => ({
   weekendMeetingOccurred: false,
   weekendMeetingCount: 0,
 });
+
+// ── Notes formatting ─────────────────────────────────────────────────────
+// TLs type one point per line (blank lines between points are fine — they're
+// stripped out). This turns that raw text into a real bullet list instead of
+// letting the browser collapse it into a single run-on paragraph.
+// Lines shaped like "Label – description" get the label bolded.
+const NOTE_LINE_RE = /^(.*?)\s+[–-]\s+(.*)$/;
+
+const splitNoteLines = (text = '') =>
+  text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[•*-]\s*/, '').trim())
+    .filter(Boolean);
+
+const renderNoteBullets = (text) => {
+  const lines = splitNoteLines(text);
+  if (lines.length === 0) return null;
+  return (
+    <ul className="wr-notes-list">
+      {lines.map((line, i) => {
+        const m = line.match(NOTE_LINE_RE);
+        return (
+          <li key={i}>
+            {m ? (
+              <>
+                <strong>{m[1]}</strong> – {m[2]}
+              </>
+            ) : (
+              line
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+};
 
 const WeeklyReport = () => {
   const { user } = useSelector((state) => state.auth);
@@ -60,6 +110,7 @@ const WeeklyReport = () => {
   const [savingId, setSavingId] = useState(null);
   const [toast, setToast]       = useState(null);
   const [noteDraft, setNoteDraft] = useState({}); // reportId → hrNote draft
+  const [teamFilter, setTeamFilter] = useState('all'); // audit view: filter by TL
 
   const flash = (type, msg) => {
     setToast({ type, msg });
@@ -108,6 +159,11 @@ const WeeklyReport = () => {
   }, [week, isTL]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Reset the team filter whenever the week changes — the set of TLs who
+  // submitted can differ from week to week, so a stale filter could hide
+  // everything and look like a bug.
+  useEffect(() => { setTeamFilter('all'); }, [week]);
 
   const getEntry = (empId) => entries[empId] || blankEntry();
   const setEntry = (empId, patch) =>
@@ -162,6 +218,27 @@ const WeeklyReport = () => {
 
   const initials = (f = '', l = '') => `${f[0] || ''}${l[0] || ''}`.toUpperCase();
 
+  // ── Team filter options, derived from whichever TLs actually submitted
+  //    a report for the selected week ─────────────────────────────────────
+  const teamOptions = useMemo(() => {
+    const map = new Map();
+    reports.forEach((r) => {
+      const tlId = r.teamLead?._id || r.teamLead;
+      if (!tlId) return;
+      const name = `${r.teamLead?.firstName || ''} ${r.teamLead?.lastName || ''}`.trim() || 'Unnamed TL';
+      if (!map.has(tlId)) map.set(tlId, name);
+    });
+    return Array.from(map, ([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [reports]);
+
+  const filteredReports = useMemo(() => {
+    if (teamFilter === 'all') return reports;
+    return reports.filter((r) => (r.teamLead?._id || r.teamLead) === teamFilter);
+  }, [reports, teamFilter]);
+
+  const activeTeamName = teamOptions.find((t) => t.id === teamFilter)?.name;
+
   // ═══════════════════════════════════════════════════════════════════════════
   return (
     <div className="page-container weekly-report-page">
@@ -189,7 +266,7 @@ const WeeklyReport = () => {
           </div>
           <p className="page-subtitle">
             {isTL
-              ? 'Submit a weekly report for each team member. This feeds the Behaviour and Recommendations buckets of their score.'
+              ? 'Submit a weekly report for each team member. This feeds the Tasks & Behaviour and Recommendations buckets of their score.'
               : 'Audit view — every weekly report submitted by your Team Leads. You can annotate, but never alter, a TL\'s submission.'}
           </p>
         </div>
@@ -214,13 +291,36 @@ const WeeklyReport = () => {
           </button>
         </div>
 
-        {isCurrentWeek
-          ? <span className="status-chip info">Current week</span>
-          : (
-            <button className="btn-secondary-cta" onClick={() => setWeek(weekStart(new Date()))}>
-              Jump to current week
-            </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          {isAuditor && (
+            <div className="wr-team-filter">
+              <Users size={14} className="wr-team-filter-icon" />
+              <select
+                className="wr-team-select"
+                value={teamFilter}
+                onChange={(ev) => setTeamFilter(ev.target.value)}
+                disabled={teamOptions.length === 0}
+              >
+                <option value="all">
+                  All Teams {reports.length ? `(${reports.length})` : ''}
+                </option>
+                {teamOptions.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}'s Team
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
+
+          {isCurrentWeek
+            ? <span className="status-chip info">Current week</span>
+            : (
+              <button className="btn-secondary-cta" onClick={() => setWeek(weekStart(new Date()))}>
+                Jump to current week
+              </button>
+            )}
+        </div>
       </div>
 
       {loading ? (
@@ -327,9 +427,9 @@ const WeeklyReport = () => {
                   )}
 
                   <div className="form-field" style={{ marginTop: 13 }}>
-                    <label>Behaviour notes</label>
+                    <label>Task and behaviour notes</label>
                     <textarea
-                      placeholder="How did they conduct themselves this week?"
+                      placeholder="List tasks completed and behaviour for the week — one point per line, e.g. 'Content Writing – wrote and optimized 12+ pages'"
                       value={e.behaviourNotes}
                       onChange={(ev) => setEntry(m._id, { behaviourNotes: ev.target.value })}
                     />
@@ -361,18 +461,24 @@ const WeeklyReport = () => {
           </div>
         )
       ) : (
-        // ══ HR / Manager / Admin: audit view ══════════════════════════
-        reports.length === 0 ? (
+        // ══ HR / Manager / Admin: audit view (filterable by team) ══════
+        filteredReports.length === 0 ? (
           <div className="card state-block">
             <Eye size={34} className="state-icon" />
-            <div className="state-title">No weekly reports for this week</div>
+            <div className="state-title">
+              {teamFilter === 'all'
+                ? 'No weekly reports for this week'
+                : `No reports from ${activeTeamName || 'this team'} for this week`}
+            </div>
             <div className="state-msg">
-              Team Leads haven't submitted any reports for {fmt(week)} – {fmt(weekEnd)} yet.
+              {teamFilter === 'all'
+                ? `Team Leads haven't submitted any reports for ${fmt(week)} – ${fmt(weekEnd)} yet.`
+                : 'Try a different team, or switch back to "All Teams".'}
             </div>
           </div>
         ) : (
           <div className="wr-member-grid">
-            {reports.map((r) => (
+            {filteredReports.map((r) => (
               <div key={r._id} className="wr-member-card submitted">
                 <div className="wr-member-head">
                   <div className="wr-avatar">
@@ -411,15 +517,15 @@ const WeeklyReport = () => {
 
                 {r.behaviourNotes && (
                   <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}>
-                    <strong style={{ fontSize: 12, color: '#6B7280' }}>BEHAVIOUR NOTES</strong>
-                    <div style={{ marginTop: 4 }}>{r.behaviourNotes}</div>
+                    <strong style={{ fontSize: 12, color: '#6B7280' }}>TASK AND BEHAVIOUR NOTES</strong>
+                    {renderNoteBullets(r.behaviourNotes)}
                   </div>
                 )}
 
                 {r.recommendation && (
                   <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}>
                     <strong style={{ fontSize: 12, color: '#6B7280' }}>RECOMMENDATION</strong>
-                    <div style={{ marginTop: 4 }}>{r.recommendation}</div>
+                    <div style={{ marginTop: 4, whiteSpace: 'pre-line' }}>{r.recommendation}</div>
                   </div>
                 )}
 

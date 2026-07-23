@@ -20,7 +20,25 @@ const regularizationSchema = new mongoose.Schema({
   rejectionReason: { type: String },
 
   reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  reviewedAt: { type: Date }
+  reviewedAt: { type: Date },
+
+  // ── Audit trail: what the attendance record looked like BEFORE HR approved
+  // this request, and what HR set it to. Populated only at approval time —
+  // lets HR (and the employee) see "old vs new" later by clicking the
+  // regularization icon on the attendance table. ──────────────────────────
+  previousAttendance: {
+    existed:      { type: Boolean, default: false }, // false = no attendance record existed for that date at all
+    checkInTime:  { type: Date, default: null },
+    checkOutTime: { type: Date, default: null },
+    status:       { type: String, default: null },
+    workingHours: { type: Number, default: null }
+  },
+  newAttendance: {
+    checkInTime:  { type: Date, default: null },
+    checkOutTime: { type: Date, default: null },
+    status:       { type: String, default: null },
+    workingHours: { type: Number, default: null }
+  }
 }, { timestamps: true });
 
 // Fast lookups: "my requests", "all pending requests", "requests for this date"

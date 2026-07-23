@@ -23,6 +23,14 @@ function Attendance() {
     });
   };
 
+  // --- Helper: format a Date/ISO value as "09:30 AM" ---
+  const fmtTime = (dateInput) => {
+    if (!dateInput) return '--:--';
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return '--:--';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   // --- Helper: today's date as YYYY-MM-DD for <input type="date" max="..."> ---
   const todayInputValue = () => {
     const d = new Date();
@@ -84,11 +92,27 @@ function Attendance() {
   const [rejectReason, setRejectReason] = useState('');
   const [regActionLoading, setRegActionLoading] = useState(false);
 
+  // Regularization — HR: Approve modal (set punch times / status)
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [approvingReq, setApprovingReq] = useState(null);
+  const [approveCheckIn, setApproveCheckIn] = useState('09:30');
+  const [approveCheckOut, setApproveCheckOut] = useState('18:30');
+  const [approveStatus, setApproveStatus] = useState('present');
+  const [approvePreviousAttendance, setApprovePreviousAttendance] = useState(null);
+  const [approvePreviousLoading, setApprovePreviousLoading] = useState(false);
+
+  // Regularization — full history (all statuses) used to show "old vs new" when
+  // clicking the regularization icon on an already-regularized attendance row
+  const [allRegHistory, setAllRegHistory] = useState([]);
+  const [showRegHistoryModal, setShowRegHistoryModal] = useState(false);
+  const [regHistoryDetail, setRegHistoryDetail] = useState(null);
+
   // --- EFFECTS ---
   useEffect(() => {
     if (isHR) {
       fetchHRData();
       fetchHrRegularizations();
+      fetchAllRegHistory();
     } else {
       fetchEmployeeData();
       fetchMyRegularizations();
@@ -295,6 +319,20 @@ function Attendance() {
     }
   };
 
+  // ── Regularization: fetch FULL history (all statuses) — HR only.
+  // Used to show "old vs new" details when clicking the regularization icon
+  // on an already-regularized row in the main attendance table. ──
+  const fetchAllRegHistory = async () => {
+    try {
+      const response = await regularizationAPI.getAll({});
+      const list = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+      setAllRegHistory(list);
+    } catch (error) {
+      console.error('Failed to fetch regularization history:', error);
+      setAllRegHistory([]);
+    }
+  };
+
   // --- HANDLERS ---
   const handlePunchClick = () => {
     if (checkedIn) {
@@ -396,15 +434,83 @@ function Attendance() {
     }
   };
 
-  // ── Regularization Handlers: HR ──
-  const handleApproveRegularization = async (id) => {
-    if (!window.confirm('Approve this regularization request? The attendance for that date will be set to Present (9:30 AM – 6:30 PM, 9 hrs).')) {
+  // ── Regularization Handlers: HR — Approve (opens modal to set punch times/status) ──
+  const calcWorkingHoursPreview = (inTime, outTime) => {
+    if (!inTime || !outTime) return null;
+    const [ih, im] = inTime.split(':').map(Number);
+    const [oh, om] = outTime.split(':').map(Number);
+    if ([ih, im, oh, om].some(n => Number.isNaN(n))) return null;
+    const diffMinutes = (oh * 60 + om) - (ih * 60 + im);
+    if (diffMinutes <= 0) return null;
+    return (diffMinutes / 60).toFixed(2);
+  };
+
+  const openApproveModal = async (req) => {
+    setApprovingReq(req);
+    setApproveCheckIn('09:30');
+    setApproveCheckOut('18:30');
+    setApproveStatus('present');
+    setApprovePreviousAttendance(null);
+    setApprovePreviousLoading(true);
+    setShowApproveModal(true);
+
+    // Look up the existing attendance record for this date (if any) so HR can
+    // see what's being changed before setting the new values.
+    try {
+      const dateStr = new Date(req.date).toISOString().split('T')[0];
+      const response = await attendanceAPI.getAllAttendance({ from: dateStr, to: dateStr });
+      const list = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+      const empId = req.employee?._id || req.employee;
+      const match = list.find(r => String(r.employee?._id || r.employee) === String(empId));
+
+      if (match) {
+        setApprovePreviousAttendance({
+          existed: true,
+          checkInTime: match.checkInTime,
+          checkOutTime: match.checkOutTime,
+          status: match.status,
+          workingHours: match.workingHours
+        });
+        // Prefill the form with the existing values so HR is editing, not starting blank
+        if (match.checkInTime) {
+          setApproveCheckIn(new Date(match.checkInTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }));
+        }
+        if (match.checkOutTime) {
+          setApproveCheckOut(new Date(match.checkOutTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }));
+        }
+        if (match.status) {
+          setApproveStatus(match.status);
+        }
+      } else {
+        setApprovePreviousAttendance({ existed: false });
+      }
+    } catch (error) {
+      console.error('Failed to fetch previous attendance:', error);
+      setApprovePreviousAttendance({ existed: false });
+    } finally {
+      setApprovePreviousLoading(false);
+    }
+  };
+
+  const handleConfirmApprove = async () => {
+    if (!approvingReq) return;
+    const preview = calcWorkingHoursPreview(approveCheckIn, approveCheckOut);
+    if (!preview) {
+      alert('Punch-out time must be after punch-in time.');
       return;
     }
     setRegActionLoading(true);
     try {
-      await regularizationAPI.approve(id, { hrId: user?.id });
+      await regularizationAPI.approve(approvingReq._id, {
+        hrId: user?.id,
+        checkInTime: approveCheckIn,
+        checkOutTime: approveCheckOut,
+        status: approveStatus
+      });
+      setShowApproveModal(false);
+      setApprovingReq(null);
       await fetchHrRegularizations();
+      await fetchAllRegHistory();
       await fetchHRData(); // refresh attendance table/stats since a record just changed
     } catch (error) {
       console.error('Approve failed:', error);
@@ -435,12 +541,32 @@ function Attendance() {
       setRejectingId(null);
       setRejectReason('');
       await fetchHrRegularizations();
+      await fetchAllRegHistory();
     } catch (error) {
       console.error('Reject failed:', error);
       alert(`❌ ${error?.response?.data?.message || 'Failed to reject request.'}`);
     } finally {
       setRegActionLoading(false);
     }
+  };
+
+  // ── View old-vs-new details when clicking the regularization icon on an
+  // already-regularized attendance row (both employee's own table and HR's) ──
+  const openRegHistoryForRecord = (record) => {
+    const dateStr = new Date(record.date).toDateString();
+    const recEmpId = record.employee?._id || record.employee;
+    const source = isHR ? allRegHistory : myRegularizations;
+
+    const match = source.find(r => {
+      if (r.status !== 'approved') return false;
+      if (new Date(r.date).toDateString() !== dateStr) return false;
+      if (!isHR) return true; // employee's own list is already scoped to self
+      const rEmpId = r.employee?._id || r.employee;
+      return String(rEmpId) === String(recEmpId);
+    });
+
+    setRegHistoryDetail(match || null);
+    setShowRegHistoryModal(true);
   };
 
   // --- RENDER HELPERS ---
@@ -633,8 +759,9 @@ function Attendance() {
                             {formatDate(record.date)}
                             {record.isRegularized && (
                               <span
-                                title="This day's attendance was regularized"
-                                style={{ marginLeft: 6, fontSize: 11, color: '#f57c00' }}
+                                title="This day's attendance was regularized — click to view old vs new"
+                                style={{ marginLeft: 6, fontSize: 11, color: '#f57c00', cursor: 'pointer' }}
+                                onClick={() => openRegHistoryForRecord(record)}
                               >
                                 <i className="bi bi-pencil-square"></i>
                               </span>
@@ -727,7 +854,9 @@ function Attendance() {
                       <td>
                         {req.status === 'rejected'
                           ? <span style={{ color: '#c82333' }}>{req.rejectionReason}</span>
-                          : (req.status === 'approved' ? 'Attendance updated to Present' : '—')}
+                          : (req.status === 'approved'
+                              ? `Marked ${req.newAttendance?.status || 'Present'} (${fmtTime(req.newAttendance?.checkInTime)} – ${fmtTime(req.newAttendance?.checkOutTime)})`
+                              : '—')}
                       </td>
                     </tr>
                   ))}
@@ -802,7 +931,9 @@ function Attendance() {
                         <td>
                           {req.status === 'rejected'
                             ? <span style={{ color: '#c82333' }}>{req.rejectionReason}</span>
-                            : '—'}
+                            : (req.status === 'approved'
+                                ? `${fmtTime(req.newAttendance?.checkInTime)} – ${fmtTime(req.newAttendance?.checkOutTime)}`
+                                : '—')}
                         </td>
                         <td>
                           {req.status === 'pending' ? (
@@ -811,7 +942,7 @@ function Attendance() {
                                 className="btn-action"
                                 style={{ background: '#28a745', color: '#fff', border: 'none', padding: '4px 10px', fontSize: 12 }}
                                 disabled={regActionLoading}
-                                onClick={() => handleApproveRegularization(req._id)}
+                                onClick={() => openApproveModal(req)}
                               >
                                 <i className="bi bi-check-lg"></i> Accept
                               </button>
@@ -941,8 +1072,9 @@ function Attendance() {
                               {formatDate(record.date)}
                               {record.isRegularized && (
                                 <span
-                                  title="This day's attendance was regularized"
-                                  style={{ marginLeft: 6, fontSize: 11, color: '#f57c00' }}
+                                  title="This day's attendance was regularized — click to view old vs new"
+                                  style={{ marginLeft: 6, fontSize: 11, color: '#f57c00', cursor: 'pointer' }}
+                                  onClick={() => openRegHistoryForRecord(record)}
                                 >
                                   <i className="bi bi-pencil-square"></i>
                                 </span>
@@ -1066,8 +1198,8 @@ function Attendance() {
         </Modal.Header>
         <Modal.Body className="pt-3">
           <p className="small text-muted mb-3">
-            Use this if you forgot to punch in/out or came in late on a past date. Once approved by HR,
-            that day will be marked <strong>Present</strong> (9:30 AM – 6:30 PM, 9 hrs).
+            Use this if you forgot to punch in/out or came in late on a past date. HR will review
+            your request and set the final punch-in/punch-out time and status for that day.
           </p>
           <Form>
             <Form.Group className="mb-3">
@@ -1155,6 +1287,177 @@ function Attendance() {
             disabled={regActionLoading}
           >
             Cancel
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* ======================== */}
+      {/* APPROVE REGULARIZATION — HR sets punch times / status */}
+      {/* ======================== */}
+      <Modal show={showApproveModal} onHide={() => !regActionLoading && setShowApproveModal(false)} centered>
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="fw-bold fs-5">
+            <i className="bi bi-check-circle me-2 text-success"></i>Approve Regularization
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="pt-3">
+          {approvingReq && (
+            <div className="mb-3">
+              <div className="fw-semibold">
+                {approvingReq.username || (approvingReq.employee ? `${approvingReq.employee.firstName} ${approvingReq.employee.lastName}` : 'Employee')}
+              </div>
+              <div className="small text-muted">{formatDate(approvingReq.date)} · {approvingReq.reason}</div>
+            </div>
+          )}
+
+          {/* Previous record, for comparison */}
+          <div className="p-2 mb-3" style={{ background: '#f8f9fa', borderRadius: 8, fontSize: 13 }}>
+            <div className="fw-semibold mb-1"><i className="bi bi-clock-history me-1"></i>Previous Record</div>
+            {approvePreviousLoading ? (
+              <span className="text-muted">Loading…</span>
+            ) : approvePreviousAttendance && approvePreviousAttendance.existed !== false ? (
+              <div>
+                Punch In: <strong>{fmtTime(approvePreviousAttendance.checkInTime)}</strong> &nbsp;|&nbsp;
+                Punch Out: <strong>{fmtTime(approvePreviousAttendance.checkOutTime)}</strong> &nbsp;|&nbsp;
+                Status: <strong style={{ textTransform: 'capitalize' }}>{approvePreviousAttendance.status || '—'}</strong>
+              </div>
+            ) : (
+              <span className="text-muted">No existing attendance record for this date.</span>
+            )}
+          </div>
+
+          <Form>
+            <div className="row">
+              <div className="col-6">
+                <Form.Group className="mb-3">
+                  <Form.Label className="fw-semibold small">Punch In</Form.Label>
+                  <Form.Control
+                    type="time"
+                    value={approveCheckIn}
+                    onChange={(e) => setApproveCheckIn(e.target.value)}
+                    disabled={regActionLoading}
+                  />
+                </Form.Group>
+              </div>
+              <div className="col-6">
+                <Form.Group className="mb-3">
+                  <Form.Label className="fw-semibold small">Punch Out</Form.Label>
+                  <Form.Control
+                    type="time"
+                    value={approveCheckOut}
+                    onChange={(e) => setApproveCheckOut(e.target.value)}
+                    disabled={regActionLoading}
+                  />
+                </Form.Group>
+              </div>
+            </div>
+
+            <Form.Group className="mb-3">
+              <Form.Label className="fw-semibold small">Status</Form.Label>
+              <Form.Select
+                value={approveStatus}
+                onChange={(e) => setApproveStatus(e.target.value)}
+                disabled={regActionLoading}
+              >
+                <option value="present">Present</option>
+                <option value="late">Late</option>
+                <option value="half-day">Half Day</option>
+                <option value="short-leave">Short Leave</option>
+                <option value="absent">Absent</option>
+              </Form.Select>
+            </Form.Group>
+
+            <div className="p-2 text-center" style={{ background: '#e8f5e9', borderRadius: 8 }}>
+              <small className="text-muted d-block">Calculated Working Hours</small>
+              <strong style={{ fontSize: 18, color: '#2e7d32' }}>
+                {calcWorkingHoursPreview(approveCheckIn, approveCheckOut) !== null
+                  ? `${calcWorkingHoursPreview(approveCheckIn, approveCheckOut)} hrs`
+                  : '—'}
+              </strong>
+              {calcWorkingHoursPreview(approveCheckIn, approveCheckOut) === null && (
+                <div className="small text-danger mt-1">Punch-out must be after punch-in</div>
+              )}
+            </div>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0 flex-column gap-2">
+          <Button
+            className="w-100 rounded-pill fw-semibold"
+            style={{ background: 'linear-gradient(135deg, #28a745, #1e7e34)', border: 'none', color: '#fff' }}
+            disabled={regActionLoading || calcWorkingHoursPreview(approveCheckIn, approveCheckOut) === null}
+            onClick={handleConfirmApprove}
+          >
+            {regActionLoading
+              ? <><span className="spinner-border spinner-border-sm me-2"></span>Approving...</>
+              : <><i className="bi bi-check-lg me-2"></i>Confirm & Approve</>}
+          </Button>
+          <Button
+            variant="light"
+            className="w-100 rounded-pill fw-semibold"
+            onClick={() => setShowApproveModal(false)}
+            disabled={regActionLoading}
+          >
+            Cancel
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* ======================== */}
+      {/* REGULARIZATION HISTORY — old vs new (view only) */}
+      {/* ======================== */}
+      <Modal show={showRegHistoryModal} onHide={() => setShowRegHistoryModal(false)} centered>
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="fw-bold fs-5">
+            <i className="bi bi-pencil-square me-2 text-warning"></i>Regularization History
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="pt-3">
+          {regHistoryDetail ? (
+            <>
+              <div className="mb-3 small text-muted">
+                {formatDate(regHistoryDetail.date)} · Reason: {regHistoryDetail.reason}
+              </div>
+              <div className="row g-2">
+                <div className="col-6">
+                  <div className="p-2 h-100" style={{ background: '#fff3e0', borderRadius: 8, fontSize: 13 }}>
+                    <div className="fw-semibold mb-1">Before</div>
+                    {regHistoryDetail.previousAttendance && regHistoryDetail.previousAttendance.existed ? (
+                      <>
+                        <div>In: <strong>{fmtTime(regHistoryDetail.previousAttendance.checkInTime)}</strong></div>
+                        <div>Out: <strong>{fmtTime(regHistoryDetail.previousAttendance.checkOutTime)}</strong></div>
+                        <div>Status: <strong style={{ textTransform: 'capitalize' }}>{regHistoryDetail.previousAttendance.status || '—'}</strong></div>
+                      </>
+                    ) : (
+                      <span className="text-muted">No record existed</span>
+                    )}
+                  </div>
+                </div>
+                <div className="col-6">
+                  <div className="p-2 h-100" style={{ background: '#e8f5e9', borderRadius: 8, fontSize: 13 }}>
+                    <div className="fw-semibold mb-1">After (Regularized)</div>
+                    {regHistoryDetail.newAttendance ? (
+                      <>
+                        <div>In: <strong>{fmtTime(regHistoryDetail.newAttendance.checkInTime)}</strong></div>
+                        <div>Out: <strong>{fmtTime(regHistoryDetail.newAttendance.checkOutTime)}</strong></div>
+                        <div>Status: <strong style={{ textTransform: 'capitalize' }}>{regHistoryDetail.newAttendance.status || '—'}</strong></div>
+                      </>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="small text-muted mt-3">
+                Reviewed {regHistoryDetail.reviewedAt ? formatDate(regHistoryDetail.reviewedAt) : '—'}
+              </div>
+            </>
+          ) : (
+            <div className="text-center text-muted p-3">No regularization details found for this date.</div>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0">
+          <Button variant="light" className="w-100 rounded-pill fw-semibold" onClick={() => setShowRegHistoryModal(false)}>
+            Close
           </Button>
         </Modal.Footer>
       </Modal>
